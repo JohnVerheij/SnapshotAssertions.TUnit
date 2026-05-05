@@ -77,8 +77,6 @@ in pipelines.
 ## Pair with
 
 - **[`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/)** — fluent log assertions over `FakeLogCollector`. Use `MatchesSnapshot()` to pin the rendered output of `LogAssertions`'s `LogAssertionRendering`.
-- **`HttpAssertions.TUnit`** — fluent assertions on `HttpResponseMessage` and `HttpRequestMessage`. Use `MatchesSnapshot()` to pin failure-message rendering or response-body output. (Coming soon.)
-- **`TimeAssertions.TUnit`** — adds `.Within(TimeSpan)` timing budgets to any TUnit assertion. (Coming soon.)
 
 ## License
 
