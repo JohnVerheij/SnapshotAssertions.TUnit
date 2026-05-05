@@ -127,7 +127,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.report != ''
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ${{ steps.coverage.outputs.report }}
           fail_ci_if_error: false
