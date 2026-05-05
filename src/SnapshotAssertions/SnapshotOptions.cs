@@ -6,10 +6,14 @@ namespace SnapshotAssertions;
 /// explicitly via the convenience presets or by mutating the properties directly.
 /// </summary>
 /// <remarks>
-/// The default options preserve the captured artefact byte-for-byte. Cross-platform false
-/// positives (LF vs CRLF, BOM presence) are real but should be opted into via
-/// <see cref="NormalizedLineEndings"/> rather than silently normalized away. This matches
-/// the family-wide convention of explicit <c>StringComparison</c> on string-matching APIs.
+/// The default options preserve the captured artefact as-is, with one minor exception: a
+/// leading UTF-8 BOM is stripped from both sides before comparison
+/// (<see cref="BomHandling"/> defaults to <see cref="SnapshotBomHandling.StripBom"/>). All
+/// other content — line endings, per-line trailing whitespace, end-of-file trailing-newline
+/// state — is preserved. Cross-platform false positives (LF vs CRLF) are real but should be
+/// opted into via <see cref="NormalizedLineEndings"/> rather than silently normalized away.
+/// This matches the family-wide convention of explicit <c>StringComparison</c> on
+/// string-matching APIs.
 /// </remarks>
 public sealed record SnapshotOptions
 {

@@ -39,12 +39,21 @@ public static class SnapshotFileResolver
     /// component on the host platform; path separators are rejected.</param>
     /// <returns>The expected and actual paths.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="snapshotName"/> contains a path
-    /// separator or is empty / whitespace.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or
+    /// <paramref name="snapshotName"/> contains a path separator or is empty / whitespace.
+    /// </exception>
     public static SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName)
     {
         ArgumentNullException.ThrowIfNull(snapshotsDirectory);
         ArgumentNullException.ThrowIfNull(snapshotName);
+
+        // Reject empty/whitespace directory explicitly. Without this, Path.Combine("", name)
+        // returns just `name`, and Path.GetFullPath then resolves it against the process
+        // working directory — which is almost never what the caller intended and produces
+        // mysterious file-not-found behavior far from the call site.
+        if (string.IsNullOrWhiteSpace(snapshotsDirectory))
+            throw new ArgumentException("Snapshots directory must be non-empty.", nameof(snapshotsDirectory));
 
         if (string.IsNullOrWhiteSpace(snapshotName))
             throw new ArgumentException("Snapshot name must be non-empty.", nameof(snapshotName));
@@ -119,7 +128,7 @@ public static class SnapshotFileResolver
         {
             if (i > 0)
                 sb.Append('|');
-            sb.Append(args[i] is null ? "null" : args[i]!.ToString());
+            sb.Append(StringifyArg(args[i]));
         }
 
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
@@ -128,6 +137,21 @@ public static class SnapshotFileResolver
         // 32-bit-equivalent space (~4 billion) is more than enough for typical parameterized
         // test argument sets.
         return Convert.ToHexString(hash, 0, 4);
+    }
+
+    private static string StringifyArg(object? arg)
+    {
+        if (arg is null)
+            return "null";
+
+        // Format with InvariantCulture for IFormattable types (DateTime, decimal, double,
+        // numeric types, TimeSpan, etc.). Without this, the same arguments produce different
+        // hashes on machines with different current cultures (e.g., decimal "1.5" on en-US
+        // vs "1,5" on nl-NL), breaking baseline portability across developer machines and CI.
+        if (arg is IFormattable formattable)
+            return formattable.ToString(format: null, formatProvider: CultureInfo.InvariantCulture);
+
+        return arg.ToString() ?? string.Empty;
     }
 
     /// <summary>

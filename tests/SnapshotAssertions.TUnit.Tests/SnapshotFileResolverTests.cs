@@ -84,6 +84,18 @@ internal sealed class SnapshotFileResolverTests
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("/tmp", "   "));
     }
 
+    /// <summary>Empty / whitespace snapshots-directory throws. Without this check, an empty
+    /// directory string would Path.Combine into the bare snapshot name and Path.GetFullPath
+    /// would resolve it against the process working directory — almost never what the
+    /// caller intended.</summary>
+    [Test]
+    public void ResolveByName_EmptyDirectory_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName(string.Empty, "MyName"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("   ", "MyName"));
+    }
+
     /// <summary>GetDefaultSnapshotsDirectory appends the conventional <c>Snapshots</c>
     /// folder to the supplied base directory.</summary>
     [Test]

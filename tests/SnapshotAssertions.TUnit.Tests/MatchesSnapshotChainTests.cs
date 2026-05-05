@@ -146,6 +146,34 @@ internal sealed class MatchesSnapshotChainTests
         await Assert.That(pathsWithEmpty.ExpectedFilePath).IsEqualTo(pathsWithNull.ExpectedFilePath);
     }
 
+    /// <summary>The args-hash is culture-invariant: <see cref="IFormattable"/> arguments
+    /// (DateTime, decimal, etc.) are stringified with <see cref="System.Globalization.CultureInfo.InvariantCulture"/>
+    /// before hashing, so the same logical arguments produce the same hash on machines
+    /// with different current cultures (e.g., en-US "1.5" vs nl-NL "1,5").</summary>
+    [Test]
+    public async Task ResolveByTest_IFormattableArgs_HashIsCultureInvariant(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var dir = CreateTempDirectory();
+        var args = new object?[] { 1.5m, new System.DateTime(2026, 5, 5, 12, 0, 0, System.DateTimeKind.Utc) };
+
+        var originalCulture = Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
+            var pathsEnUs = SnapshotFileResolver.ResolveByTest(dir, "C", "M", args);
+
+            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("nl-NL");
+            var pathsNlNl = SnapshotFileResolver.ResolveByTest(dir, "C", "M", args);
+
+            await Assert.That(pathsEnUs.ExpectedFilePath).IsEqualTo(pathsNlNl.ExpectedFilePath);
+        }
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = originalCulture;
+        }
+    }
+
     private static async Task WithExpectedFileAsync(
         string snapshotName,
         string expectedContent,
