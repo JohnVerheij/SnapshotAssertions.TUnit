@@ -3,10 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.Tests;
+namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
-/// Pins the option-driven normalisation logic in <see cref="SnapshotComparer"/>: line-ending
+/// Pins the option-driven normalization logic in <see cref="SnapshotComparer"/>: line-ending
 /// modes, BOM handling, trailing-whitespace policy, trailing-newline policy.
 /// </summary>
 [Category("Smoke")]

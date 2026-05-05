@@ -30,7 +30,7 @@ public static class SnapshotEvaluator
     /// <param name="acceptModeOverride">Optional override for accept-mode detection. When
     /// <see langword="null"/> (the default), the live environment is consulted via
     /// <see cref="SnapshotAcceptMode.IsActive()"/>. Tests pass an explicit value to keep their
-    /// behaviour independent of the host environment.</param>
+    /// behavior independent of the host environment.</param>
     /// <param name="cancellationToken">Cancellation token propagated to the underlying file IO.</param>
     /// <returns>The comparison outcome.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
@@ -44,13 +44,26 @@ public static class SnapshotEvaluator
         ArgumentNullException.ThrowIfNull(actualContent);
         ArgumentNullException.ThrowIfNull(options);
 
+        // SnapshotPaths is a struct so cannot itself be null, but its string fields can if a
+        // caller constructed it directly with null. Validate them so the contract documented
+        // on the method (ArgumentNullException for null inputs) holds end-to-end rather than
+        // surfacing as a NullReferenceException from File.WriteAllTextAsync downstream.
+        if (paths.ExpectedFilePath is null)
+            throw new ArgumentNullException(nameof(paths), "paths.ExpectedFilePath must not be null.");
+        if (paths.ActualFilePath is null)
+            throw new ArgumentNullException(nameof(paths), "paths.ActualFilePath must not be null.");
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var expectedPath = paths.ExpectedFilePath;
         var actualPath = paths.ActualFilePath;
         var acceptMode = acceptModeOverride ?? SnapshotAcceptMode.IsActive();
 
+        // Ensure both directories exist. The expected and actual paths usually share a parent
+        // directory (default file resolver puts both under Snapshots/), but ResolveByFile lets
+        // a caller supply an explicit expected path whose actual sibling may live elsewhere.
         EnsureDirectoryExists(expectedPath);
+        EnsureDirectoryExists(actualPath);
 
         if (!File.Exists(expectedPath))
         {
@@ -82,9 +95,9 @@ public static class SnapshotEvaluator
 
         await File.WriteAllTextAsync(actualPath, actualContent, cancellationToken).ConfigureAwait(false);
 
-        var normalisedExpected = SnapshotComparer.Normalise(expectedContent, options);
-        var normalisedActual = SnapshotComparer.Normalise(actualContent, options);
-        var diff = LineDiffRenderer.Render(normalisedExpected, normalisedActual);
+        var normalizedExpected = SnapshotComparer.Normalize(expectedContent, options);
+        var normalizedActual = SnapshotComparer.Normalize(actualContent, options);
+        var diff = LineDiffRenderer.Render(normalizedExpected, normalizedActual);
 
         return SnapshotResult.Mismatched(expectedPath, actualPath, diff);
     }

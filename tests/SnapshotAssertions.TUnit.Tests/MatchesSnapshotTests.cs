@@ -40,18 +40,24 @@ internal sealed class MatchesSnapshotTests
         await Assert.That("world\n").MatchesSnapshot().AtPath(expected);
     }
 
-    /// <summary>Mismatched content: assertion fails with a message that includes both file
-    /// paths.</summary>
+    /// <summary>Mismatched content: assertion fails, writes the actual file, and the failure
+    /// message includes both the expected and actual file paths plus the rendered diff so
+    /// the developer can locate and resolve the mismatch from the test log alone.</summary>
     [Test]
-    public async Task MismatchedContent_FailsWithBothPaths(CancellationToken cancellationToken)
+    public async Task MismatchedContent_FailsWithBothPathsAndDiffInMessage(CancellationToken cancellationToken)
     {
         var dir = CreateTempDirectory();
         var expected = Path.Combine(dir, "diff.expected.txt");
         var actual = Path.Combine(dir, "diff.actual.txt");
         await File.WriteAllTextAsync(expected, "hello\n", cancellationToken).ConfigureAwait(false);
 
-        await Assert.That(async () => await Assert.That("world\n").MatchesSnapshotFile(expected))
+        var exception = await Assert.That(async () => await Assert.That("world\n").MatchesSnapshotFile(expected))
             .Throws<AssertionException>();
+
+        await Assert.That(exception!.Message).Contains(expected);
+        await Assert.That(exception.Message).Contains(actual);
+        await Assert.That(exception.Message).Contains("hello");
+        await Assert.That(exception.Message).Contains("world");
 
         await Assert.That(File.Exists(actual)).IsTrue();
         var actualContent = await File.ReadAllTextAsync(actual, cancellationToken).ConfigureAwait(false);

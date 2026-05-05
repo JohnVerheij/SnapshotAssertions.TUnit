@@ -4,10 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.Tests;
+namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
-/// Pins the line-by-line diff renderer's prefix conventions and truncation behaviour.
+/// Pins the line-by-line diff renderer's prefix conventions and truncation behavior.
 /// </summary>
 [Category("Smoke")]
 [Timeout(5_000)]

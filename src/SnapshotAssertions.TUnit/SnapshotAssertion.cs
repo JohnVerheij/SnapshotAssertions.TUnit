@@ -91,16 +91,13 @@ public sealed class SnapshotAssertion : Assertion<string>
         if (content is null)
             return AssertionResult.Failed("actual content was null");
 
-        SnapshotPaths paths;
-        try
-        {
-            paths = ResolvePaths();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return AssertionResult.Failed(ex.Message);
-        }
-
+        // ResolvePaths intentionally lets InvalidOperationException (no test context) propagate
+        // to the test runner rather than downgrading it to AssertionResult.Failed. The misuse
+        // signal — "you called MatchesSnapshot() with no name or explicit path outside an
+        // active TUnit test method" — is more useful as a raw exception that surfaces at the
+        // call site than as a generic failed assertion message. Likewise, IO failures
+        // (filesystem permissions, disk full, etc.) propagate from EvaluateAsync.
+        var paths = ResolvePaths();
         var result = await SnapshotEvaluator.EvaluateAsync(content, paths, _options).ConfigureAwait(false);
         return result.IsPass
             ? AssertionResult.Passed
@@ -130,6 +127,10 @@ public sealed class SnapshotAssertion : Assertion<string>
         var details = testContext.Metadata.TestDetails;
         var className = details.ClassType.Name;
         var methodName = details.MethodName;
-        return SnapshotFileResolver.ResolveByTest(directory, className, methodName);
+        // Pass through the test-method arguments so parameterized tests get distinct
+        // snapshot files per argument set. SnapshotFileResolver.ResolveByTest computes a
+        // stable hash and appends it to the file name when arguments are present.
+        var args = details.TestMethodArguments;
+        return SnapshotFileResolver.ResolveByTest(directory, className, methodName, args);
     }
 }

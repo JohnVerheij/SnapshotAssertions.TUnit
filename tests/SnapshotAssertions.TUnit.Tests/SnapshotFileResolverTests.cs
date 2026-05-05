@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.Tests;
+namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
 /// Pins the path-construction logic in <see cref="SnapshotFileResolver"/>. Resolves are pure

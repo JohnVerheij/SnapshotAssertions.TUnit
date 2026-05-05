@@ -4,10 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.Tests;
+namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
-/// Pins the IO-orchestration behaviour of <see cref="SnapshotEvaluator"/>: matched, mismatched,
+/// Pins the IO-orchestration behavior of <see cref="SnapshotEvaluator"/>: matched, mismatched,
 /// no-baseline, and accept-mode flows. Each test uses a fresh temp directory so runs do not
 /// interfere with each other.
 /// </summary>

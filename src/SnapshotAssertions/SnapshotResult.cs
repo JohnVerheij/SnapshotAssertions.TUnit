@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 namespace SnapshotAssertions;
@@ -46,31 +47,50 @@ public sealed record SnapshotResult
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.Matched"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to the matching expected file.</param>
     /// <returns>A passing result.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
     public static SnapshotResult Matched(string expectedFilePath)
-        => new(SnapshotMatchOutcome.Matched, expectedFilePath, actualFilePath: null, diff: null);
+    {
+        ArgumentNullException.ThrowIfNull(expectedFilePath);
+        return new SnapshotResult(SnapshotMatchOutcome.Matched, expectedFilePath, actualFilePath: null, diff: null);
+    }
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.Mismatched"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to the expected file.</param>
     /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file.</param>
     /// <param name="diff">Rendered line-based diff for failure-message display.</param>
     /// <returns>A failing result describing the mismatch.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotResult Mismatched(string expectedFilePath, string actualFilePath, string diff)
-        => new(SnapshotMatchOutcome.Mismatched, expectedFilePath, actualFilePath, diff);
+    {
+        ArgumentNullException.ThrowIfNull(expectedFilePath);
+        ArgumentNullException.ThrowIfNull(actualFilePath);
+        ArgumentNullException.ThrowIfNull(diff);
+        return new SnapshotResult(SnapshotMatchOutcome.Mismatched, expectedFilePath, actualFilePath, diff);
+    }
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.NoBaseline"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to where the expected file would be.</param>
     /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file the
     /// caller can inspect and rename to <c>.expected.txt</c> to accept.</param>
     /// <returns>A failing result describing the missing baseline.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotResult NoBaseline(string expectedFilePath, string actualFilePath)
-        => new(SnapshotMatchOutcome.NoBaseline, expectedFilePath, actualFilePath, diff: null);
+    {
+        ArgumentNullException.ThrowIfNull(expectedFilePath);
+        ArgumentNullException.ThrowIfNull(actualFilePath);
+        return new SnapshotResult(SnapshotMatchOutcome.NoBaseline, expectedFilePath, actualFilePath, diff: null);
+    }
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.Accepted"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to the now-overwritten expected file.</param>
     /// <returns>A passing result indicating the actual content was written over the baseline
     /// (accept-mode).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
     public static SnapshotResult Accepted(string expectedFilePath)
-        => new(SnapshotMatchOutcome.Accepted, expectedFilePath, actualFilePath: null, diff: null);
+    {
+        ArgumentNullException.ThrowIfNull(expectedFilePath);
+        return new SnapshotResult(SnapshotMatchOutcome.Accepted, expectedFilePath, actualFilePath: null, diff: null);
+    }
 
     /// <summary>Renders a multi-line description of the result for use in assertion failure
     /// messages and diagnostic output. Includes the expected path, the actual path (when

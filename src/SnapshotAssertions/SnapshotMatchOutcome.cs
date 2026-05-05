@@ -4,7 +4,7 @@ namespace SnapshotAssertions;
 public enum SnapshotMatchOutcome
 {
     /// <summary>Actual content matched the expected baseline byte-for-byte (after applicable
-    /// option-driven normalisation).</summary>
+    /// option-driven normalization).</summary>
     Matched,
 
     /// <summary>Actual content did not match the expected baseline. Diff and paths are available

@@ -52,6 +52,7 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
     <PackageReference Include="TUnit.Assertions" />
@@ -62,6 +63,12 @@
     <!-- Framework-agnostic core lives in the SnapshotAssertions package. The ProjectReference
          is rewritten to a PackageReference on SnapshotAssertions at pack time. -->
     <ProjectReference Include="../SnapshotAssertions/SnapshotAssertions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Codifies the no-reflection convention as a build-time error. See SnapshotAssertions.csproj
+         comment for the full rationale; the file is shared across both src projects. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
   </ItemGroup>
 
   <ItemGroup>

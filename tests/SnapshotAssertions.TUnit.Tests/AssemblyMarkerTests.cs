@@ -6,7 +6,7 @@ namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
 /// Pins that the SnapshotAssertions.TUnit assembly loads cleanly and that the
-/// <see cref="SnapshotAssertion"/> public type is reachable. Most adapter behaviour is
+/// <see cref="SnapshotAssertion"/> public type is reachable. Most adapter behavior is
 /// exercised in <see cref="MatchesSnapshotTests"/>; this file is a basic load-time check.
 /// </summary>
 [Category("Smoke")]

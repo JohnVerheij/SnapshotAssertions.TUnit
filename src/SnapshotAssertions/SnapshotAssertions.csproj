@@ -56,8 +56,17 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Codifies the no-reflection convention from CONVENTIONS.md as a build-time error.
+         RS0030 fires if any banned API is referenced from production code; combined with
+         TreatWarningsAsErrors=true the build fails. Test projects do not reference this file
+         so PublicApiGenerator and similar reflection-using helpers stay usable in tests. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
   </ItemGroup>
 
   <ItemGroup>

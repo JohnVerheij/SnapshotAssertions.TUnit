@@ -1,14 +1,14 @@
 namespace SnapshotAssertions;
 
 /// <summary>
-/// Configuration for snapshot comparison: line-ending handling, BOM behaviour, trailing
-/// whitespace, and trailing-newline policy. Strict by default; opt into normalisation
+/// Configuration for snapshot comparison: line-ending handling, BOM behavior, trailing
+/// whitespace, and trailing-newline policy. Strict by default; opt into normalization
 /// explicitly via the convenience presets or by mutating the properties directly.
 /// </summary>
 /// <remarks>
 /// The default options preserve the captured artefact byte-for-byte. Cross-platform false
 /// positives (LF vs CRLF, BOM presence) are real but should be opted into via
-/// <see cref="NormalizedLineEndings"/> rather than silently normalised away. This matches
+/// <see cref="NormalizedLineEndings"/> rather than silently normalized away. This matches
 /// the family-wide convention of explicit <c>StringComparison</c> on string-matching APIs.
 /// </remarks>
 public sealed record SnapshotOptions
@@ -20,17 +20,23 @@ public sealed record SnapshotOptions
     public static SnapshotOptions Default { get; } = new();
 
     /// <summary>
-    /// Convenience preset for cross-platform tests that should treat LF/CRLF differences as
-    /// non-meaningful. All other strict-default behaviours are retained.
+    /// Convenience preset for cross-platform tests that should treat all line-ending
+    /// differences as non-meaningful, including the presence or absence of a trailing
+    /// newline at end-of-file. Sets <see cref="LineEndingMode"/> to
+    /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> (line breaks stripped) and
+    /// <see cref="TrailingNewline"/> to <see cref="SnapshotTrailingNewline.Optional"/>
+    /// (presence vs absence is unobservable). BOM and per-line trailing-whitespace handling
+    /// remain at their strict defaults.
     /// </summary>
     public static SnapshotOptions NormalizedLineEndings { get; } = new()
     {
         LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+        TrailingNewline = SnapshotTrailingNewline.Optional,
     };
 
     /// <summary>How line-ending differences between the actual content and the expected
     /// baseline are handled. Defaults to <see cref="SnapshotLineEndingMode.Ordinal"/>
-    /// (no normalisation).</summary>
+    /// (no normalization).</summary>
     public SnapshotLineEndingMode LineEndingMode { get; init; } = SnapshotLineEndingMode.Ordinal;
 
     /// <summary>How a leading byte-order-mark in either file is handled. Defaults to

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace SnapshotAssertions;
 
@@ -42,54 +43,65 @@ public static class LineDiffRenderer
         var actualLines = SplitLines(actual);
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var differingEmitted = 0;
-        var truncated = false;
-        var totalDiffering = 0;
+        var state = new DiffState();
 
         var max = Math.Max(expectedLines.Length, actualLines.Length);
         for (var i = 0; i < max; i++)
-        {
-            var hasExpected = i < expectedLines.Length;
-            var hasActual = i < actualLines.Length;
+            EmitLine(writer, expectedLines, actualLines, i, ref state);
 
-            if (hasExpected && hasActual && string.Equals(expectedLines[i], actualLines[i], StringComparison.Ordinal))
-            {
-                if (!truncated)
-                    WriteLine(writer, ' ', expectedLines[i]);
-                continue;
-            }
-
-            totalDiffering += hasExpected ? 1 : 0;
-            totalDiffering += hasActual ? 1 : 0;
-
-            if (truncated)
-                continue;
-
-            if (hasExpected)
-            {
-                WriteLine(writer, '-', expectedLines[i]);
-                differingEmitted++;
-            }
-            if (hasActual)
-            {
-                WriteLine(writer, '+', actualLines[i]);
-                differingEmitted++;
-            }
-
-            if (differingEmitted >= MaxDifferingLines)
-                truncated = true;
-        }
-
-        if (truncated)
-        {
-            writer.Write("... (truncated; ");
-            writer.Write(totalDiffering.ToString(CultureInfo.InvariantCulture));
-            writer.Write(" differing line(s) in total, showing first ");
-            writer.Write(MaxDifferingLines.ToString(CultureInfo.InvariantCulture));
-            writer.WriteLine(")");
-        }
+        if (state.Truncated)
+            EmitTruncationFooter(writer, state.TotalDiffering);
 
         return writer.ToString();
+    }
+
+    private static void EmitLine(TextWriter writer, string[] expectedLines, string[] actualLines, int i, ref DiffState state)
+    {
+        var hasExpected = i < expectedLines.Length;
+        var hasActual = i < actualLines.Length;
+
+        if (hasExpected && hasActual && string.Equals(expectedLines[i], actualLines[i], StringComparison.Ordinal))
+        {
+            if (!state.Truncated)
+                WriteLine(writer, ' ', expectedLines[i]);
+            return;
+        }
+
+        state.TotalDiffering += hasExpected ? 1 : 0;
+        state.TotalDiffering += hasActual ? 1 : 0;
+
+        if (state.Truncated)
+            return;
+
+        // Check before each write so a replacement-style diff (one '-' line followed by one
+        // '+' line on the same position) cannot exceed MaxDifferingLines by emitting both
+        // lines after the cap. The post-write toggle the previous implementation used could
+        // emit MaxDifferingLines + 1 lines.
+        if (hasExpected && !TryEmitDifferingLine(writer, '-', expectedLines[i], ref state))
+            return;
+        if (hasActual)
+            TryEmitDifferingLine(writer, '+', actualLines[i], ref state);
+    }
+
+    private static bool TryEmitDifferingLine(TextWriter writer, char prefix, string content, ref DiffState state)
+    {
+        if (state.DifferingEmitted >= MaxDifferingLines)
+        {
+            state.Truncated = true;
+            return false;
+        }
+        WriteLine(writer, prefix, content);
+        state.DifferingEmitted++;
+        return true;
+    }
+
+    private static void EmitTruncationFooter(TextWriter writer, int totalDiffering)
+    {
+        writer.Write("... (truncated; ");
+        writer.Write(totalDiffering.ToString(CultureInfo.InvariantCulture));
+        writer.Write(" differing line(s) in total, showing first ");
+        writer.Write(MaxDifferingLines.ToString(CultureInfo.InvariantCulture));
+        writer.WriteLine(")");
     }
 
     private static void WriteLine(TextWriter writer, char prefix, string content)
@@ -100,4 +112,12 @@ public static class LineDiffRenderer
 
     private static string[] SplitLines(string content)
         => content.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
+
+    [StructLayout(LayoutKind.Auto)]
+    private struct DiffState
+    {
+        public int DifferingEmitted;
+        public int TotalDiffering;
+        public bool Truncated;
+    }
 }

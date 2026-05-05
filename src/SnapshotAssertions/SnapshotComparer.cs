@@ -5,7 +5,7 @@ namespace SnapshotAssertions;
 
 /// <summary>
 /// Pure string-against-string comparison with <see cref="SnapshotOptions"/>-driven
-/// normalisation (line endings, BOM, trailing whitespace, trailing newline). Stateless and
+/// normalization (line endings, BOM, trailing whitespace, trailing newline). Stateless and
 /// allocation-friendly; the heavy work of computing a per-line diff is deferred to
 /// <see cref="LineDiffRenderer"/> on mismatch.
 /// </summary>
@@ -16,7 +16,7 @@ public static class SnapshotComparer
     /// <summary>
     /// Compares <paramref name="actual"/> against <paramref name="expected"/> under
     /// <paramref name="options"/>. Returns <see langword="true"/> if the two are considered
-    /// equal under the option-driven normalisation rules; otherwise <see langword="false"/>.
+    /// equal under the option-driven normalization rules; otherwise <see langword="false"/>.
     /// </summary>
     /// <param name="actual">The actual content produced by the test.</param>
     /// <param name="expected">The expected baseline content.</param>
@@ -30,29 +30,29 @@ public static class SnapshotComparer
         ArgumentNullException.ThrowIfNull(expected);
         ArgumentNullException.ThrowIfNull(options);
 
-        var normalisedActual = Normalise(actual, options);
-        var normalisedExpected = Normalise(expected, options);
-        return string.Equals(normalisedActual, normalisedExpected, StringComparison.Ordinal);
+        var normalizedActual = Normalize(actual, options);
+        var normalizedExpected = Normalize(expected, options);
+        return string.Equals(normalizedActual, normalizedExpected, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// Applies the option-driven normalisation to <paramref name="content"/> and returns the
-    /// result. Exposed for diff rendering, which needs to render the same normalised form
+    /// Applies the option-driven normalization to <paramref name="content"/> and returns the
+    /// result. Exposed for diff rendering, which needs to render the same normalized form
     /// the equality check used.
     /// </summary>
-    /// <param name="content">The content to normalise.</param>
+    /// <param name="content">The content to normalize.</param>
     /// <param name="options">The options to apply.</param>
-    /// <returns>The normalised content.</returns>
+    /// <returns>The normalized content.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
-    public static string Normalise(string content, SnapshotOptions options)
+    public static string Normalize(string content, SnapshotOptions options)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(options);
 
         var work = StripBomIfRequested(content, options);
 
-        if (NeedsLineByLineNormalisation(options))
-            work = NormaliseLineByLine(work, options);
+        if (NeedsLineByLineNormalization(options))
+            work = NormalizeLineByLine(work, options);
 
         return work;
     }
@@ -64,12 +64,12 @@ public static class SnapshotComparer
         return content;
     }
 
-    private static bool NeedsLineByLineNormalisation(SnapshotOptions options)
+    private static bool NeedsLineByLineNormalization(SnapshotOptions options)
         => options.LineEndingMode != SnapshotLineEndingMode.Ordinal
             || options.TrailingWhitespace == SnapshotTrailingWhitespace.TrimTrailingPerLine
             || options.TrailingNewline != SnapshotTrailingNewline.Required;
 
-    private static string NormaliseLineByLine(string content, SnapshotOptions options)
+    private static string NormalizeLineByLine(string content, SnapshotOptions options)
     {
         var hasTrailingNewline = content.Length > 0
             && (content[^1] == '\n' || content[^1] == '\r');
@@ -112,14 +112,26 @@ public static class SnapshotComparer
         {
             case SnapshotTrailingNewline.Required:
                 // Preserve the trailing-newline state of the input. If actual lacks a trailing
-                // newline but expected has one (or vice versa), the normalised forms differ
+                // newline but expected has one (or vice versa), the normalized forms differ
                 // and the comparison correctly reports a mismatch.
-                if (inputHadTrailingNewline && separator.Length > 0 && lineCount > 0)
-                    return joined + separator;
+                //
+                // Special case: under SnapshotLineEndingMode.IgnoreLineEndings the separator
+                // is empty, so the natural append-separator path produces no trailing marker.
+                // To preserve the Required semantics in that mode, append a stable LF marker
+                // when the input had a trailing newline. Both sides go through this same path,
+                // so an LF appended on both sides cancels out on equal inputs and creates a
+                // visible difference between "foo" and "foo\n".
+                if (inputHadTrailingNewline)
+                {
+                    if (separator.Length > 0 && lineCount > 0)
+                        return joined + separator;
+                    if (separator.Length == 0)
+                        return joined + "\n";
+                }
                 return joined;
             case SnapshotTrailingNewline.Optional:
             case SnapshotTrailingNewline.Forbidden:
-                // Both sides normalised to no trailing newline; presence vs absence is
+                // Both sides normalized to no trailing newline; presence vs absence is
                 // unobservable to the comparison.
                 return joined;
             default:

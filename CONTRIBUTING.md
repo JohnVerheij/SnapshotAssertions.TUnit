@@ -4,7 +4,7 @@ Thanks for considering a contribution. This document covers the small set of con
 
 ## Reporting bugs
 
-Use the [bug report template](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/issues/new?template=bug_report.yml). The template asks for the SnapshotAssertions.TUnit version, TUnit version, .NET SDK version, OS, expected vs actual behaviour, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
+Use the [bug report template](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/issues/new?template=bug_report.yml). The template asks for the SnapshotAssertions.TUnit version, TUnit version, .NET SDK version, OS, expected vs actual behavior, and a minimal reproduction. The smaller and more self-contained the repro, the faster the fix.
 
 ## Proposing features
 
@@ -29,7 +29,7 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 - **XML documentation:** required on every public type, member, and parameter.
 - **Argument validation:** public methods that take reference-type arguments use `ArgumentNullException.ThrowIfNull(...)` at the top of the body. Methods taking numeric arguments validate ranges with `ArgumentOutOfRangeException.ThrowIfNegative(...)` (or similar).
 - **Spelling:** American English in code, identifiers, and prose. (TUnit upstream uses British; this project does not. Don't take this as a stylistic preference, just a project rule.)
-- **Globalisation:** explicit `CultureInfo.InvariantCulture` on all `string.Format`, numeric `ToString`, and similar calls. Meziantou.Analyzer enforces this via MA0011.
+- **Globalization:** explicit `CultureInfo.InvariantCulture` on all `string.Format`, numeric `ToString`, and similar calls. Meziantou.Analyzer enforces this via MA0011.
 - **String comparison:** explicit `StringComparison.Ordinal` (or `OrdinalIgnoreCase` where appropriate). Meziantou.Analyzer enforces this via MA0006.
 - **No reflection:** the package does not use runtime reflection. Adding any usage of `MethodBase.Invoke`, `PropertyInfo.GetValue/SetValue`, `Activator.CreateInstance(Type)`, or `Type.GetMethod`/`Type.GetProperty` requires explicit justification in PR review.
 

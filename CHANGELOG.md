@@ -16,7 +16,7 @@ runtime reflection.
 ### Added (SnapshotAssertions, framework-agnostic core)
 
 - **`SnapshotComparer`** — pure string-against-string comparison with option-driven
-  normalisation (line endings, BOM, trailing whitespace, trailing newline). Stateless;
+  normalization (line endings, BOM, trailing whitespace, trailing newline). Stateless;
   callable from any test framework.
 - **`SnapshotOptions`** (sealed record) plus four enum types (`SnapshotLineEndingMode`,
   `SnapshotBomHandling`, `SnapshotTrailingWhitespace`, `SnapshotTrailingNewline`) for

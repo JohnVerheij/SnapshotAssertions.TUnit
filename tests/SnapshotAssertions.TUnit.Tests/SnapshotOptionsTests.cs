@@ -2,10 +2,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.Tests;
+namespace SnapshotAssertions.TUnit.Tests;
 
 /// <summary>
-/// Pins the strict-default behaviour of <see cref="SnapshotOptions"/> and the
+/// Pins the strict-default behavior of <see cref="SnapshotOptions"/> and the
 /// <see cref="SnapshotOptions.NormalizedLineEndings"/> preset. Both are part of the
 /// stable surface; tests fail if either drifts.
 /// </summary>
@@ -26,17 +26,21 @@ internal sealed class SnapshotOptionsTests
         await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Required);
     }
 
-    /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset relaxes only
-    /// the line-ending mode; every other property keeps the strict default.</summary>
+    /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset relaxes both
+    /// line-ending mode (line breaks stripped) and trailing-newline policy (presence vs
+    /// absence unobservable). BOM and per-line trailing-whitespace handling stay strict.
+    /// The two relaxations go together — under <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/>
+    /// the trailing newline is just another stripped line break, so any consumer reaching
+    /// for "ignore line endings" expects the trailing one to be ignored too.</summary>
     [Test]
-    public async Task NormalizedLineEndingsPresetRelaxesOnlyLineEndings(CancellationToken cancellationToken)
+    public async Task NormalizedLineEndingsPresetRelaxesLineEndingsAndTrailingNewline(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var options = SnapshotOptions.NormalizedLineEndings;
 
         await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.IgnoreLineEndings);
+        await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Optional);
         await Assert.That(options.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
         await Assert.That(options.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
-        await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Required);
     }
 }

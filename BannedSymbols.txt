@@ -1,0 +1,43 @@
+# BannedSymbols.txt for SnapshotAssertions and SnapshotAssertions.TUnit.
+#
+# Codifies the no-reflection convention from CONVENTIONS.md as a build-time error: any
+# attempt to add the listed APIs to the production code in src/ produces a Roslyn analyzer
+# diagnostic (RS0030) that fails the build via TreatWarningsAsErrors=true.
+#
+# This file is referenced from each src/<package>/<package>.csproj via
+# <AdditionalFiles Include="../../BannedSymbols.txt"/>. Test projects do not reference it,
+# so reflection-using helpers such as PublicApiGenerator continue to work in tests.
+#
+# Format: each line is one of
+#   T:Full.Type.Name; <reason>
+#   M:Full.Type.Name.MethodName(System.Type[,System.Type...]); <reason>
+#   P:Full.Type.Name.PropertyName; <reason>
+
+# Runtime method invocation
+M:System.Reflection.MethodBase.Invoke(System.Object,System.Object[]); reflection is banned in this project; use compile-time mechanisms instead
+M:System.Reflection.MethodBase.Invoke(System.Object,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo); reflection is banned in this project
+
+# Runtime property access
+M:System.Reflection.PropertyInfo.GetValue(System.Object); reflection is banned in this project
+M:System.Reflection.PropertyInfo.GetValue(System.Object,System.Object[]); reflection is banned in this project
+M:System.Reflection.PropertyInfo.SetValue(System.Object,System.Object); reflection is banned in this project
+M:System.Reflection.PropertyInfo.SetValue(System.Object,System.Object,System.Object[]); reflection is banned in this project
+
+# Runtime field access
+M:System.Reflection.FieldInfo.GetValue(System.Object); reflection is banned in this project
+M:System.Reflection.FieldInfo.SetValue(System.Object,System.Object); reflection is banned in this project
+
+# Runtime construction
+M:System.Activator.CreateInstance(System.Type); reflection is banned; use generic Activator.CreateInstance<T>() if construction is needed
+M:System.Activator.CreateInstance(System.Type,System.Object[]); reflection is banned in this project
+
+# Runtime type discovery
+M:System.Type.GetMethod(System.String); reflection is banned in this project
+M:System.Type.GetMethod(System.String,System.Type[]); reflection is banned in this project
+M:System.Type.GetProperty(System.String); reflection is banned in this project
+M:System.Type.GetProperty(System.String,System.Type); reflection is banned in this project
+M:System.Type.GetField(System.String); reflection is banned in this project
+
+# Dynamic code generation
+T:System.Reflection.Emit.AssemblyBuilder; runtime code generation is banned in this project
+T:System.Reflection.Emit.DynamicMethod; runtime code generation is banned in this project

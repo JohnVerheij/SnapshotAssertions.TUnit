@@ -67,16 +67,6 @@ jobs:
             --coverage-output coverage.cobertura.xml \
             --coverage-output-format=cobertura
 
-      - name: Test framework-agnostic core suite (no coverage)
-        # tests/SnapshotAssertions.Tests references ONLY the SnapshotAssertions core package, NOT
-        # SnapshotAssertions.TUnit. Catches accidental coupling: if a refactor made the core depend
-        # on TUnit, this project would fail to compile. Coverage of the core types is already
-        # captured in the main suite via the TUnit chain, so coverage is intentionally not
-        # collected here.
-        run: |
-          dotnet run --project tests/SnapshotAssertions.Tests/SnapshotAssertions.Tests.csproj \
-            --configuration Release --no-build
-
       - name: Locate coverage report
         id: coverage
         run: |
@@ -88,6 +78,20 @@ jobs:
             echo "report=$REPORT" >> "$GITHUB_OUTPUT"
             echo "Coverage report: $REPORT"
           fi
+
+      # Codecov upload runs BEFORE the threshold check so the coverage trend is visible
+      # in Codecov's UI even when the threshold gate fails the build. Without this ordering,
+      # a failing threshold short-circuits the upload (default `if: success()`) and the
+      # PR shows no Codecov data.
+      - name: Upload coverage to Codecov
+        if: steps.coverage.outputs.report != ''
+        uses: codecov/codecov-action@v6
+        with:
+          files: ${{ steps.coverage.outputs.report }}
+          fail_ci_if_error: false
+          verbose: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       # Hard gates: fail the build if line OR branch coverage drops below threshold.
       # The cobertura XML's top-level <coverage line-rate="X.XX" branch-rate="Y.YY"> is
@@ -124,16 +128,6 @@ jobs:
             FAILED=1
           fi
           [ "$FAILED" = "0" ]
-
-      - name: Upload coverage to Codecov
-        if: steps.coverage.outputs.report != ''
-        uses: codecov/codecov-action@v6
-        with:
-          files: ${{ steps.coverage.outputs.report }}
-          fail_ci_if_error: false
-          verbose: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Pack SnapshotAssertions (core)
         run: dotnet pack src/SnapshotAssertions/SnapshotAssertions.csproj --configuration Release --no-build --output ./artifacts
