@@ -9,8 +9,6 @@
 
 TUnit-native text-snapshot assertions. AOT-friendly, no reflection, designed for API-surface verification and small text snapshots. Coexists with [Verify](https://github.com/VerifyTests/Verify) (which remains the right choice for object-graph diffing).
 
-> **Status:** pre-release scaffold. The 0.1.0 public surface is in active implementation; CI is wired but the assertion DSL is not yet shipped. See [CHANGELOG.md](CHANGELOG.md) and the [SnapshotAssertions design plan](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/docs/design.md) (forthcoming) for the roadmap.
-
 ---
 
 ## Why this package
@@ -30,7 +28,7 @@ dotnet add package SnapshotAssertions.TUnit
 
 `SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.2 or later, .NET 10. The package is AOT-compatible, trimmable, and uses no reflection.
 
-## Quick start (planned API)
+## Quick start
 
 ```csharp
 using SnapshotAssertions;

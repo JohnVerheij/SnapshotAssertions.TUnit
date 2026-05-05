@@ -1,0 +1,135 @@
+using System;
+using System.Globalization;
+using System.Threading.Tasks;
+using TUnit.Assertions.Attributes;
+using TUnit.Assertions.Core;
+using TUnit.Core;
+
+namespace SnapshotAssertions.TUnit;
+
+/// <summary>
+/// TUnit assertion that verifies an actual <see cref="string"/> matches a baseline snapshot
+/// stored on disk. The default file resolution uses the current TUnit test context's class
+/// and method names; chain methods (<see cref="WithName"/>, <see cref="AtPath"/>,
+/// <see cref="WithOptions"/>) override the defaults.
+/// </summary>
+/// <remarks>
+/// <para>
+/// On mismatch or missing baseline, the actual content is written to a sibling
+/// <c>.actual.txt</c> file and the assertion fails with both paths and a line-based diff in
+/// the failure message. When the <c>SNAPSHOT_ACCEPT</c> environment variable is set to a
+/// truthy value (and the <c>CI</c> environment variable is not set), the actual content is
+/// instead written over the expected baseline and the assertion passes; this is the
+/// accept-mode used to bulk-update snapshots after intentional changes.
+/// </para>
+/// </remarks>
+[AssertionExtension("MatchesSnapshot")]
+public sealed class SnapshotAssertion : Assertion<string>
+{
+    private string? _explicitName;
+    private string? _explicitPath;
+    private SnapshotOptions _options = SnapshotOptions.Default;
+
+    /// <summary>Initialises the assertion. Called by the TUnit source generator.</summary>
+    /// <param name="context">The assertion context supplied by TUnit.</param>
+    public SnapshotAssertion(AssertionContext<string> context) : base(context) { }
+
+    /// <summary>
+    /// Overrides the default TUnit-test-derived snapshot name. Useful when multiple snapshots
+    /// are produced by a single test method (e.g. before/after states).
+    /// </summary>
+    /// <param name="snapshotName">The base name (without extension) under the project's
+    /// <c>Snapshots/</c> directory.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="snapshotName"/> is <see langword="null"/>.</exception>
+    public SnapshotAssertion WithName(string snapshotName)
+    {
+        ArgumentNullException.ThrowIfNull(snapshotName);
+        _explicitName = snapshotName;
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithName(\"{snapshotName}\")");
+        return this;
+    }
+
+    /// <summary>
+    /// Overrides path resolution entirely with an explicit absolute or relative file path to
+    /// the expected baseline. The actual file is sibling to the expected file.
+    /// </summary>
+    /// <param name="filePath">The path to the expected baseline file.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <see langword="null"/>.</exception>
+    public SnapshotAssertion AtPath(string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(filePath);
+        _explicitPath = filePath;
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtPath(\"{filePath}\")");
+        return this;
+    }
+
+    /// <summary>Overrides the comparison options (line-ending handling, BOM, trailing
+    /// whitespace, trailing newline).</summary>
+    /// <param name="options">The options to apply.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    public SnapshotAssertion WithOptions(SnapshotOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _options = options;
+        Context.ExpressionBuilder.Append(".WithOptions(...)");
+        return this;
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<AssertionResult> CheckAsync(EvaluationMetadata<string> metadata)
+    {
+        if (metadata.Exception is not null)
+        {
+            return AssertionResult.Failed(
+                $"threw {metadata.Exception.GetType().Name}", metadata.Exception);
+        }
+
+        var content = metadata.Value;
+        if (content is null)
+            return AssertionResult.Failed("actual content was null");
+
+        SnapshotPaths paths;
+        try
+        {
+            paths = ResolvePaths();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return AssertionResult.Failed(ex.Message);
+        }
+
+        var result = await SnapshotEvaluator.EvaluateAsync(content, paths, _options).ConfigureAwait(false);
+        return result.IsPass
+            ? AssertionResult.Passed
+            : AssertionResult.Failed(result.Describe());
+    }
+
+    /// <inheritdoc/>
+    protected override string GetExpectation() => "to match the snapshot baseline";
+
+    private SnapshotPaths ResolvePaths()
+    {
+        if (_explicitPath is not null)
+            return SnapshotFileResolver.ResolveByFile(_explicitPath);
+
+        var directory = SnapshotFileResolver.GetDefaultSnapshotsDirectory(AppContext.BaseDirectory);
+
+        if (_explicitName is not null)
+            return SnapshotFileResolver.ResolveByName(directory, _explicitName);
+
+        var testContext = TestContext.Current
+            ?? throw new InvalidOperationException(
+                "MatchesSnapshot() with no name or explicit path requires an active TUnit test context " +
+                "(TestContext.Current was null). Call from inside a [Test] method, pass a snapshot name " +
+                "via .WithName(\"...\") (or the MatchesSnapshot(name) shorthand), or pass an explicit file " +
+                "path via .AtPath(\"...\") (or MatchesSnapshotFile(path)).");
+
+        var details = testContext.Metadata.TestDetails;
+        var className = details.ClassType.Name;
+        var methodName = details.MethodName;
+        return SnapshotFileResolver.ResolveByTest(directory, className, methodName);
+    }
+}
