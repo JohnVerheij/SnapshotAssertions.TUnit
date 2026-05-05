@@ -8,5 +8,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Initial repo scaffold. The 0.1.0 public surface is implemented across follow-up work and
-released together with `LogAssertions 0.3.1`, `HttpAssertions 0.1.0`, and
-`TimeAssertions 0.1.0` in the family-debut release window.
+released together with `LogAssertions 0.3.1` in the next release window.

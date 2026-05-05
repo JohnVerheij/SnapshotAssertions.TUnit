@@ -1,9 +1,8 @@
 # Family conventions
 
-This document captures conventions shared across the assertion family (`LogAssertions.TUnit`,
-`SnapshotAssertions.TUnit`, and the upcoming `HttpAssertions.TUnit` / `TimeAssertions.TUnit`).
-The same file is copied identically into each repo. Updates happen in one place
-(conceptually) and propagate manually.
+This document captures conventions shared across the assertion family (`LogAssertions.TUnit`
+and `SnapshotAssertions.TUnit`). The same file is copied identically into each repo. Updates
+happen in one place (conceptually) and propagate manually.
 
 ## Naming patterns
 
@@ -58,9 +57,9 @@ reasons but are hidden from IntelliSense.
 ## No reflection policy
 
 Family packages use no runtime reflection in the assertion path. The only acceptable
-reflection-based code is convenience overloads (e.g. JSON deserialization in HttpAssertions
-for non-AOT scenarios), which must be explicitly annotated with `[RequiresUnreferencedCode]`
-and `[RequiresDynamicCode]` so AOT consumers see the warning at the call site.
+reflection-based code is convenience overloads (e.g. JSON deserialization for non-AOT
+scenarios), which must be explicitly annotated with `[RequiresUnreferencedCode]` and
+`[RequiresDynamicCode]` so AOT consumers see the warning at the call site.
 
 `Microsoft.CodeAnalysis.BannedApiAnalyzers` enforces this at build time via a per-repo
 `BannedSymbols.txt` listing reflection APIs.
