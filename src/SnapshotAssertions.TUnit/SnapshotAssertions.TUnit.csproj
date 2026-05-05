@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SnapshotAssertions.TUnit</RootNamespace>
+    <AssemblyName>SnapshotAssertions.TUnit</AssemblyName>
+    <IsPublishable>false</IsPublishable>
+
+    <!-- Package identity -->
+    <IsPackable>true</IsPackable>
+    <PackageId>SnapshotAssertions.TUnit</PackageId>
+    <ProductName>SnapshotAssertions.TUnit</ProductName>
+    <Version>0.1.0</Version>
+    <Authors>John Verheij</Authors>
+    <Copyright>Copyright (c) 2026 John Verheij</Copyright>
+    <Description>TUnit-native text-snapshot assertions using [AssertionExtension]. Provides Assert.That(actual).MatchesSnapshot() / .MatchesSnapshotFile() with line-based diff display, accept-via-environment-variable workflow, and CI guard. AOT-compatible, trimmable, no reflection. Designed for API-surface verification and small text snapshots; coexists with Verify for object-graph cases.</Description>
+    <PackageTags>tunit;snapshot;testing;assertions;publicapi;approval</PackageTags>
+    <PackageProjectUrl>https://github.com/JohnVerheij/SnapshotAssertions.TUnit</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- Pre-1.0 suppressions:
+         Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
+         Proj0241 (PackageValidationBaselineVersion missing) is suppressed for 0.1.0 only —
+         there is no prior shipped version to baseline against. Once 0.1.0 ships, set
+         PackageValidationBaselineVersion to the previous version below and remove Proj0241
+         from this NoWarn list. -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
+
+    <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
+    <EnableStrictModeForBaselineValidation>true</EnableStrictModeForBaselineValidation>
+    <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
+    <ApiCompatEnableRuleCannotChangeParameterName>true</ApiCompatEnableRuleCannotChangeParameterName>
+    <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <GenerateSBOM>true</GenerateSBOM>
+
+    <!-- AOT / trimming — lib code uses no reflection, safe for AOT-mode test contexts -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="TUnit.Assertions" />
+    <PackageReference Include="TUnit.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Framework-agnostic core lives in the SnapshotAssertions package. The ProjectReference
+         is rewritten to a PackageReference on SnapshotAssertions at pack time. -->
+    <ProjectReference Include="../SnapshotAssertions/SnapshotAssertions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Use the per-package short README for the nuget.org page. The root README.md is the
+         comprehensive reference rendered by GitHub on the repo home; nuget.org needs a focused
+         'can I use this in 60 seconds' view, so the package ships a shorter README that links
+         out to the full reference on GitHub. -->
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

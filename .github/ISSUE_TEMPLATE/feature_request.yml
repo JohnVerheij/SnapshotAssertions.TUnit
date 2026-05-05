@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new option, scrubber, or capability
+title: "[Feature]: "
+labels: [enhancement]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a new feature. Please describe the use case and proposed shape below.
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What test scenario does this enable? Why do existing options not cover it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API
+      description: What does the new option, scrubber, or method look like in user code?
+      render: csharp
+      placeholder: |
+        await Assert.That(actual).MatchesSnapshotScrubbed(YourNewScrubber);
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways you've thought of solving the same problem.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: pr-offer
+    attributes:
+      label: Are you willing to submit a PR?
+      options:
+        - "Yes, I'd like to implement this"
+        - "Maybe, with guidance"
+        - "No, just proposing"
+    validations:
+      required: true

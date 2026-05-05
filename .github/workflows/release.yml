@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: write   # for GitHub Release creation
+  id-token: write   # for NuGet Trusted Publishing OIDC token exchange
+  packages: write   # not strictly required for nuget.org but kept for symmetry
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false   # never cancel an in-progress release
+
+jobs:
+  publish:
+    name: Build, pack & publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/SnapshotAssertions/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            10.0.x
+
+      - name: Verify tag matches package version
+        # Both packages (SnapshotAssertions and SnapshotAssertions.TUnit) ship together in
+        # lockstep: they share a single tag and must declare the same Version in their csproj.
+        # This gate blocks the release if any of the three (tag, SnapshotAssertions csproj,
+        # SnapshotAssertions.TUnit csproj) disagree.
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          CORE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/SnapshotAssertions/SnapshotAssertions.csproj)
+          TUNIT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj)
+          if [ "$TAG_VERSION" != "$CORE_VERSION" ] || [ "$TAG_VERSION" != "$TUNIT_VERSION" ]; then
+            echo "::error::Version mismatch: tag=$TAG_VERSION  SnapshotAssertions=$CORE_VERSION  SnapshotAssertions.TUnit=$TUNIT_VERSION"
+            exit 1
+          fi
+          echo "All three agree on version $TAG_VERSION"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test main suite
+        run: dotnet run --project tests/SnapshotAssertions.TUnit.Tests/SnapshotAssertions.TUnit.Tests.csproj --configuration Release --no-build
+
+      - name: Pack SnapshotAssertions (core)
+        run: dotnet pack src/SnapshotAssertions/SnapshotAssertions.csproj --configuration Release --no-build --output ./artifacts
+
+      - name: Pack SnapshotAssertions.TUnit (TUnit adapter)
+        run: dotnet pack src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
+
+      # NuGet Trusted Publishing: exchanges the GitHub Actions OIDC token for a
+      # short-lived NuGet API key, written to the local NuGet config so the
+      # subsequent `dotnet nuget push` picks it up automatically. No long-lived
+      # secret is stored in this repository; the trust relationship is configured
+      # on nuget.org under Account -> Trusted Publishing.
+      - name: NuGet login (Trusted Publishing)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: JohnVerheij
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg

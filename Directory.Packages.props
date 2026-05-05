@@ -1,0 +1,30 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical to satisfy dpfa Proj0024 (and to make diffs predictable).
+         SnapshotAssertions core has zero NuGet dependencies beyond BCL: it only does file I/O,
+         string comparison, and rendering. The list below covers the TUnit adapter, snapshot
+         and smoke tests, and pack-time tooling (SBOM, SourceLink, PublicApiGenerator). -->
+    <PackageVersion Include="Microsoft.Sbom.Targets" Version="3.0.1" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="PublicApiGenerator" Version="11.4.6" />
+    <PackageVersion Include="TUnit" Version="1.43.2" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.43.2" />
+    <PackageVersion Include="TUnit.Core" Version="1.43.2" />
+  </ItemGroup>
+
+  <!-- Analyzer pack (applied to every project automatically via GlobalPackageReference) -->
+  <ItemGroup>
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.219" />
+    <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.24.0.138807" />
+    <GlobalPackageReference Include="Roslynator.Analyzers" Version="4.13.1" />
+    <GlobalPackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.13.61" />
+    <GlobalPackageReference Include="DotNetProjectFile.Analyzers" Version="1.12.2" />
+  </ItemGroup>
+
+</Project>

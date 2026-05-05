@@ -1,0 +1,39 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Language + nullability (explicit version per dpfa Proj0048; C# 14 ships with .NET 10) -->
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Quality bar -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Proj0039: dpfa recommends per-warning opt-in via WarningsAsErrors instead of
+         TreatWarningsAsErrors=true. For this small, actively-maintained library we want
+         immediate failure on any new warning (including ones surfaced by future analyzer
+         updates) rather than risk silent regressions while waiting to opt-in to each new
+         warning code. The choice is deliberate; suppressing the rule itself rather than
+         demoting it to a build-noise warning. -->
+    <NoWarn>$(NoWarn);Proj0039</NoWarn>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+
+    <!-- Reproducibility: lock files + auditing -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(GITHUB_ACTIONS)' == 'true'">true</RestoreLockedMode>
+    <NuGetAuditMode>all</NuGetAuditMode>
+
+    <!-- Deterministic / source-link friendly -->
+    <DebugType>portable</DebugType>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <DeterministicBuild>true</DeterministicBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Repository metadata (inherited by all projects) -->
+    <RepositoryUrl>https://github.com/JohnVerheij/SnapshotAssertions.TUnit</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+
+</Project>

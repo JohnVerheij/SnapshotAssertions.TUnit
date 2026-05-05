@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SnapshotAssertions</RootNamespace>
+    <AssemblyName>SnapshotAssertions</AssemblyName>
+    <IsPublishable>false</IsPublishable>
+
+    <!-- Package identity -->
+    <IsPackable>true</IsPackable>
+    <PackageId>SnapshotAssertions</PackageId>
+    <ProductName>SnapshotAssertions</ProductName>
+    <Version>0.1.0</Version>
+    <Authors>John Verheij</Authors>
+    <Copyright>Copyright (c) 2026 John Verheij</Copyright>
+    <Description>Framework-agnostic core for text-snapshot assertions. Provides string-against-file comparison with line-ending / BOM / whitespace options, TestContext-aware default file naming, environment-variable-driven accept-mode workflow with CI guard, and line-based diff rendering. Test-framework-specific entry points live in adapter packages (SnapshotAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
+    <PackageTags>snapshot;testing;assertions;publicapi;approval;text-comparison</PackageTags>
+    <PackageProjectUrl>https://github.com/JohnVerheij/SnapshotAssertions.TUnit</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- Pre-1.0 suppressions:
+         Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
+         Proj0241 (PackageValidationBaselineVersion missing) is suppressed for 0.1.0 only —
+         there is no prior shipped version to baseline against. Once 0.1.0 ships, set
+         PackageValidationBaselineVersion to the previous version below and remove Proj0241
+         from this NoWarn list. -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
+
+    <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252).
+         Strict baseline validation is gated on PackageValidationBaselineVersion being set;
+         until 0.1.0 ships, the strict-mode props below have no baseline to compare against,
+         so package validation runs as a no-op. After the first release, set
+         PackageValidationBaselineVersion to 0.1.0 and the validator becomes active. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
+    <EnableStrictModeForBaselineValidation>true</EnableStrictModeForBaselineValidation>
+    <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
+    <ApiCompatEnableRuleCannotChangeParameterName>true</ApiCompatEnableRuleCannotChangeParameterName>
+    <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <GenerateSBOM>true</GenerateSBOM>
+
+    <!-- AOT / trimming - core code uses no reflection, safe for AOT-mode test contexts -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

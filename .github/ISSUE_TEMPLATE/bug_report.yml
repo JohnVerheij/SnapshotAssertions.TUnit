@@ -1,0 +1,94 @@
+name: Bug report
+description: Report unexpected behaviour in SnapshotAssertions.TUnit
+title: "[Bug]: "
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Please fill in the details below; the more concrete the repro, the faster the fix.
+
+  - type: input
+    id: version
+    attributes:
+      label: SnapshotAssertions.TUnit version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: tunit-version
+    attributes:
+      label: TUnit version
+      placeholder: "1.43.2"
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET SDK version
+      description: Output of `dotnet --version`
+      placeholder: "10.0.100"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect the assertion to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What actually happened? Include the assertion failure message if applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A short test method that demonstrates the issue. Smaller is better.
+      render: csharp
+      placeholder: |
+        [Test]
+        public async Task Reproduces_The_Issue()
+        {
+            var actual = "some text";
+            await Assert.That(actual).MatchesSnapshot();
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: snapshot-files
+    attributes:
+      label: Snapshot files involved
+      description: Paths and (small) contents of the `.expected.txt` / `.actual.txt` files relevant to the bug, if applicable.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else relevant; error stack trace, related issues, screenshots.
+    validations:
+      required: false

@@ -1,0 +1,19 @@
+name: 'SnapshotAssertions CodeQL configuration'
+
+# Limit CodeQL scanning to code we own and ship.
+#
+# Without this:
+#   * obj/.../*.g.cs (TUnit [AssertionExtension] source-generator output and any
+#     other source-generated files) is scanned. Findings against generated code
+#     are not actionable - we cannot edit it; it is rewritten on every build.
+#   * tests/** is scanned with production-shaped rules. Test code legitimately
+#     uses patterns (mock helpers, ad-hoc fixtures) that production rules flag
+#     as smells but are appropriate in a test context.
+#
+# Effect on the security-extended query pack:
+#   noise from generated code disappears, and remaining findings reflect
+#   issues in production code that we maintain and can act on.
+paths-ignore:
+  - '**/obj/**'
+  - '**/bin/**'
+  - 'tests/**'

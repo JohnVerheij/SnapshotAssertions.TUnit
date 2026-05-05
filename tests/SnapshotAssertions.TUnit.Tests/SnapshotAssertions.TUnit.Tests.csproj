@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SnapshotAssertions.TUnit.Tests</RootNamespace>
+    <AssemblyName>SnapshotAssertions.TUnit.Tests</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015. PublicApiGenerator + the package's own MatchesSnapshot
+         entry point will be added under tests/SnapshotAssertions.TUnit.SnapshotTests once the
+         0.1.0 public API is implemented; until then the public-API surface check lives elsewhere
+         (or is deferred). -->
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Microsoft.Testing.Platform code-coverage extension settings (MTP schema).
+
+  Consumed by the test exe via the coverage-settings flag of MTP's coverage
+  extension. The schema is the flat
+  &lt;Configuration&gt;&lt;CodeCoverage&gt;...&lt;/CodeCoverage&gt;&lt;/Configuration&gt;
+  root used by dotnet-coverage natively. It is NOT the VSTest
+  DataCollectionRunSettings wrapper, which MTP's coverage-settings flag
+  does not accept.
+
+  Why this file is required: without an explicit ModulePaths/Include, the
+  Microsoft.CodeCoverage extension does not know which assemblies to
+  instrument on Linux runners. It runs, finds nothing in scope, and emits
+  an empty 178-byte cobertura stub (line-rate of 1, empty packages element).
+  With the include pattern below, instrumentation correctly targets
+  SnapshotAssertions.dll and SnapshotAssertions.TUnit.dll on every platform,
+  and Codecov can process the resulting report.
+
+  See:
+    learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-extensions-code-coverage
+    learn.microsoft.com/en-us/dotnet/core/additional-tools/dotnet-coverage#settings
+-->
+<Configuration>
+  <CodeCoverage>
+    <!-- Only instrument the production assemblies. Test DLL and third-party packages are
+         out of scope for coverage accounting. -->
+    <ModulePaths>
+      <Include>
+        <ModulePath>.*SnapshotAssertions\.dll$</ModulePath>
+        <ModulePath>.*SnapshotAssertions\.TUnit\.dll$</ModulePath>
+      </Include>
+    </ModulePaths>
+    <!-- Exclude source-generated and obj-emitted files. -->
+    <Sources>
+      <Exclude>
+        <Source>.*[/\\]obj[/\\].*</Source>
+      </Exclude>
+    </Sources>
+    <!-- Exclude generated / explicitly-opted-out code via attribute. -->
+    <Attributes>
+      <Exclude>
+        <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
+        <Attribute>^System\.CodeDom\.Compiler\.GeneratedCodeAttribute$</Attribute>
+        <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
+      </Exclude>
+    </Attributes>
+    <!-- MTP default is false (VSTest default was true). Explicit for clarity. -->
+    <IncludeTestAssembly>false</IncludeTestAssembly>
+  </CodeCoverage>
+</Configuration>

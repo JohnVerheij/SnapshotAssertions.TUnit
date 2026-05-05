@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Framework-agnostic test project for the SnapshotAssertions core package.
+
+    Intentionally references ONLY SnapshotAssertions, NOT SnapshotAssertions.TUnit. The TUnit
+    test runner is referenced for [Test]/[Category]/Assert.That infrastructure, but every test
+    in this project exercises the core types (SnapshotOptions, SnapshotComparer,
+    SnapshotFileResolver, SnapshotAcceptMode, LineDiffRenderer) directly without going through
+    any SnapshotAssertions.TUnit assertion entry point. If the core ever picked up a TUnit
+    dependency by accident, this project would fail to compile.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SnapshotAssertions.Tests</RootNamespace>
+    <AssemblyName>SnapshotAssertions.Tests</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/SnapshotAssertions/SnapshotAssertions.csproj" />
+  </ItemGroup>
+
+</Project>

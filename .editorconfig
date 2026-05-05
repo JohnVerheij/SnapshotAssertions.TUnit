@@ -1,0 +1,87 @@
+# Top-most EditorConfig file
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Snapshot baselines: never trim trailing whitespace or normalize line endings
+# (the whole point of a snapshot is byte-level fidelity to a captured artefact).
+[*.{expected,actual}.txt]
+trim_trailing_whitespace = false
+insert_final_newline = false
+generated_code = true
+
+# Test code: ConfigureAwait analyzers (MA0004, CA2007) and VSTHRD200 ("Async" suffix
+# requirement) do not apply meaningfully under the test runner. Microsoft.Testing.Platform
+# and TUnit run on the thread pool with no SynchronizationContext, so ConfigureAwait(false)
+# is a no-op; test method names also commonly omit the Async suffix.
+[tests/**/*.cs]
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.VSTHRD200.severity = none
+
+# Assertion-DSL code: same exemption applies. The public surface of SnapshotAssertions.TUnit's
+# assertion chain (e.g. MatchesSnapshot) deliberately omits the Async suffix because the chain
+# is awaited as part of `await Assert.That(actual).MatchesSnapshot()` — adding "Async" would
+# break the DSL ergonomics and diverge from TUnit's own value-returning patterns. The
+# assertion runtime executes on the same thread-pool / no-SyncContext model as the tests,
+# so ConfigureAwait(false) is equally a no-op here.
+[**/SnapshotAssertions.TUnit/*.cs]
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.VSTHRD200.severity = none
+
+[*.{json,csproj,props,targets}]
+indent_size = 2
+
+[*.{md,yml,yaml}]
+indent_size = 2
+
+[*.cs]
+# Sort System.* using directives first
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# var preferences — be explicit when type is not obvious
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Modern C# preferences
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_expression_bodied_indexers = true:silent
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# Namespace declaration
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Newlines
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+# Indentation
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+
+# Spaces
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+
+# Wrap
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = false

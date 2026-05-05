@@ -1,0 +1,34 @@
+# Default behaviour: normalize text files to LF on commit, restore native on checkout
+* text=auto eol=lf
+
+# Explicit text files (always normalize)
+*.cs       text eol=lf
+*.csproj   text eol=lf
+*.props    text eol=lf
+*.targets  text eol=lf
+*.sln      text eol=lf
+*.slnx     text eol=lf
+*.json     text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.editorconfig text eol=lf
+*.gitignore    text eol=lf
+*.gitattributes text eol=lf
+
+# Snapshot baselines and transient diff output: always LF so cross-platform runs don't
+# produce false-positive trailing-CRLF diffs.
+*.expected.txt text eol=lf
+*.actual.txt   text eol=lf
+
+# Binary files (do not modify)
+*.png      binary
+*.jpg      binary
+*.gif      binary
+*.ico      binary
+*.snk      binary
+*.pfx      binary
+*.dll      binary
+*.exe      binary
+*.nupkg    binary
+*.snupkg   binary

@@ -1,0 +1,73 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/codeql-config.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/codeql-config.yml'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            10.0.x
+
+      - name: Initialize CodeQL
+        # security-extended (instead of security-and-quality) keeps thorough security
+        # coverage but drops the noisy quality query pack, which generates many
+        # false-positive findings against generated code and stylistic concerns
+        # already covered by the in-build analyzer pack (Meziantou, Sonar, Roslynator,
+        # dpfa). config-file restricts scanning to code we own and ship - generated
+        # code in obj/ and test code in tests/** are excluded so remaining findings
+        # all reflect production-code issues we can act on.
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    External-consumer smoke-test project. Simulates a downstream consumer adopting
+    SnapshotAssertions.TUnit cleanly:
+
+      - References SnapshotAssertions.TUnit ONLY via PackageReference (NOT ProjectReference) so
+        we actually consume the packed nupkg, including its README, dependency graph, package
+        metadata, and source-generator wiring exactly as a real consumer would.
+      - Uses a deliberately-different namespace (Smoke.Consumer.*) so we don't get parent-namespace
+        visibility into SnapshotAssertions.TUnit's internals; resolution failures in the public
+        surface fail this build before the package can ship.
+      - Opts out of central package management (Directory.Packages.props) because we float
+        SnapshotAssertions.TUnit's version to whatever was just packed into the local feed,
+        which is incompatible with the centrally-pinned versions used by the main build.
+      - Lives outside SnapshotAssertions.TUnit.slnx so dotnet restore on the main solution
+        doesn't try to resolve the unpublished local-feed version. The CI step packs the
+        package first, then restores + builds + tests this project against the local feed.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Smoke.Consumer</RootNamespace>
+    <AssemblyName>Smoke.Consumer</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+
+    <!-- Opt out of central package management: this project pins versions inline so it can
+         float SnapshotAssertions.TUnit to "whatever was just packed into the local feed". -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+
+    <!-- Disable lock-file enforcement: floating versions are incompatible with locked restore. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+
+    <!-- Forbid implicit using directives so the smoke test catches resolution failures
+         attributable to missing usings rather than masking them with the SDK's auto-imports. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Detect whether the local NuGet feed at ../../artifacts has been populated by CI's
+         pack steps. The SnapshotAssertions.TUnit PackageReference below is conditional on this:
+           - During main CI's smoke step (after Pack ran): artifacts/ exists -> PackageReference
+             active -> restore via local feed -> smoke test runs and validates the public surface.
+           - During GitHub's automatic NuGet dependency-submission action (which discovers every
+             .csproj and runs `dotnet restore` in a fresh checkout, NO Pack having run):
+             artifacts/ does NOT exist -> PackageReference skipped -> restore succeeds with just
+             TUnit deps from nuget.org. The submitted dependency graph for this project is
+             incomplete (it omits SnapshotAssertions.TUnit), but that is acceptable: this is a
+             smoke-test project, not production code, and its "real" dependency on
+             SnapshotAssertions.TUnit is already submitted via the main package projects'
+             dependency graphs.
+           - During local dev without a prior pack: artifacts/ doesn't exist -> PackageReference
+             skipped -> build fails with CS0103/CS1061 on SnapshotAssertions.TUnit types,
+             signalling clearly that you need to pack first. -->
+    <ArtifactsLocalFeedExists Condition="Exists('$(MSBuildThisFileDirectory)..\..\artifacts')">true</ArtifactsLocalFeedExists>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.43.2" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
+    <!-- Floating version: consumes whatever 0.1.x preview was packed into the local feed at
+         ../../artifacts. Use a wide pre-release pattern so any 0.1.0-rc / 0.1.0 also resolves
+         once published, which lets local devs run this against either a freshly-packed nupkg
+         or a real published version. -->
+    <PackageReference Include="SnapshotAssertions.TUnit" Version="0.1.0-*" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,37 @@
+# Codecov configuration for SnapshotAssertions.TUnit.
+#
+# Why this file exists: Microsoft.Testing.Platform's --coverage flag emits a cobertura
+# XML that includes every source file the test execution touched, including TUnit's
+# [AssertionExtension] source-generator output (obj/.../*.g.cs) and the test project
+# itself. Codecov tries to fetch source for every path in the XML; when the majority
+# point at build-time-generated files that don't exist in the repo, Codecov rejects
+# the report as "Unusable" and reports 0%.
+#
+# The ignore list below restricts measurement to source we actually maintain in
+# src/SnapshotAssertions/ and src/SnapshotAssertions.TUnit/, which is the only thing
+# whose coverage we care about.
+
+coverage:
+  status:
+    project:
+      default:
+        # Allow up to 1% drift before failing the Codecov status check; the CI
+        # workflow already enforces a stricter 90% line-coverage gate, so this
+        # avoids double-reporting on tiny fluctuations.
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        # New code in a PR must be at least 80% covered (line). Stricter than the
+        # project gate to encourage adding tests for new code rather than coasting
+        # on the overall percentage.
+        target: 80%
+
+ignore:
+  # Source-generated files from TUnit's [AssertionExtension] generator and any
+  # other source generator outputs.
+  - "**/obj/**"
+  # Build outputs.
+  - "**/bin/**"
+  # Test project itself — measuring its own coverage produces noise, not signal.
+  - "tests/**"
