@@ -8,4 +8,4 @@ To report a concern, contact the project maintainer privately via the email addr
 
 ## Enforcement
 
-The maintainer is responsible for clarifying the standards described in the Contributor Covenant and is expected to take fair corrective action in response to any reported behaviour that they deem inappropriate, threatening, offensive, or harmful. The maintainer has the right to remove, edit, or reject contributions that do not align with the Code of Conduct.
+The maintainer is responsible for clarifying the standards described in the Contributor Covenant and is expected to take fair corrective action in response to any reported behavior that they deem inappropriate, threatening, offensive, or harmful. The maintainer has the right to remove, edit, or reject contributions that do not align with the Code of Conduct.

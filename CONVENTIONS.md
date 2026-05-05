@@ -1,8 +1,7 @@
-# Family conventions
+# Code conventions
 
-This document captures conventions shared across the assertion family (`LogAssertions.TUnit`
-and `SnapshotAssertions.TUnit`). The same file is copied identically into each repo. Updates
-happen in one place (conceptually) and propagate manually.
+Rules for how code is written across the assertion family (`LogAssertions.TUnit` and
+`SnapshotAssertions.TUnit`). The same file is copied identically into each repo.
 
 ## Naming patterns
 
@@ -63,57 +62,3 @@ scenarios), which must be explicitly annotated with `[RequiresUnreferencedCode]`
 
 `Microsoft.CodeAnalysis.BannedApiAnalyzers` enforces this at build time via a per-repo
 `BannedSymbols.txt` listing reflection APIs.
-
-## Tip-of-tree TFM targeting
-
-At any moment, target current LTS plus current STS during overlap windows. Reset to the new
-LTS at SemVer-major version boundaries. Concretely: `net10.0` now → `net10.0;net11.0` at
-.NET 11 GA → `net12.0` at .NET 12 GA (major version bump on the package) → `net12.0;net13.0`
-at .NET 13 GA, and so on. Aggressive vs Microsoft's official LTS support windows; defensible
-because the family explicitly demonstrates modern practices.
-
-## Snapshot tool
-
-The family uses **`SnapshotAssertions.TUnit`** for its own API-surface tests and recommends
-it for consumer text-snapshot needs. Verify (Simon Cropp's library) remains the right choice
-for object-graph diffing in consumer projects (coexistence, not replacement). Family packages
-do not depend on Verify in shipped code.
-
-## Lockstep versioning
-
-Within a single repo, all packages release at the same version, even when one has no API
-change. Across the family, versions are independent — `SnapshotAssertions.TUnit 0.1.0` does
-not need to align with `LogAssertions.TUnit 0.3.x`.
-
-## Strict ApiCompat
-
-`<EnablePackageValidation>true</EnablePackageValidation>` plus
-`<EnableStrictModeForBaselineValidation>true</EnableStrictModeForBaselineValidation>`.
-`<PackageValidationBaselineVersion>` pins to the previous shipped version. Adding new APIs
-generates `CP0001`/`CP0002` suppressions in `CompatibilitySuppressions.xml`, committed and
-accepted as intentional pre-1.0 additions.
-
-## AOT-publish CI gate
-
-Every repo's CI publishes the smoke-test consumer with `dotnet publish -r linux-x64 --aot`
-to prove AOT-publishability end-to-end (not just "AOT-compatible by analyzer"). The published
-binary must run successfully.
-
-## Version-claim discipline
-
-README states only the supported floor (e.g., "TUnit 1.43.2 or later, .NET 10"). Avoid
-archaeological claims about which specific feature shipped in which TUnit minor version
-unless verified against TUnit's own release notes / git history. Wrong version claims are
-the cheapest way to lose earned credibility.
-
-## Per-package READMEs
-
-Each NuGet package ships a short, focused README in the `.nupkg` (`src/<Package>/README.md`).
-The root `README.md` is the comprehensive reference rendered by GitHub on the repo home;
-nuget.org gets the focused 60-second view that links out to the full reference.
-
-## Naming discipline (upstream content)
-
-Never name internal organizations or projects (employer, internal product names, internal
-adopter names) in any public-facing content — README, CHANGELOG, commit messages, PR bodies,
-issue descriptions. Use generic adoption-anchor framing.

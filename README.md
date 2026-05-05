@@ -4,12 +4,49 @@
 [![CodeQL](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/codeql.yml/badge.svg)](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/JohnVerheij/SnapshotAssertions.TUnit/branch/main/graph/badge.svg)](https://codecov.io/gh/JohnVerheij/SnapshotAssertions.TUnit)
 [![NuGet](https://img.shields.io/nuget/v/SnapshotAssertions.TUnit.svg)](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)
+[![Downloads](https://img.shields.io/nuget/dt/SnapshotAssertions.TUnit.svg)](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-TUnit-native text-snapshot assertions. AOT-friendly, no reflection, designed for API-surface verification and small text snapshots. Coexists with [Verify](https://github.com/VerifyTests/Verify) (which remains the right choice for object-graph diffing).
+A TUnit-native fluent text-snapshot assertion library built on TUnit's `[AssertionExtension]` source generator. AOT-compatible, trimmable, no runtime reflection. Coexists with [Verify](https://github.com/VerifyTests/Verify) — does not replace it for object-graph diffing.
 
-> **Status:** pre-release scaffold. The 0.1.0 public surface is in active implementation; CI is wired but the assertion DSL is not yet shipped. See [CHANGELOG.md](CHANGELOG.md) and the [SnapshotAssertions design plan](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/docs/design.md) (forthcoming) for the roadmap.
+> **Scope:** Test projects only. Not intended for production code.
+
+---
+
+## Table of contents
+
+- [Why this package](#why-this-package)
+- [Install](#install)
+- [Package layout](#package-layout)
+- [Namespaces (and a `GlobalUsings.cs` recommendation)](#namespaces-and-a-globalusingscs-recommendation)
+- [Quick start](#quick-start)
+- [Snapshot file conventions](#snapshot-file-conventions)
+- [Project setup (`csproj` wiring)](#project-setup-csproj-wiring)
+- [Entry points](#entry-points)
+  - [Source-generated entry](#source-generated-entry)
+  - [Chain methods](#chain-methods)
+  - [Shorthand entry-point extensions](#shorthand-entry-point-extensions)
+- [Comparison options](#comparison-options)
+  - [`SnapshotLineEndingMode`](#snapshotlineendingmode)
+  - [`SnapshotBomHandling`](#snapshotbomhandling)
+  - [`SnapshotTrailingWhitespace`](#snapshottrailingwhitespace)
+  - [`SnapshotTrailingNewline`](#snapshottrailingnewline)
+  - [Constructing customized options](#constructing-customized-options)
+- [Failure diagnostics](#failure-diagnostics)
+  - [Mismatched baseline](#mismatched-baseline)
+  - [No baseline](#no-baseline)
+- [Accept-changes workflow](#accept-changes-workflow)
+- [Cookbook — common patterns](#cookbook--common-patterns)
+- [Comparison with Verify](#comparison-with-verify)
+- [Troubleshooting](#troubleshooting)
+- [Modern .NET 10+ practices on display](#modern-net-10-practices-on-display)
+- [Design notes](#design-notes)
+- [Stability intent (pre-1.0)](#stability-intent-pre-10)
+- [Limitations and future work](#limitations-and-future-work)
+- [Pair with](#pair-with)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -17,20 +54,53 @@ TUnit-native text-snapshot assertions. AOT-friendly, no reflection, designed for
 
 For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → committed `.expected.txt`), the existing options are:
 
-- **Verify (`Verify.TUnit`)** — feature-rich, but its `Verify.props` forces `<Deterministic>false</Deterministic>` (Verify needs absolute PDB paths to find `.verified.txt` files), which on Linux runners breaks `Microsoft.CodeCoverage`'s instrumentation pipeline (produces an empty 178-byte cobertura skeleton). The interaction is documented at [TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149).
+- **Verify (`Verify.TUnit`)** — feature-rich, but its `Verify.props` forces `<Deterministic>false</Deterministic>` (Verify needs absolute PDB paths to find `.verified.txt` files). On Linux runners that interaction breaks `Microsoft.CodeCoverage`'s instrumentation pipeline and produces an empty 178-byte cobertura skeleton, which Codecov rejects as "Unusable". The interaction is documented at [TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149).
 - **Hand-rolled file compare** — `PublicApiGenerator` + `File.ReadAllText` + `string.Equals`. Works, but every project re-invents the same 30-50 lines of accept-flow / file-naming / diff-display scaffolding.
 
-`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string → file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing, scrubbing, and IDE-integrated diff display are out of scope; use Verify when you need those.
+`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string → file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing, automatic scrubbing, and IDE-integrated diff display are explicitly out of scope; use Verify when you need those.
 
 ## Install
 
-```
+```bash
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.2 or later, .NET 10. The package is AOT-compatible, trimmable, and uses no reflection.
+**Requirements:** TUnit 1.43.2 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
-## Quick start (planned API)
+## Package layout
+
+This repo ships **two** NuGet packages:
+
+| Package | Purpose | Depends on |
+|---|---|---|
+| [`SnapshotAssertions`](https://www.nuget.org/packages/SnapshotAssertions/) | Framework-agnostic core: `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver`, `SnapshotAcceptMode`, `LineDiffRenderer`, options types | BCL only |
+| [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) | TUnit-specific entry points: `MatchesSnapshot()`, `MatchesSnapshotFile()` and shorthands | `SnapshotAssertions` + `TUnit.Assertions` + `TUnit.Core` |
+
+You install `SnapshotAssertions.TUnit`; `SnapshotAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today — they would reuse the `SnapshotAssertions` core. Open a feature request if you need one.
+
+## Namespaces (and a `GlobalUsings.cs` recommendation)
+
+The two packages place types in two namespaces with deliberately-different scopes:
+
+| Type / member | Namespace | Auto-imported? |
+|---|---|---|
+| `MatchesSnapshot()`, `MatchesSnapshotFile()` (source-generated entries + shorthand extensions) | `TUnit.Assertions.Extensions` | **Yes** — TUnit auto-imports |
+| `SnapshotOptions`, `SnapshotLineEndingMode`, `SnapshotBomHandling`, `SnapshotTrailingWhitespace`, `SnapshotTrailingNewline` | `SnapshotAssertions` | **No** — needs `using SnapshotAssertions;` |
+| `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver`, `SnapshotAcceptMode`, `LineDiffRenderer`, `SnapshotResult`, `SnapshotPaths`, `SnapshotException` | `SnapshotAssertions` | **No** — same path |
+| `SnapshotAssertion` (CRTP-style assertion class) | `SnapshotAssertions.TUnit` | **No** — only needed for explicit-import / advanced scenarios |
+
+**Practical consequence:** test files that *only* call `Assert.That(text).MatchesSnapshot()` need no `using` from this package. Files that pass `SnapshotOptions` or call helpers like `SnapshotFileResolver.GetDefaultSnapshotsDirectory(...)` need `using SnapshotAssertions;`.
+
+**Recommended:** put both into a single `GlobalUsings.cs` in your test project so every test file sees them without ceremony:
+
+```csharp
+// tests/MyApp.Tests/GlobalUsings.cs
+global using SnapshotAssertions;
+```
+
+This eliminates the IDE0005 ("unnecessary using") chatter that otherwise appears in test files that don't directly use `SnapshotOptions` but live alongside ones that do.
+
+## Quick start
 
 ```csharp
 using SnapshotAssertions;
@@ -46,37 +116,526 @@ public async Task Public_api_surface_matches_baseline()
 }
 ```
 
-That's the entire test. The default file-resolver writes
-`Snapshots/{TestClassName}.{TestMethodName}.expected.txt`; on mismatch it writes `*.actual.txt`
-next to the expected file and the assertion failure message includes both paths plus a
-line-based diff. To accept a change: locally use your IDE's diff-and-merge view, or
-`cp Snapshots/X.actual.txt Snapshots/X.expected.txt`. To bulk-accept many at once:
-`SNAPSHOT_ACCEPT=1 dotnet test`. CI never sets `SNAPSHOT_ACCEPT`, so mismatches always fail
-in pipelines.
+That is the entire test. The default file resolver writes
+`Snapshots/{TestClassName}.{TestMethodName}.expected.txt` relative to the test binary's
+output directory (`AppContext.BaseDirectory`). On mismatch, `*.actual.txt` is written next
+to the expected file and the assertion failure message includes both paths plus a
+line-based diff.
+
+## Snapshot file conventions
+
+**Default folder location:** `Snapshots/` next to your test binary at runtime. Source files
+live under `tests/<YourProject>/Snapshots/` and are copied to the binary directory by your
+csproj (see "Project setup" below).
+
+**Default file name:** `{TestClassName}.{TestMethodName}.expected.txt`, derived from
+`TestContext.Current.Metadata.TestDetails.ClassType.Name` and `.MethodName`. Examples:
+
+```text
+Snapshots/PublicApiTests.SnapshotAssertionsPublicApiHasNotChanged.expected.txt
+Snapshots/HostEndpointsTests.PredictReturnsBadRequest.expected.txt
+```
+
+**Custom name:** pass an explicit name when one test produces multiple snapshots:
+
+```csharp
+await Assert.That(beforeRender).MatchesSnapshot("Order.before-render");
+await Assert.That(afterRender).MatchesSnapshot("Order.after-render");
+```
+
+**Custom path:** pass an absolute or relative file path to bypass the convention entirely:
+
+```csharp
+await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt");
+```
+
+**File extensions:**
+
+- `.expected.txt` — the committed baseline. Diffed against actual output on every test run.
+- `.actual.txt` — transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
+
+## Project setup
+
+**No csproj wiring needed.** The package ships a `build/SnapshotAssertions.TUnit.targets`
+file that NuGet auto-imports into the consuming project. Any `.expected.txt` file under your
+project's `Snapshots/` folder is automatically copied to the test binary's output directory
+at every build (`CopyToOutputDirectory="PreserveNewest"`). Just install the package and start
+writing tests.
+
+To opt out (e.g., if you keep snapshots in a non-default location and want full manual
+control), set this property in your csproj:
+
+```xml
+<PropertyGroup>
+  <SnapshotAssertionsAutoIncludeSnapshots>false</SnapshotAssertionsAutoIncludeSnapshots>
+</PropertyGroup>
+```
+
+Then add a `<None Include="...">` matching your custom layout.
+
+Recommended `.gitignore` (transient `.actual.txt` files must not be committed):
+
+```gitignore
+*.actual.txt
+```
+
+Recommended `.gitattributes` so cross-platform runs don't produce false-positive
+trailing-CRLF diffs against committed baselines:
+
+```gitattributes
+*.expected.txt text eol=lf
+*.actual.txt   text eol=lf
+```
+
+## Entry points
+
+### Source-generated entry
+
+`Assert.That(string).MatchesSnapshot()` — the no-arg entry generated by TUnit's
+`[AssertionExtension("MatchesSnapshot")]` attribute on the `SnapshotAssertion` class. Returns
+a `SnapshotAssertion` that you can chain on, or `await` directly to fail-fast on the default
+behavior.
+
+### Chain methods
+
+Methods on the `SnapshotAssertion` returned from `MatchesSnapshot()`:
+
+| Method | Effect |
+|---|---|
+| `.WithName(string snapshotName)` | Override the default test-context-derived snapshot name. The file becomes `Snapshots/{snapshotName}.expected.txt`. Path separators in the name are rejected. |
+| `.AtPath(string filePath)` | Override path resolution entirely with an explicit absolute or relative file path to the expected baseline. Relative paths resolve against the current working directory. |
+| `.WithOptions(SnapshotOptions options)` | Override the comparison options (line-ending handling, BOM, trailing whitespace, trailing newline). Default is `SnapshotOptions.Default` (strict). |
+
+### Shorthand entry-point extensions
+
+For common patterns, shorthand extensions in `TUnit.Assertions.Extensions` save the chain
+ceremony:
+
+| Shorthand | Equivalent chain |
+|---|---|
+| `Assert.That(text).MatchesSnapshot("MyName")` | `.MatchesSnapshot().WithName("MyName")` |
+| `Assert.That(text).MatchesSnapshot(options)` | `.MatchesSnapshot().WithOptions(options)` |
+| `Assert.That(text).MatchesSnapshot("MyName", options)` | `.MatchesSnapshot().WithName("MyName").WithOptions(options)` |
+| `Assert.That(text).MatchesSnapshotFile("/path.txt")` | `.MatchesSnapshot().AtPath("/path.txt")` |
+| `Assert.That(text).MatchesSnapshotFile("/path.txt", options)` | `.MatchesSnapshot().AtPath("/path.txt").WithOptions(options)` |
+
+All shorthands return a `SnapshotAssertion`, so you can still chain further (for example,
+`.MatchesSnapshot("MyName").WithOptions(...)` if you want to combine).
+
+## Comparison options
+
+`SnapshotOptions` is a sealed record with strict-by-default values. Two presets are provided:
+
+- `SnapshotOptions.Default` — strict-default (no normalization; preserve everything as-is).
+- `SnapshotOptions.NormalizedLineEndings` — convenience preset for cross-platform tests
+  where LF/CRLF differences are not meaningful.
+
+The four configurable properties:
+
+### `SnapshotLineEndingMode`
+
+How line-ending differences between the actual content and the expected baseline are handled.
+
+| Value | Behavior |
+|---|---|
+| `Ordinal` (default) | No normalization. Bytes are compared as-is. CRLF and LF are different. |
+| `NormalizeToLF` | Both sides normalized to LF before comparison. Cross-platform-safe. |
+| `NormalizeToCRLF` | Both sides normalized to CRLF before comparison. Windows-leaning. |
+| `IgnoreLineEndings` | Line endings stripped from both sides entirely; only line content is compared. |
+
+### `SnapshotBomHandling`
+
+How a leading byte-order-mark is handled.
+
+| Value | Behavior |
+|---|---|
+| `StripBom` (default) | A UTF-8 BOM is stripped from both sides before comparison. |
+| `PreserveBom` | BOM bytes are treated as part of the content. |
+
+### `SnapshotTrailingWhitespace`
+
+How per-line trailing whitespace is treated.
+
+| Value | Behavior |
+|---|---|
+| `Preserve` (default) | Trailing whitespace differences fail the match. |
+| `TrimTrailingPerLine` | Trailing whitespace trimmed from each line on both sides before comparison. |
+
+### `SnapshotTrailingNewline`
+
+How the trailing newline at end-of-file is treated.
+
+| Value | Behavior |
+|---|---|
+| `Required` (default) | Preserve the trailing-newline state of the input. If actual lacks a trailing newline but expected has one (or vice versa), the comparison reports a mismatch. |
+| `Optional` | Both sides normalized to no trailing newline; presence vs absence is unobservable to the comparison. |
+| `Forbidden` | Same equality outcome as `Optional` for v0.1.0. (Future versions may add a stricter check that fails if either side has a trailing newline.) |
+
+### Constructing customized options
+
+Use C# record `with` syntax to build a customized set:
+
+```csharp
+var options = SnapshotOptions.Default with
+{
+    LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
+    TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine,
+};
+
+await Assert.That(actual).MatchesSnapshot(options);
+```
+
+## Failure diagnostics
+
+### Mismatched baseline
+
+```text
+to match the snapshot baseline
+
+Snapshot did not match the baseline.
+  Expected: C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.expected.txt
+  Actual:   C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.actual.txt
+
+ public class MyApp.Foo
+-public void OldMethod()
++public void RenamedMethod()
++public string NewProperty { get; }
+
+To accept the change, rename the actual file over the expected file,
+or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
+```
+
+The diff uses unified-diff-style prefixes:
+
+- ` ` (space) — context line; same in both
+- `-` — present in expected baseline only
+- `+` — present in actual content only
+
+For very large diffs (more than 20 differing lines), the output is truncated with a
+count-summary footer indicating the total number of differing lines.
+
+### No baseline
+
+The first time a `MatchesSnapshot()` test runs, no baseline file exists yet. The assertion
+fails with a clear "no baseline" diagnostic and writes the actual content to `.actual.txt`
+so you can inspect it and rename to `.expected.txt`:
+
+```text
+to match the snapshot baseline
+
+Snapshot baseline does not exist.
+  Expected: C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.expected.txt
+  Actual:   C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.actual.txt
+
+Inspect the actual file and rename it to .expected.txt to accept it as the baseline,
+or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
+```
+
+## Accept-changes workflow
+
+Three modes, in order of preference:
+
+1. **IDE diff-and-merge.** Most IDEs (Rider, VS Code) detect side-by-side `.expected.txt`
+   and `.actual.txt` files and offer a diff-and-merge view. This is the most ergonomic flow
+   for reviewing a single change.
+2. **Manual `cp`.** For users without IDE integration:
+   ```bash
+   cp Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt
+   ```
+   Failure messages include full absolute paths so any external diff tool works.
+3. **Bulk accept via env var.** When many snapshots changed (e.g. an intentional API surface
+   refactor):
+   ```bash
+   SNAPSHOT_ACCEPT=1 dotnet test
+   ```
+   All mismatched snapshots are accepted automatically: the actual content overwrites the
+   expected baseline, and the assertion passes (with `SnapshotMatchOutcome.Accepted`).
+
+   **CI guard:** if the `CI` environment variable is also set to a truthy value (which all
+   major hosted runners do — GitHub Actions, GitLab CI, Azure Pipelines, CircleCI, etc.),
+   accept-mode is *refused* even if `SNAPSHOT_ACCEPT` is set. This makes it impossible for
+   a stray pipeline configuration to silently accept baseline drift. See
+   `SnapshotAcceptMode.IsActive` for the exact rule.
+
+After step 1 or 2, you copy the change from your test binary's directory back into the
+source `Snapshots/` folder; the next clean build picks up the new committed baseline. With
+step 3 (bulk accept), the same applies — manually move the bin-directory `.expected.txt`
+files into source.
+
+## Cookbook — common patterns
+
+**Pin a public API surface (the headline use case):**
+
+```csharp
+[Test]
+public async Task Public_api_surface_matches_baseline()
+{
+    var assembly = typeof(MyLib.Foo).Assembly;
+    var actual = ApiGenerator.GeneratePublicApi(assembly);
+
+    await Assert.That(actual).MatchesSnapshot();
+}
+```
+
+**Pin a rendered-text artefact (e.g., audit log, generated SQL, formatted report):**
+
+```csharp
+[Test]
+public async Task Order_audit_log_matches()
+{
+    var order = new Order { /* ... */ };
+    var auditLog = AuditLogRenderer.Render(order);
+
+    await Assert.That(auditLog).MatchesSnapshot();
+}
+```
+
+**Multiple snapshots in one test:**
+
+```csharp
+[Test]
+public async Task Order_lifecycle_states_match()
+{
+    var order = new Order { /* ... */ };
+    await Assert.That(order.RenderState()).MatchesSnapshot("Order.created");
+
+    order.Confirm();
+    await Assert.That(order.RenderState()).MatchesSnapshot("Order.confirmed");
+
+    order.Ship();
+    await Assert.That(order.RenderState()).MatchesSnapshot("Order.shipped");
+}
+```
+
+**Cross-platform comparison (LF/CRLF differences not meaningful):**
+
+```csharp
+await Assert.That(actual).MatchesSnapshot(SnapshotOptions.NormalizedLineEndings);
+```
+
+**Custom comparison rules:**
+
+```csharp
+var options = SnapshotOptions.Default with
+{
+    LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
+    TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine,
+    TrailingNewline = SnapshotTrailingNewline.Optional,
+};
+
+await Assert.That(actual).MatchesSnapshot(options);
+```
+
+**Use an explicit file path (e.g., shared snapshot across tests):**
+
+```csharp
+await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expected.txt");
+```
+
+## Comparison with Verify
+
+| Capability | `SnapshotAssertions.TUnit` | Verify |
+|---|---|---|
+| Text snapshot (string → file) | ✅ | ✅ |
+| Object-graph snapshot (any object → file) | ❌ | ✅ |
+| Automatic scrubbing of dynamic content (Guids, dates, IPs) | ❌ (planned for 0.3.0) | ✅ |
+| IDE-integrated diff display | ❌ (relies on file paths in failure message) | ✅ |
+| `Microsoft.CodeCoverage` Linux compatibility | ✅ | ❌ ([TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149)) |
+| AOT-compatible | ✅ | ⚠️ (some scenarios) |
+| TUnit-native via `[AssertionExtension]` | ✅ | ✅ via `Verify.TUnit` |
+| Coexists in the same project | ✅ | ✅ |
+
+**When to use which:** if you only need text-snapshot assertions and run coverage on Linux,
+prefer `SnapshotAssertions.TUnit`. If you need object-graph diffing, scrubbers, or
+IDE-integrated diff display, use Verify (and accept the coverage workaround). The two libraries
+do not depend on each other and can coexist in the same project.
+
+## Troubleshooting
+
+### `MatchesSnapshot()` throws `InvalidOperationException` about no test context
+
+The default-path resolver reads `TestContext.Current` to derive the test class and method
+names. `TestContext.Current` is null outside a `[Test]` method (e.g. in a `[Before(Test)]`
+hook running before the test method's context is established, or when the assertion is
+called from a non-TUnit harness).
+
+**Fix:** pass an explicit name or path:
+
+```csharp
+await Assert.That(actual).MatchesSnapshot("MyExplicitName");
+// or:
+await Assert.That(actual).MatchesSnapshotFile("/some/path.expected.txt");
+```
+
+### Snapshots aren't found when the test runs
+
+Symptom: every test reports "Snapshot baseline does not exist" with an `.actual.txt` file
+written next to where the expected file would be.
+
+**Most likely cause:** your `.csproj` is not copying `Snapshots/*.expected.txt` to the test
+binary's output directory. Add the `<None Include>` from
+[Project setup](#project-setup-csproj-wiring).
+
+### Tests pass on Windows but fail on Linux (CRLF mismatch)
+
+Symptom: the diff shows trailing `\r` characters on every line.
+
+**Cause:** the committed `.expected.txt` was saved with CRLF line endings (a Windows
+default), but the test on Linux produces LF.
+
+**Fix one (recommended):** add `*.expected.txt text eol=lf` to `.gitattributes` so committed
+baselines are always LF, then re-commit the file (Git will convert it).
+
+**Fix two:** use the cross-platform preset on the call site:
+
+```csharp
+await Assert.That(actual).MatchesSnapshot(SnapshotOptions.NormalizedLineEndings);
+```
+
+### Bootstrapping baselines for a fresh test
+
+The first run of a new `MatchesSnapshot()` test fails with "no baseline" because there's no
+committed `.expected.txt` yet. Two ways to bootstrap:
+
+1. Run once. The failure writes `.actual.txt`. Rename it to `.expected.txt`, copy back to your
+   source `Snapshots/` folder, commit.
+2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The `.actual.txt` content
+   is written directly over `.expected.txt`. Then move the file from the test binary's
+   directory back into your source `Snapshots/` folder.
+
+### CI accidentally accepts a snapshot
+
+This shouldn't happen — accept-mode is refused if `CI` is set, regardless of
+`SNAPSHOT_ACCEPT`. If you observe it happening anyway, check:
+
+- Did your CI runner set `CI=true` (or `CI=1` / `CI=yes`)? Verify with a `printenv CI` step.
+- Are you running an older version of the package? `SnapshotAcceptMode.IsActive(string?, string?)`
+  with explicit values is the deterministic test surface; the no-arg overload reads the live
+  environment.
 
 ## Modern .NET 10+ practices on display
 
+Each row points at a fact verifiable from the source code or build output.
+
 | Practice | Where in this package |
 |---|---|
-| **AOT-compatible** | `IsAotCompatible=true`. AOT analyzers run during `dotnet build`. No `[RequiresUnreferencedCode]` or `[RequiresDynamicCode]` annotations anywhere. |
+| **AOT-compatible** | `IsAotCompatible=true` in both csprojs. AOT analyzers run during `dotnet build`. No `[RequiresUnreferencedCode]` or `[RequiresDynamicCode]` annotations. |
 | **Trimmable** | `IsTrimmable=true`. Tiny public surface; nothing to annotate. |
-| **AOT-publish CI gate** | `dotnet publish -r linux-x64 --aot` against the smoke-test consumer. Strongest possible AOT guarantee — not just "AOT-compatible by analyzer," but "actually publishes to native code without warnings." |
-| **No reflection, ever** | The package only does file I/O, string comparison, and rendering. `BannedApiAnalyzers` enforces no reflection APIs at build time. |
+| **AOT-publish CI gate** | `dotnet publish -r linux-x64 --aot` against the smoke-test consumer in `ci.yml`. Strongest possible AOT guarantee — not just "AOT-compatible by analyzer," but "actually publishes to native code without warnings." |
+| **No reflection in the assertion path** | The assertion only does file I/O, string comparison, and rendering. No `MethodBase.Invoke`, no `Activator.CreateInstance(Type)`, no runtime type discovery. |
 | **CancellationToken throughout** | Every async public API accepts `CancellationToken ct = default`. |
 | **Async file I/O end-to-end** | `File.ReadAllTextAsync`, `File.WriteAllTextAsync`. No sync-over-async. |
-| **C# 14 / `LangVersion=14.0`** | File-scoped namespaces, primary constructors, required members, nullable reference types enforced. |
-| **`Span<char>` / `ReadOnlySpan<char>` for diff line scanning** | Avoids allocations on hot paths. |
-| **Tip-of-tree TFM targeting** | Currently `net10.0`. Per [`CONVENTIONS.md`](CONVENTIONS.md): target current LTS plus current STS during overlap windows; reset to new LTS at SemVer-major version boundaries. |
-| **Deterministic builds + Source Link + SBOM + reproducible restore** | Same as siblings. |
-| **Trusted Publishing (OIDC) for NuGet** | No long-lived secrets in CI. |
-| **5 Roslyn analyzer packs at full strength** | Meziantou, SonarAnalyzer, Roslynator, VSTHRD, dpfa. `TreatWarningsAsErrors=true`. |
-| **`PublicApiGenerator` + `SnapshotAssertions` itself for API-surface tests** | Recursive self-test: the package's own API surface is verified using the package. |
-| **ApiCompat strict mode (baseline pinned from 0.1.0)** | Prevents silent breaks. |
-| **External-consumer smoke test in CI** | Packed `.nupkg`, different namespace, exercises every public entry point, AOT-publishes. |
+| **C# 14 / `LangVersion=14.0`** | File-scoped namespaces, record types, primary constructors, required members, nullable reference types enforced. |
+| **Deterministic builds + Source Link + SBOM + reproducible restore** | `Deterministic=true`, embedded Source Link, `Microsoft.Sbom.Targets` SBOM generation, lock files + `--locked-mode` restore on CI. |
+| **Trusted Publishing (OIDC) for NuGet** | No long-lived API keys in CI secrets. |
+| **5 Roslyn analyzer packs at full strength** | Meziantou.Analyzer, SonarAnalyzer.CSharp, Roslynator.Analyzers, Microsoft.VisualStudio.Threading.Analyzers, DotNetProjectFile.Analyzers. `TreatWarningsAsErrors=true`. No suppressions without per-call justification comment. |
+| **`StringComparison.Ordinal` everywhere** | Per Meziantou MA0006. No silent culture defaults. |
+| **External-consumer smoke test in CI** | Packed `.nupkg`, deliberately-different namespace, exercises every public entry point, AOT-publishes. |
+| **Coverage gates: 90% line / 80% branch** | Hard CI gate; build fails if either drops below threshold. |
+
+## Design notes
+
+### `MatchesSnapshot()` is post-mortem, not interactive
+
+The assertion compares the actual content against the committed baseline at evaluation time
+and either passes or throws. It does not prompt, open a diff window, or wait for input.
+Interactive flows (IDE diff-and-merge view) are provided by the IDE based on the side-by-side
+`.expected.txt` / `.actual.txt` files the assertion writes; the assertion itself stays
+machine-evaluable so the same code path runs identically locally and in CI.
+
+### Accept-mode lives in `SnapshotEvaluator`, not in the assertion
+
+The decision "should I overwrite the baseline?" is made inside the evaluator after the
+comparer reports a mismatch. This keeps the TUnit adapter thin and the accept-mode logic
+independently testable: `SnapshotAcceptMode.IsActive(string?, string?)` is pure (no env var
+reads), so its full truth table is verified by 7 unit tests.
+
+### `CI=true` guard is intentionally unconditional
+
+`SnapshotAcceptMode.IsActive` returns `false` whenever `CI` is truthy, regardless of
+`SNAPSHOT_ACCEPT`. There's no way to override the guard from inside the package (no
+"force" flag, no per-test attribute). This is deliberate: the failure mode of an accidental
+override is silent baseline drift in committed history, which is exactly what the snapshot
+test is meant to prevent.
+
+### Default-name resolution uses simple class name, not full namespace
+
+`{TestClassName}.{TestMethodName}` rather than `{Namespace}.{TestClassName}.{TestMethodName}`.
+The simpler form keeps file names short and avoids cross-platform path-length surprises.
+If two test classes share a name across namespaces, pass an explicit name to disambiguate.
+
+### Why no `[CallerFilePath]`-based source-relative paths
+
+Some snapshot libraries use `[CallerFilePath]` to derive paths relative to the test source
+file rather than the binary directory. `SnapshotAssertions.TUnit` doesn't, because:
+
+- `[CallerFilePath]` doesn't propagate cleanly through TUnit's source-generated assertion entry methods — the values would all point at the generated extension, not the user's call site.
+- The binary-directory convention is well-trodden (Verify uses it for `Snapshots/`-folder layouts under `<None Include CopyToOutputDirectory>`) and integrates cleanly with `<None Include>` csproj wiring.
+
+The trade-off is that consumers must wire `<None Include>` in their csproj. The README
+documents this prominently.
+
+### Strict defaults
+
+`SnapshotOptions.Default` preserves everything: line endings, BOM, trailing whitespace,
+trailing newline. Cross-platform false positives are real but should be opted into via
+`SnapshotOptions.NormalizedLineEndings` rather than silently normalized away. Same convention
+as the family-wide explicit-`StringComparison` rule.
+
+## Stability intent (pre-1.0)
+
+The 0.x series may include breaking changes on minor-version bumps. Concretely:
+
+- The **public types and members** documented above (`SnapshotAssertion`, the
+  `MatchesSnapshot*` extensions, `SnapshotOptions` and the four enum types,
+  `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver`, `SnapshotAcceptMode`,
+  `LineDiffRenderer`, `SnapshotResult`, `SnapshotMatchOutcome`, `SnapshotPaths`,
+  `SnapshotException`) are **intended-stable**. A rename or removal would require a major
+  version bump even pre-1.0.
+- The **exact text format of the line-based diff** rendered by `LineDiffRenderer` is **not
+  stable**. The format may gain extra detail or change in any release. Pin the *outcome* of
+  a `MatchesSnapshot()` assertion (pass / fail), not the exact failure message text.
+- The **distinction between `SnapshotTrailingNewline.Optional` and `Forbidden`** is currently
+  cosmetic — both produce the same equality outcome. Future versions may add a stricter
+  check for `Forbidden` that fails when either side has a trailing newline.
+
+`PackageValidationBaselineVersion` will pin to 0.1.0 in the 0.1.1 release; once pinned, any
+breaking change to the listed surface will fail the package-validation build.
+
+## Limitations and future work
+
+The 0.1.0 surface is intentionally minimal. Confirmed roadmap:
+
+- **0.1.1** — recursive public-API self-test project, `PackageValidationBaselineVersion` pinned to 0.1.0.
+- **0.2.0** — JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order /
+  array-order / ignored-properties options.
+- **0.3.0** — pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`) with built-in
+  scrubbers for Guids, ISO-8601 timestamps, IP addresses.
+- **0.4.0+** — Verify interop helpers (`ToVerifyString()` adapters) **only if** real consumer
+  demand emerges; coexistence is supported today without it.
+
+Out of scope (intentionally — use Verify instead):
+
+- Object-graph diffing
+- Image / binary diffing
+- IDE plugins
+- Cross-process snapshot comparison
 
 ## Pair with
 
-- **[`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/)** — fluent log assertions over `FakeLogCollector`. Use `MatchesSnapshot()` to pin the rendered output of `LogAssertions`'s `LogAssertionRendering`.
+- **[`LogAssertions.TUnit`](https://www.nuget.org/packages/LogAssertions.TUnit/)** — fluent
+  log assertions over `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. Use
+  `MatchesSnapshot()` to pin the rendered output of `LogAssertions`'s `LogAssertionRendering`
+  in integration tests.
+
+## Contributing
+
+Bug reports, feature requests, and PRs welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+conventions (code style, tests, branch naming) and [`CONVENTIONS.md`](CONVENTIONS.md) for
+the family-wide code conventions shared across `LogAssertions.TUnit` and this repo.
+
+For larger ideas (new entry points, breaking changes), open a [Discussion](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/discussions)
+first to align on direction before investing implementation time.
 
 ## License
 

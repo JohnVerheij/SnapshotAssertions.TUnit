@@ -10,6 +10,7 @@
          SnapshotAssertions core has zero NuGet dependencies beyond BCL: it only does file I/O,
          string comparison, and rendering. The list below covers the TUnit adapter, snapshot
          and smoke tests, and pack-time tooling (SBOM, SourceLink, PublicApiGenerator). -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="3.0.1" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <PackageVersion Include="PublicApiGenerator" Version="11.4.6" />

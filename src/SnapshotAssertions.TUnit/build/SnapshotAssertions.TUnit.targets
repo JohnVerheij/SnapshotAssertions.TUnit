@@ -1,0 +1,20 @@
+<!--
+  Auto-imported by NuGet when a project references SnapshotAssertions.TUnit. NuGet looks for
+  build/<PackageId>.targets in the package and includes it in the consuming csproj's MSBuild
+  evaluation. Result: consumers don't write any csproj wiring; .expected.txt files committed
+  under their project's Snapshots/ folder are automatically copied to the test binary's
+  output directory at build time.
+
+  Opt out: set <SnapshotAssertionsAutoIncludeSnapshots>false</SnapshotAssertionsAutoIncludeSnapshots>
+  in your csproj to disable the auto-include and wire the <None Include> manually if you
+  need a non-default snapshot folder layout.
+-->
+<Project>
+
+  <ItemGroup Condition="'$(SnapshotAssertionsAutoIncludeSnapshots)' != 'false'">
+    <None Include="Snapshots\**\*.expected.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>

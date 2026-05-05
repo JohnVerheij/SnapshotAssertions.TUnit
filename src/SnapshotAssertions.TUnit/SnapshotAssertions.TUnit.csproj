@@ -52,6 +52,7 @@
 
   <ItemGroup>
     <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
     <PackageReference Include="TUnit.Assertions" />
@@ -65,11 +66,25 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Codifies the no-reflection convention as a build-time error. See SnapshotAssertions.csproj
+         comment for the full rationale; the file is shared across both src projects. -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Use the per-package short README for the nuget.org page. The root README.md is the
          comprehensive reference rendered by GitHub on the repo home; nuget.org needs a focused
          'can I use this in 60 seconds' view, so the package ships a shorter README that links
          out to the full reference on GitHub. -->
     <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NuGet auto-imports the build folder targets file from the consuming project. The
+         shipped file auto-includes the consumer's Snapshots/*.expected.txt with
+         CopyToOutputDirectory=PreserveNewest, so consumers do not write any csproj wiring
+         to enable the snapshot file layout — install plus write tests, no MSBuild ceremony. -->
+    <None Include="build/SnapshotAssertions.TUnit.targets" Pack="true" PackagePath="build/" />
   </ItemGroup>
 
 </Project>

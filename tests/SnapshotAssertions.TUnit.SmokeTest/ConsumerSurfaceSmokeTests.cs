@@ -11,29 +11,47 @@ namespace Smoke.Consumer;
 /// this project is the canonical regression coverage for the resolution-pathway bug class.
 /// </summary>
 [Category("ConsumerSurface")]
-[Timeout(10_000)]
+[Timeout(15_000)]
 internal sealed class ConsumerSurfaceSmokeTests
 {
-    /// <summary>Pins that the assembly's scaffold marker constant resolves cleanly for an
-    /// external consumer using only the README's GlobalUsings snippet. Replaced by real
-    /// entry-point smoke tests once the 0.1.0 public API ships.</summary>
+    /// <summary>Pins that the source-generated <c>MatchesSnapshot()</c> entry point resolves
+    /// for an external consumer using only the README's GlobalUsings snippet.</summary>
     [Test]
-    public async Task ScaffoldMarkerResolvesForExternalConsumer(CancellationToken cancellationToken)
+    public async Task EntryPointMatchesSnapshotResolvesAndPasses(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        await Assert.That(SnapshotAssertionsTUnitInfo.ScaffoldMarker)
-            .IsEqualTo("snapshot-assertions-tunit-0.1.0-scaffold");
+        var dir = CreateTempDirectory();
+        var expected = Path.Combine(dir, "smoke-entry.expected.txt");
+        await File.WriteAllTextAsync(expected, "smoke\n", cancellationToken).ConfigureAwait(false);
+
+        await Assert.That("smoke\n").MatchesSnapshot().AtPath(expected);
     }
 
-    /// <summary>Pins that <see cref="SnapshotOptions.Default"/> resolves cleanly for an
-    /// external consumer. Validates that the framework-agnostic core is reachable from the
-    /// adapter package's transitive surface.</summary>
+    /// <summary>Pins that the <c>MatchesSnapshotFile(string)</c> shorthand extension resolves
+    /// for an external consumer.</summary>
+    [Test]
+    public async Task ShorthandMatchesSnapshotFileResolvesAndPasses(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var expected = Path.Combine(dir, "smoke-shorthand.expected.txt");
+        await File.WriteAllTextAsync(expected, "shorthand\n", cancellationToken).ConfigureAwait(false);
+
+        await Assert.That("shorthand\n").MatchesSnapshotFile(expected);
+    }
+
+    /// <summary>Pins that <see cref="SnapshotOptions.Default"/> resolves for an external
+    /// consumer. Validates that the framework-agnostic core is reachable transitively.</summary>
     [Test]
     public async Task SnapshotOptionsDefaultResolvesForExternalConsumer(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var options = SnapshotOptions.Default;
-
         await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.Ordinal);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "smoke-snapshot-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
     }
 }
