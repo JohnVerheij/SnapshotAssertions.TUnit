@@ -51,18 +51,19 @@ internal sealed class SnapshotExceptionTests
     }
 
     /// <summary>Result constructor with a failing result populates
-    /// <see cref="SnapshotException.Result"/> and produces a message containing the
-    /// expected and actual paths.</summary>
+    /// <see cref="SnapshotException.Result"/> and the message is exactly the result's
+    /// <see cref="SnapshotResult.Describe"/> output. Asserting full-message equality (not
+    /// just path containment) catches partial-format regressions in the constructor's
+    /// message-building contract.</summary>
     [Test]
-    public async Task ResultConstructor_WithFailingResult_PopulatesResultAndMessage(CancellationToken cancellationToken)
+    public async Task ResultConstructor_WithFailingResult_MessageEqualsDescribe(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = SnapshotResult.NoBaseline("/tmp/foo.expected.txt", "/tmp/foo.actual.txt");
         var ex = new SnapshotException(result);
 
         await Assert.That(ex.Result).IsSameReferenceAs(result);
-        await Assert.That(ex.Message).Contains("/tmp/foo.expected.txt");
-        await Assert.That(ex.Message).Contains("/tmp/foo.actual.txt");
+        await Assert.That(ex.Message).IsEqualTo(result.Describe());
     }
 
     /// <summary>Result constructor rejects a passing result: only failing outcomes warrant

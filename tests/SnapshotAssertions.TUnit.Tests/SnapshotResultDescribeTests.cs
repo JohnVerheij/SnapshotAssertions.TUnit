@@ -16,56 +16,63 @@ namespace SnapshotAssertions.TUnit.Tests;
 [Timeout(5_000)]
 internal sealed class SnapshotResultDescribeTests
 {
-    /// <summary>Matched outcome's description mentions the expected path.</summary>
+    /// <summary>Matched outcome's description carries the "Snapshot matched" headline and
+    /// the expected path. Pinning the outcome-specific headline catches header regressions
+    /// that path-containment alone would miss.</summary>
     [Test]
-    public async Task Matched_DescribeMentionsExpectedPath(CancellationToken cancellationToken)
+    public async Task Matched_DescribeMentionsHeadlineAndExpectedPath(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = SnapshotResult.Matched("/tmp/foo.expected.txt");
 
-        await Assert.That(result.Describe()).Contains("/tmp/foo.expected.txt");
+        var description = result.Describe();
+        await Assert.That(description).Contains("Snapshot matched");
+        await Assert.That(description).Contains("/tmp/foo.expected.txt");
         await Assert.That(result.IsPass).IsTrue();
     }
 
-    /// <summary>Accepted outcome's description mentions accept-mode and the expected
-    /// path.</summary>
+    /// <summary>Accepted outcome's description carries the "Snapshot accepted" headline,
+    /// mentions <c>SNAPSHOT_ACCEPT</c>, and includes the expected path.</summary>
     [Test]
-    public async Task Accepted_DescribeMentionsAcceptModeAndPath(CancellationToken cancellationToken)
+    public async Task Accepted_DescribeMentionsHeadlineAndAcceptModeAndPath(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = SnapshotResult.Accepted("/tmp/foo.expected.txt");
 
         var description = result.Describe();
+        await Assert.That(description).Contains("Snapshot accepted");
         await Assert.That(description).Contains("SNAPSHOT_ACCEPT");
         await Assert.That(description).Contains("/tmp/foo.expected.txt");
         await Assert.That(result.IsPass).IsTrue();
     }
 
-    /// <summary>NoBaseline outcome's description mentions both paths and the rename
-    /// guidance.</summary>
+    /// <summary>NoBaseline outcome's description carries the "baseline does not exist"
+    /// headline, mentions both paths, and includes the rename guidance.</summary>
     [Test]
-    public async Task NoBaseline_DescribeMentionsBothPathsAndRenameGuidance(CancellationToken cancellationToken)
+    public async Task NoBaseline_DescribeMentionsHeadlineAndBothPathsAndRenameGuidance(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = SnapshotResult.NoBaseline("/tmp/foo.expected.txt", "/tmp/foo.actual.txt");
 
         var description = result.Describe();
+        await Assert.That(description).Contains("Snapshot baseline does not exist");
         await Assert.That(description).Contains("/tmp/foo.expected.txt");
         await Assert.That(description).Contains("/tmp/foo.actual.txt");
         await Assert.That(description).Contains("rename");
         await Assert.That(result.IsPass).IsFalse();
     }
 
-    /// <summary>Mismatched outcome's description mentions both paths, the diff content, and
-    /// the rename guidance.</summary>
+    /// <summary>Mismatched outcome's description carries the "did not match" headline,
+    /// mentions both paths, the diff content, and the rename guidance.</summary>
     [Test]
-    public async Task Mismatched_DescribeMentionsBothPathsAndDiff(CancellationToken cancellationToken)
+    public async Task Mismatched_DescribeMentionsHeadlineAndBothPathsAndDiff(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var diff = "-old\n+new\n";
         var result = SnapshotResult.Mismatched("/tmp/foo.expected.txt", "/tmp/foo.actual.txt", diff);
 
         var description = result.Describe();
+        await Assert.That(description).Contains("Snapshot did not match the baseline");
         await Assert.That(description).Contains("/tmp/foo.expected.txt");
         await Assert.That(description).Contains("/tmp/foo.actual.txt");
         await Assert.That(description).Contains("-old");
