@@ -173,13 +173,26 @@ jobs:
         # or fails to produce a runnable binary. Per family convention, the smoke-test consumer
         # exercises every public entry point, so a clean AOT publish is the strongest single
         # guarantee that the assertion DSL is AOT-safe end-to-end.
+        #
+        # Restore + publish are split: the previous smoke-test step's restore did not target
+        # linux-x64 RID, so the runtime-specific host/ILC packs are not in obj/ yet. A fresh
+        # restore with --runtime linux-x64 picks them up; --source flags route the
+        # SnapshotAssertions.* packages to the local-pack feed and everything else to nuget.org
+        # (same absolute-path pattern as the previous smoke-test step, which is known-working).
+        # `dotnet publish ... --no-restore` then reuses the just-populated obj/ without the
+        # MSB1006 mis-parse that `-p:Source=...` triggers when its value contains ';' or URLs.
         run: |
+          dotnet restore tests/SnapshotAssertions.TUnit.SmokeTest/SnapshotAssertions.TUnit.SmokeTest.csproj \
+            --runtime linux-x64 \
+            --force-evaluate \
+            --source "$GITHUB_WORKSPACE/artifacts" \
+            --source "https://api.nuget.org/v3/index.json"
           dotnet publish tests/SnapshotAssertions.TUnit.SmokeTest/SnapshotAssertions.TUnit.SmokeTest.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
-            -p:PublishAot=true \
-            -p:Source="$GITHUB_WORKSPACE/artifacts;https://api.nuget.org/v3/index.json"
+            --no-restore \
+            -p:PublishAot=true
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
