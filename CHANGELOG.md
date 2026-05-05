@@ -53,6 +53,16 @@ runtime reflection.
   - `MatchesSnapshotFile(string filePath)`
   - `MatchesSnapshotFile(string filePath, SnapshotOptions options)`
 
+### Zero-config project setup
+
+The TUnit-adapter package ships a `build/SnapshotAssertions.TUnit.targets` file inside the
+`.nupkg`. NuGet auto-imports it into the consuming project, which auto-includes
+`Snapshots/**/*.expected.txt` with `CopyToOutputDirectory="PreserveNewest"`. Consumers do not
+write any csproj wiring — install the package and start writing tests. To opt out for custom
+snapshot folder layouts, set
+`<SnapshotAssertionsAutoIncludeSnapshots>false</SnapshotAssertionsAutoIncludeSnapshots>` in
+the test project.
+
 ### Default file resolution
 
 When `MatchesSnapshot()` is called without `.WithName` / `.AtPath` chains, the assertion

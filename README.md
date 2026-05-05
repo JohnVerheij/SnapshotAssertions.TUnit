@@ -154,16 +154,24 @@ await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt
 - `.expected.txt` — the committed baseline. Diffed against actual output on every test run.
 - `.actual.txt` — transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
 
-## Project setup (`csproj` wiring)
+## Project setup
 
-To get committed `.expected.txt` files into your test binary's directory at runtime, add this
-to your test project's `.csproj`:
+**No csproj wiring needed.** The package ships a `build/SnapshotAssertions.TUnit.targets`
+file that NuGet auto-imports into the consuming project. Any `.expected.txt` file under your
+project's `Snapshots/` folder is automatically copied to the test binary's output directory
+at every build (`CopyToOutputDirectory="PreserveNewest"`). Just install the package and start
+writing tests.
+
+To opt out (e.g., if you keep snapshots in a non-default location and want full manual
+control), set this property in your csproj:
 
 ```xml
-<ItemGroup>
-  <None Include="Snapshots/*.expected.txt" CopyToOutputDirectory="PreserveNewest" />
-</ItemGroup>
+<PropertyGroup>
+  <SnapshotAssertionsAutoIncludeSnapshots>false</SnapshotAssertionsAutoIncludeSnapshots>
+</PropertyGroup>
 ```
+
+Then add a `<None Include="...">` matching your custom layout.
 
 Recommended `.gitignore` (transient `.actual.txt` files must not be committed):
 

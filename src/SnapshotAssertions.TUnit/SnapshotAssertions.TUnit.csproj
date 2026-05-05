@@ -79,4 +79,12 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- NuGet auto-imports the build folder targets file from the consuming project. The
+         shipped file auto-includes the consumer's Snapshots/*.expected.txt with
+         CopyToOutputDirectory=PreserveNewest, so consumers do not write any csproj wiring
+         to enable the snapshot file layout — install plus write tests, no MSBuild ceremony. -->
+    <None Include="build/SnapshotAssertions.TUnit.targets" Pack="true" PackagePath="build/" />
+  </ItemGroup>
+
 </Project>
