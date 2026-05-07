@@ -1,0 +1,126 @@
+[assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
+[assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
+[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/SnapshotAssertions.TUnit")]
+[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
+namespace SnapshotAssertions
+{
+    public static class LineDiffRenderer
+    {
+        public const int MaxDifferingLines = 20;
+        public static string Render(string expected, string actual) { }
+    }
+    public static class Scrubbers
+    {
+        public static SnapshotAssertions.SnapshotScrubber Default { get; }
+        public static SnapshotAssertions.SnapshotScrubber Guid { get; }
+        public static SnapshotAssertions.SnapshotScrubber Iso8601Timestamp { get; }
+        public static SnapshotAssertions.SnapshotScrubber UnixEpochMillis { get; }
+        public static SnapshotAssertions.SnapshotScrubber Pattern(System.Text.RegularExpressions.Regex pattern, string token) { }
+        public static SnapshotAssertions.SnapshotScrubber Pattern(string pattern, string token) { }
+    }
+    public static class SnapshotAcceptMode
+    {
+        public const string AcceptVariableName = "SNAPSHOT_ACCEPT";
+        public const string CiVariableName = "CI";
+        public static bool IsActive() { }
+        public static bool IsActive(string? snapshotAcceptValue, string? ciValue) { }
+        public static bool IsTruthy(string? value) { }
+    }
+    public enum SnapshotBomHandling
+    {
+        StripBom = 0,
+        PreserveBom = 1,
+    }
+    public static class SnapshotComparer
+    {
+        public static bool AreEqual(string actual, string expected, SnapshotAssertions.SnapshotOptions options) { }
+        public static string Normalize(string content, SnapshotAssertions.SnapshotOptions options) { }
+    }
+    public static class SnapshotEvaluator
+    {
+        public static System.Threading.Tasks.Task<SnapshotAssertions.SnapshotResult> EvaluateAsync(string actualContent, SnapshotAssertions.SnapshotPaths paths, SnapshotAssertions.SnapshotOptions options, bool? acceptModeOverride = default, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SnapshotException : System.Exception
+    {
+        public SnapshotException() { }
+        public SnapshotException(SnapshotAssertions.SnapshotResult result) { }
+        public SnapshotException(string message) { }
+        public SnapshotException(string message, System.Exception innerException) { }
+        public SnapshotAssertions.SnapshotResult? Result { get; }
+    }
+    public static class SnapshotFileResolver
+    {
+        public const string ActualExtension = ".actual.txt";
+        public const string DefaultSnapshotsFolder = "Snapshots";
+        public const string ExpectedExtension = ".expected.txt";
+        public static string GetDefaultSnapshotsDirectory(string baseDirectory) { }
+        public static SnapshotAssertions.SnapshotPaths ResolveByFile(string expectedFilePath) { }
+        public static SnapshotAssertions.SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName) { }
+        public static SnapshotAssertions.SnapshotPaths ResolveByTest(string snapshotsDirectory, string testClassName, string testMethodName, System.Collections.Generic.IReadOnlyList<object?>? testMethodArguments = null) { }
+    }
+    public enum SnapshotLineEndingMode
+    {
+        Ordinal = 0,
+        NormalizeToLF = 1,
+        NormalizeToCRLF = 2,
+        IgnoreLineEndings = 3,
+    }
+    public enum SnapshotMatchOutcome
+    {
+        Matched = 0,
+        Mismatched = 1,
+        NoBaseline = 2,
+        Accepted = 3,
+    }
+    public sealed class SnapshotOptions : System.IEquatable<SnapshotAssertions.SnapshotOptions>
+    {
+        public SnapshotOptions() { }
+        public SnapshotAssertions.SnapshotBomHandling BomHandling { get; init; }
+        public SnapshotAssertions.SnapshotLineEndingMode LineEndingMode { get; init; }
+        public SnapshotAssertions.SnapshotTrailingNewline TrailingNewline { get; init; }
+        public SnapshotAssertions.SnapshotTrailingWhitespace TrailingWhitespace { get; init; }
+        public static SnapshotAssertions.SnapshotOptions Default { get; }
+        public static SnapshotAssertions.SnapshotOptions NormalizedLineEndings { get; }
+    }
+    public readonly struct SnapshotPaths : System.IEquatable<SnapshotAssertions.SnapshotPaths>
+    {
+        public SnapshotPaths(string ExpectedFilePath, string ActualFilePath) { }
+        public string ActualFilePath { get; init; }
+        public string ExpectedFilePath { get; init; }
+    }
+    public sealed class SnapshotResult : System.IEquatable<SnapshotAssertions.SnapshotResult>
+    {
+        public string? ActualFilePath { get; }
+        public string? Diff { get; }
+        public string ExpectedFilePath { get; }
+        public bool IsPass { get; }
+        public SnapshotAssertions.SnapshotMatchOutcome Outcome { get; }
+        public string Describe() { }
+        public void WriteDescription(System.IO.TextWriter writer) { }
+        public static SnapshotAssertions.SnapshotResult Accepted(string expectedFilePath) { }
+        public static SnapshotAssertions.SnapshotResult Matched(string expectedFilePath) { }
+        public static SnapshotAssertions.SnapshotResult Mismatched(string expectedFilePath, string actualFilePath, string diff) { }
+        public static SnapshotAssertions.SnapshotResult NoBaseline(string expectedFilePath, string actualFilePath) { }
+    }
+    public abstract class SnapshotScrubber
+    {
+        protected SnapshotScrubber() { }
+        public abstract string Apply(string input, SnapshotAssertions.SnapshotScrubberState state);
+    }
+    public sealed class SnapshotScrubberState
+    {
+        public SnapshotScrubberState() { }
+        public int GetOrAssignIndex(string kind, string originalValue) { }
+    }
+    public enum SnapshotTrailingNewline
+    {
+        Required = 0,
+        Optional = 1,
+        Forbidden = 2,
+    }
+    public enum SnapshotTrailingWhitespace
+    {
+        Preserve = 0,
+        TrimTrailingPerLine = 1,
+    }
+}

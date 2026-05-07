@@ -13,9 +13,18 @@
 #   M:Full.Type.Name.MethodName(System.Type[,System.Type...]); <reason>
 #   P:Full.Type.Name.PropertyName; <reason>
 
-# Runtime method invocation
+# Runtime method invocation. BannedApiAnalyzers uses exact symbol matching, not inheritance,
+# so the parent-class entry on MethodBase does NOT catch derived-class overrides on MethodInfo
+# / ConstructorInfo. Each derived overload is listed explicitly to close the bypass gap.
 M:System.Reflection.MethodBase.Invoke(System.Object,System.Object[]); reflection is banned in this project; use compile-time mechanisms instead
 M:System.Reflection.MethodBase.Invoke(System.Object,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo); reflection is banned in this project
+M:System.Reflection.MethodInfo.Invoke(System.Object,System.Object[]); reflection is banned in this project
+M:System.Reflection.MethodInfo.Invoke(System.Object,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo); reflection is banned in this project
+M:System.Reflection.ConstructorInfo.Invoke(System.Object[]); reflection is banned in this project
+M:System.Reflection.ConstructorInfo.Invoke(System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo); reflection is banned in this project
+M:System.Type.InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[]); reflection is banned in this project
+M:System.Type.InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Globalization.CultureInfo); reflection is banned in this project
+M:System.Type.InvokeMember(System.String,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object,System.Object[],System.Reflection.ParameterModifier[],System.Globalization.CultureInfo,System.String[]); reflection is banned in this project
 
 # Runtime property access
 M:System.Reflection.PropertyInfo.GetValue(System.Object); reflection is banned in this project

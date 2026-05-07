@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using TUnit.Assertions.Attributes;
@@ -29,6 +30,7 @@ public sealed class SnapshotAssertion : Assertion<string>
     private string? _explicitName;
     private string? _explicitPath;
     private SnapshotOptions _options = SnapshotOptions.Default;
+    private List<SnapshotScrubber>? _scrubbers;
 
     /// <summary>Initialises the assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
@@ -78,6 +80,28 @@ public sealed class SnapshotAssertion : Assertion<string>
         return this;
     }
 
+    /// <summary>
+    /// Adds a <see cref="SnapshotScrubber"/> to the pipeline. Multiple <c>.WithScrubber()</c>
+    /// calls compose left-to-right: the first scrubber receives the raw actual content; each
+    /// subsequent scrubber receives the previous scrubber's output. All scrubbers in the chain
+    /// share a single <see cref="SnapshotScrubberState"/> so recurring volatile values keep a
+    /// stable indexed token across the snapshot.
+    /// </summary>
+    /// <param name="scrubber">The scrubber to append. Use <see cref="Scrubbers.Default"/> for
+    /// the curated GUID + ISO 8601 + Unix-millis chain, or one of the individual
+    /// <see cref="Scrubbers"/> properties / <see cref="Scrubbers.Pattern(string, string)"/>
+    /// factories.</param>
+    /// <returns>This assertion for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scrubber"/> is <see langword="null"/>.</exception>
+    public SnapshotAssertion WithScrubber(SnapshotScrubber scrubber)
+    {
+        ArgumentNullException.ThrowIfNull(scrubber);
+        _scrubbers ??= [];
+        _scrubbers.Add(scrubber);
+        Context.ExpressionBuilder.Append(".WithScrubber(...)");
+        return this;
+    }
+
     /// <inheritdoc/>
     protected override async Task<AssertionResult> CheckAsync(EvaluationMetadata<string> metadata)
     {
@@ -90,6 +114,18 @@ public sealed class SnapshotAssertion : Assertion<string>
         var content = metadata.Value;
         if (content is null)
             return AssertionResult.Failed("actual content was null");
+
+        // Apply scrubbers (if any) before path resolution / evaluation. The scrubber state is
+        // local to this single MatchesSnapshot() evaluation; recurring volatile values get the
+        // same indexed token across the whole snapshot but state never crosses test boundaries.
+        if (_scrubbers is { Count: > 0 })
+        {
+            var state = new SnapshotScrubberState();
+            foreach (var scrubber in _scrubbers)
+            {
+                content = scrubber.Apply(content, state);
+            }
+        }
 
         // ResolvePaths intentionally lets InvalidOperationException (no test context) propagate
         // to the test runner rather than downgrading it to AssertionResult.Failed. The misuse

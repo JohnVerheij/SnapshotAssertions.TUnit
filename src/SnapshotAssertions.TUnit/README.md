@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
+> **Scope:** Test projects only. Not intended for production code.
+
 TUnit-native text-snapshot assertions on top of TUnit's `[AssertionExtension]` source generator. AOT-compatible, trimmable, no reflection. Coexists with [Verify](https://github.com/VerifyTests/Verify); does not replace it for object-graph cases.
 
 > **Full documentation, full options reference, design notes, and roadmap:** [github.com/JohnVerheij/SnapshotAssertions.TUnit](https://github.com/JohnVerheij/SnapshotAssertions.TUnit)
@@ -15,7 +17,7 @@ TUnit-native text-snapshot assertions on top of TUnit's `[AssertionExtension]` s
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.2 or later, .NET 10.
+`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.11 or later, .NET 10.
 
 ## Quick start
 
@@ -44,6 +46,28 @@ Three modes, in order of preference:
 3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test`. Refuses to run if `CI=true` (so a slipped pipeline env never accepts silently).
 
 CI never sets `SNAPSHOT_ACCEPT`. Mismatches always fail the build in pipelines.
+
+## Scrubbers (v0.2.0+)
+
+For snapshots that contain volatile values (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, request IDs, etc.), chain `.WithScrubber(...)` calls to replace them with stable indexed tokens before comparison. Recurring values share an index; different kinds maintain independent counters.
+
+```csharp
+using SnapshotAssertions;
+
+// Curated default: Guid + Iso8601Timestamp + UnixEpochMillis
+await Assert.That(jsonResponse)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Default);
+
+// Custom regex: replace request-id headers with a literal token
+await Assert.That(httpLog)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
+```
+
+The built-in indexed scrubbers (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`) emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing).
+
+[Full Scrubbers reference, custom-scrubber recipe, and design notes on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#scrubbers-volatile-value-handling)
 
 ## Why not Verify
 

@@ -33,12 +33,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: |
             10.0.x
@@ -85,7 +85,7 @@ jobs:
       # PR shows no Codecov data.
       - name: Upload coverage to Codecov
         if: steps.coverage.outputs.report != ''
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           files: ${{ steps.coverage.outputs.report }}
           fail_ci_if_error: false
@@ -101,7 +101,7 @@ jobs:
         if: steps.coverage.outputs.report != ''
         env:
           LINE_THRESHOLD: '0.90'
-          BRANCH_THRESHOLD: '0.80'
+          BRANCH_THRESHOLD: '0.90'
         run: |
           REPORT='${{ steps.coverage.outputs.report }}'
           LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' "$REPORT" | head -1)
@@ -128,6 +128,18 @@ jobs:
             FAILED=1
           fi
           [ "$FAILED" = "0" ]
+
+      - name: Test snapshot suite (no coverage)
+        # SnapshotTests pins the public API surface using THIS package's own MatchesSnapshot()
+        # chain — pure dogfooding: the snapshot tool tests itself on its own public surface.
+        # Run in a separate step from the main coverage run because the project measures API
+        # surface, not behaviour: its execution contributes nothing useful to the coverage
+        # rate. The .config/codecoverage.settings.xml already restricts ModulePaths to the
+        # production DLLs so SnapshotTests-internal code is excluded automatically — the
+        # separate step makes that intent explicit.
+        run: |
+          dotnet run --project tests/SnapshotAssertions.TUnit.SnapshotTests/SnapshotAssertions.TUnit.SnapshotTests.csproj \
+            --configuration Release --no-build
 
       - name: Pack SnapshotAssertions (core)
         run: dotnet pack src/SnapshotAssertions/SnapshotAssertions.csproj --configuration Release --no-build --output ./artifacts
@@ -189,7 +201,7 @@ jobs:
             -p:PublishAot=true
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nupkg
           path: ./artifacts/*.nupkg

@@ -11,7 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>SnapshotAssertions</PackageId>
     <ProductName>SnapshotAssertions</ProductName>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
+    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for text-snapshot assertions. Provides string-against-file comparison with line-ending / BOM / whitespace options, TestContext-aware default file naming, environment-variable-driven accept-mode workflow with CI guard, and line-based diff rendering. Test-framework-specific entry points live in adapter packages (SnapshotAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
@@ -24,17 +25,13 @@
 
     <!-- Pre-1.0 suppressions:
          Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.
-         Proj0241 (PackageValidationBaselineVersion missing) is suppressed for 0.1.0 only —
-         there is no prior shipped version to baseline against. Once 0.1.0 ships, set
-         PackageValidationBaselineVersion to the previous version below and remove Proj0241
-         from this NoWarn list. -->
-    <NoWarn>$(NoWarn);Proj0212;Proj0213;Proj0241</NoWarn>
+         (Proj0241 is no longer suppressed because PackageValidationBaselineVersion
+         above pins to the previous shipped version of this package - keep the
+         baseline value in sync with each release; do not pin a specific version
+         number in this comment to avoid drift.) -->
+    <NoWarn>$(NoWarn);Proj0212;Proj0213</NoWarn>
 
-    <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252).
-         Strict baseline validation is gated on PackageValidationBaselineVersion being set;
-         until 0.1.0 ships, the strict-mode props below have no baseline to compare against,
-         so package validation runs as a no-op. After the first release, set
-         PackageValidationBaselineVersion to 0.1.0 and the validator becomes active. -->
+    <!-- Symbol package + API compat (strict mode quad per dpfa Proj0249/0250/0251/0252) -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
@@ -45,8 +42,13 @@
     <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation) -->
+    <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation).
+         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3 — better
+         positioned for CRA Annex I §2(1) "commonly used and machine-readable format" alignment.
+         Tooling lag note: very old scanners that don't yet parse SPDX 3.0 fall back to the
+         CycloneDX 1.6 sibling artifact emitted by the release workflow. -->
     <GenerateSBOM>true</GenerateSBOM>
+    <SbomGenerationManifestInfo>SPDX:3.0</SbomGenerationManifestInfo>
 
     <!-- AOT / trimming - core code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>

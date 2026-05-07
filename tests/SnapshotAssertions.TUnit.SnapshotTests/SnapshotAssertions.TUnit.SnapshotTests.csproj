@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Public-API surface snapshot test project for SnapshotAssertions / SnapshotAssertions.TUnit.
+    Dogfoods the package's own MatchesSnapshot() against the public surface emitted by
+    PublicApiGenerator — proving end-to-end that the framework a real consumer would use for
+    public-API testing also works for the package itself, with no Verify dependency.
+
+    Why a separate project from SnapshotAssertions.TUnit.Tests:
+      - Keeps the public-API surface check architecturally separate from behaviour tests.
+      - Mirrors the LogAssertions / TimeAssertions layout (each repo has a dedicated
+        *.SnapshotTests project) so the family is consistent.
+
+    No Verify dependency: this project deliberately does NOT use Verify.TUnit. That removes
+    the Deterministic=false / Microsoft.CodeCoverage interaction issue that LogAssertions and
+    TimeAssertions's snapshot test projects work around with [ExcludeFromCodeCoverage] +
+    a coverage-less CI step. This project can run inside the main coverage step.
+
+    Snapshot baselines live under Snapshots/*.expected.txt next to this csproj. They are
+    auto-included as content via the explicit None entry below; ProjectReference doesn't
+    auto-import build/*.targets the way PackageReference does, so we replicate the include
+    here rather than relying on the package targets file.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SnapshotAssertions.TUnit.SnapshotTests</RootNamespace>
+    <AssemblyName>SnapshotAssertions.TUnit.SnapshotTests</AssemblyName>
+
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+
+    <!-- Proj0022 fires when a None Include glob matches zero files. The Snapshots/ directory
+         starts empty and is populated as tests are accepted; the include below is the canonical
+         "auto-deploy expected baselines to bin" mechanism that ships in the package's own
+         build/*.targets. Suppressing the rule on this project lets the include exist before
+         any baseline is committed without tripping the build. -->
+    <NoWarn>$(NoWarn);Proj0022</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Alphabetical per dpfa Proj0015 -->
+    <PackageReference Include="PublicApiGenerator" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mirror what build/SnapshotAssertions.TUnit.targets does for PackageReference consumers. -->
+    <None Update="Snapshots/**/*.expected.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>
