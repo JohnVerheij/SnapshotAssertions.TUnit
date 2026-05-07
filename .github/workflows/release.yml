@@ -89,17 +89,21 @@ jobs:
         # --exclude-dev strips analyzer / build-time-only packages from the BOM so it lists
         # only runtime-relevant dependencies — same set NuGet records under
         # <dependencies>/<group> in the nuspec.
-        # --exclude-test-projects + --no-serial-number keep the BOM deterministic-friendly
-        # and free of test-only coupling.
+        # --exclude-test-projects keeps the BOM free of test-only coupling.
+        # NOTE: serialNumber is intentionally INCLUDED. actions/attest-sbom uses serialNumber
+        # as part of its CycloneDX format-detection check (with bomFormat + specVersion); the
+        # earlier `--no-serial-number` flag (chosen for deterministic-friendly output) made
+        # the BOM unrecognisable to the attestation step. Determinism takes a back seat to
+        # attestability here.
         run: |
           dotnet CycloneDX src/SnapshotAssertions/SnapshotAssertions.csproj \
             -o ./artifacts -F Json -spv 1.6 \
             -fn "SnapshotAssertions.${TAG_VERSION}.cdx.json" \
-            --exclude-dev --exclude-test-projects --no-serial-number
+            --exclude-dev --exclude-test-projects
           dotnet CycloneDX src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj \
             -o ./artifacts -F Json -spv 1.6 \
             -fn "SnapshotAssertions.TUnit.${TAG_VERSION}.cdx.json" \
-            --exclude-dev --exclude-test-projects --no-serial-number
+            --exclude-dev --exclude-test-projects
 
       - name: Generate VEX (OpenVEX v0.2.0) document
         # VEX (Vulnerability Exploitability eXchange) declares which dependency CVEs do or
