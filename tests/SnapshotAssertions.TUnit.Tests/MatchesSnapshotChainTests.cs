@@ -72,7 +72,7 @@ internal sealed class MatchesSnapshotChainTests
     [Test]
     public async Task ShorthandFileWithOptions_NormalizedLineEndings_MatchesAcrossLineBreaks(CancellationToken cancellationToken)
     {
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var expected = Path.Combine(dir, "diff.expected.txt");
         await File.WriteAllTextAsync(expected, "a\r\nb\r\n", cancellationToken).ConfigureAwait(false);
 
@@ -100,7 +100,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task ResolveByTest_WithArgs_AppendsHashSuffix(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var paths = SnapshotFileResolver.ResolveByTest(dir, "C", "M", new object?[] { 1, "foo" });
 
         await Assert.That(paths.ExpectedFilePath).EndsWith(".expected.txt");
@@ -114,7 +114,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task ResolveByTest_SameArgs_ProduceSameHash(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var pathsA = SnapshotFileResolver.ResolveByTest(dir, "C", "M", new object?[] { 42, "hello", null });
         var pathsB = SnapshotFileResolver.ResolveByTest(dir, "C", "M", new object?[] { 42, "hello", null });
 
@@ -126,7 +126,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task ResolveByTest_DifferentArgs_ProduceDifferentHashes(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var pathsA = SnapshotFileResolver.ResolveByTest(dir, "C", "M", new object?[] { 1 });
         var pathsB = SnapshotFileResolver.ResolveByTest(dir, "C", "M", new object?[] { 2 });
 
@@ -139,7 +139,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task ResolveByTest_EmptyArgs_NoHashSuffix(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var pathsWithEmpty = SnapshotFileResolver.ResolveByTest(dir, "C", "M", System.Array.Empty<object?>());
         var pathsWithNull = SnapshotFileResolver.ResolveByTest(dir, "C", "M");
 
@@ -154,7 +154,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task ResolveByTest_IFormattableArgs_HashIsCultureInvariant(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var dir = CreateTempDirectory();
+        using var dir = CreateTempDirectory();
         var args = new object?[] { 1.5m, new System.DateTime(2026, 5, 5, 12, 0, 0, System.DateTimeKind.Utc) };
 
         var originalCulture = Thread.CurrentThread.CurrentCulture;
@@ -172,6 +172,61 @@ internal sealed class MatchesSnapshotChainTests
         {
             Thread.CurrentThread.CurrentCulture = originalCulture;
         }
+    }
+
+    /// <summary><c>WithScrubber</c> applies the supplied scrubber to the actual content
+    /// before comparison against the baseline. Recurring volatile values (here a GUID) get
+    /// stable indexed tokens (<c>&lt;guid:0&gt;</c>); the baseline contains the scrubbed form,
+    /// not the raw GUID.</summary>
+    [Test]
+    public async Task WithScrubber_GuidScrubber_ScrubsBeforeComparison(CancellationToken cancellationToken)
+    {
+        var name = "WithScrubberGuid_" + Guid.NewGuid().ToString("N");
+        var actualContent = "id=11111111-2222-3333-4444-555555555555 again=11111111-2222-3333-4444-555555555555\n";
+        var expectedScrubbed = "id=<guid:0> again=<guid:0>\n";
+        await WithExpectedFileAsync(name, expectedScrubbed, async () =>
+        {
+            await Assert.That(actualContent)
+                .MatchesSnapshot()
+                .WithName(name)
+                .WithScrubber(Scrubbers.Guid);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Multiple <c>.WithScrubber</c> calls compose left-to-right and share state, so
+    /// recurring values keep stable indexed tokens across the whole chain. Pins both the chain
+    /// composition and the second-call branch of <c>WithScrubber</c> (the <c>_scrubbers ??=
+    /// []</c> initialiser path is hit on the first call; the second call hits the
+    /// already-initialised path).</summary>
+    [Test]
+    public async Task WithScrubber_TwoScrubbersChained_BothApplied(CancellationToken cancellationToken)
+    {
+        var name = "WithScrubberChained_" + Guid.NewGuid().ToString("N");
+        var actualContent = "id=11111111-2222-3333-4444-555555555555 ts=2026-05-07T13:45:30Z\n";
+        var expectedScrubbed = "id=<guid:0> ts=<iso8601:0>\n";
+        await WithExpectedFileAsync(name, expectedScrubbed, async () =>
+        {
+            await Assert.That(actualContent)
+                .MatchesSnapshot()
+                .WithName(name)
+                .WithScrubber(Scrubbers.Guid)
+                .WithScrubber(Scrubbers.Iso8601Timestamp);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Argument validation: passing <see langword="null"/> as the scrubber throws
+    /// <see cref="ArgumentNullException"/>.</summary>
+    [Test]
+    public async Task WithScrubber_NullScrubber_ThrowsArgumentNull(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // The inner chain is built but not awaited — we only want WithScrubber's argument
+        // validation to fire synchronously. Suppress the "must await" analyzer for the
+        // builder line; the outer Assert.That(() => ...).Throws is what's being awaited.
+#pragma warning disable TUnitAssertions0002
+        var assertion = Assert.That("anything").MatchesSnapshot();
+#pragma warning restore TUnitAssertions0002
+        await Assert.That(() => assertion.WithScrubber(null!)).Throws<ArgumentNullException>();
     }
 
     private static async Task WithExpectedFileAsync(
@@ -198,10 +253,48 @@ internal sealed class MatchesSnapshotChainTests
         }
     }
 
-    private static string CreateTempDirectory()
+    private static TempDirectoryScope CreateTempDirectory() => new();
+
+    /// <summary>
+    /// Self-cleaning temp directory used by snapshot tests. Constructor allocates the dir
+    /// under <see cref="Path.GetTempPath"/>; <see cref="Dispose"/> recursively removes it (best
+    /// effort — swallows IO errors so a flaky teardown never masks the actual test failure).
+    /// Implicit conversion to <see cref="string"/> keeps existing call sites readable
+    /// (<c>Path.Combine(dir, ...)</c>) while still scoping cleanup to <c>using var</c>.
+    /// </summary>
+    private sealed class TempDirectoryScope : IDisposable
     {
-        var dir = Path.Combine(Path.GetTempPath(), "matches-snapshot-chain-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        return dir;
+        public string Path { get; }
+
+        public TempDirectoryScope()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "matches-snapshot-chain-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public void Dispose()
+        {
+            if (!Directory.Exists(Path))
+                return;
+            try
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup. Leftover files in TEMP are harmless and the OS will
+                // sweep them; we never want a teardown failure to hide an actual test failure.
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Same — best effort.
+            }
+        }
+
+        public static implicit operator string(TempDirectoryScope scope)
+        {
+            ArgumentNullException.ThrowIfNull(scope);
+            return scope.Path;
+        }
     }
 }

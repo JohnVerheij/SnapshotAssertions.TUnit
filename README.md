@@ -33,6 +33,13 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
   - [`SnapshotTrailingWhitespace`](#snapshottrailingwhitespace)
   - [`SnapshotTrailingNewline`](#snapshottrailingnewline)
   - [Constructing customized options](#constructing-customized-options)
+- [Scrubbers (volatile value handling)](#scrubbers-volatile-value-handling)
+  - [Built-in scrubbers](#built-in-scrubbers)
+  - [The `Scrubbers.Default` preset](#the-scrubbersdefault-preset)
+  - [Indexed-token format and recurring-value handling](#indexed-token-format-and-recurring-value-handling)
+  - [`Scrubbers.Pattern` for custom regex matches](#scrubberspattern-for-custom-regex-matches)
+  - [Composing multiple scrubbers](#composing-multiple-scrubbers)
+  - [Custom scrubbers](#custom-scrubbers)
 - [Failure diagnostics](#failure-diagnostics)
   - [Mismatched baseline](#mismatched-baseline)
   - [No baseline](#no-baseline)
@@ -44,6 +51,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 - [Design notes](#design-notes)
 - [Stability intent (pre-1.0)](#stability-intent-pre-10)
 - [Limitations and future work](#limitations-and-future-work)
+- [Family compatibility](#family-compatibility)
 - [Pair with](#pair-with)
 - [Contributing](#contributing)
 - [License](#license)
@@ -57,7 +65,7 @@ For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → com
 - **Verify (`Verify.TUnit`)** — feature-rich, but its `Verify.props` forces `<Deterministic>false</Deterministic>` (Verify needs absolute PDB paths to find `.verified.txt` files). On Linux runners that interaction breaks `Microsoft.CodeCoverage`'s instrumentation pipeline and produces an empty 178-byte cobertura skeleton, which Codecov rejects as "Unusable". The interaction is documented at [TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149).
 - **Hand-rolled file compare** — `PublicApiGenerator` + `File.ReadAllText` + `string.Equals`. Works, but every project re-invents the same 30-50 lines of accept-flow / file-naming / diff-display scaffolding.
 
-`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string → file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing, automatic scrubbing, and IDE-integrated diff display are explicitly out of scope; use Verify when you need those.
+`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string → file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing and IDE-integrated diff display remain explicitly out of scope; use Verify when you need those. Built-in scrubbing of dynamic content (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex patterns) ships in v0.2.0+ — see [Scrubbers](#scrubbers-volatile-value-handling).
 
 ## Install
 
@@ -65,7 +73,7 @@ For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → com
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.43.2 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
+**Requirements:** TUnit 1.43.11 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
 ## Package layout
 
@@ -154,7 +162,7 @@ await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt
 - `.expected.txt` — the committed baseline. Diffed against actual output on every test run.
 - `.actual.txt` — transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
 
-## Project setup
+## Project setup (`csproj` wiring)
 
 **No csproj wiring needed.** The package ships a `build/SnapshotAssertions.TUnit.targets`
 file that NuGet auto-imports into the consuming project. Any `.expected.txt` file under your
@@ -205,6 +213,7 @@ Methods on the `SnapshotAssertion` returned from `MatchesSnapshot()`:
 | `.WithName(string snapshotName)` | Override the default test-context-derived snapshot name. The file becomes `Snapshots/{snapshotName}.expected.txt`. Path separators in the name are rejected. |
 | `.AtPath(string filePath)` | Override path resolution entirely with an explicit absolute or relative file path to the expected baseline. Relative paths resolve against the current working directory. |
 | `.WithOptions(SnapshotOptions options)` | Override the comparison options (line-ending handling, BOM, trailing whitespace, trailing newline). Default is `SnapshotOptions.Default` (strict). |
+| `.WithScrubber(SnapshotScrubber scrubber)` *(v0.2.0+)* | Append a text-transform pass that runs before comparison. Multiple `.WithScrubber()` calls compose left-to-right; the first scrubber receives the raw actual content, each subsequent scrubber receives the previous scrubber's output. See [Scrubbers (volatile value handling)](#scrubbers-volatile-value-handling). |
 
 ### Shorthand entry-point extensions
 
@@ -269,7 +278,7 @@ How the trailing newline at end-of-file is treated.
 |---|---|
 | `Required` (default) | Preserve the trailing-newline state of the input. If actual lacks a trailing newline but expected has one (or vice versa), the comparison reports a mismatch. |
 | `Optional` | Both sides normalized to no trailing newline; presence vs absence is unobservable to the comparison. |
-| `Forbidden` | Same equality outcome as `Optional` for v0.1.0. (Future versions may add a stricter check that fails if either side has a trailing newline.) |
+| `Forbidden` | Same equality outcome as `Optional` today. (Future versions may add a stricter check that fails if either side has a trailing newline.) |
 
 ### Constructing customized options
 
@@ -284,6 +293,141 @@ var options = SnapshotOptions.Default with
 
 await Assert.That(actual).MatchesSnapshot(options);
 ```
+
+## Scrubbers (volatile value handling)
+
+> *Available from v0.2.0.*
+
+Snapshots that contain values which change run-to-run (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, request IDs, generated session keys, machine-specific paths) are otherwise unmaintainable: every run produces a different actual file, every diff is noise, every consumer of the snapshot baseline learns to ignore "the parts that change". Scrubbers fix this by transforming the actual content before comparison: volatile substrings are replaced with stable indexed tokens (`<guid:0>`, `<iso8601:1>`, etc.) so the baseline survives multiple test runs, while the test still fails when the *non-volatile* content changes.
+
+Scrubbers compose left-to-right via `.WithScrubber(...)` on the `MatchesSnapshot()` chain:
+
+```csharp
+using SnapshotAssertions;
+
+await Assert.That(jsonResponse)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Default);
+```
+
+The `Scrubbers` static factory exposes the built-ins; `SnapshotScrubber` is the abstract base class for custom scrubbers.
+
+### Built-in scrubbers
+
+Three indexed scrubbers cover the common volatile-value cases. Each emits tokens of the form `<kind:N>` where N is assigned by first-occurrence order within the snapshot, per kind. **Recurring values share the same N** — if a particular GUID appears three times, every occurrence renders as `<guid:0>`; a different GUID becomes `<guid:1>`.
+
+| Built-in | Matches | Token format | Notes |
+|---|---|---|---|
+| `Scrubbers.Guid` | 8-4-4-4-12 hex GUIDs (case-insensitive) | `<guid:N>` | Index look-up uses the lower-case canonical form, so mixed-case occurrences of the same GUID share an index. |
+| `Scrubbers.Iso8601Timestamp` | ISO 8601 timestamps with optional fractional seconds and `Z` / `±HH:MM` zone | `<iso8601:N>` | Comparison is ordinal — different precisions or offsets get different indices. Date-only and time-only forms are not matched. |
+| `Scrubbers.UnixEpochMillis` | 13-digit numbers with non-zero leading digit at word boundaries | `<unixms:N>` | Covers epoch-ms from 2001-09-09T01:46:40Z (1_000_000_000_000) through year ~2286 (max 13-digit value 9_999_999_999_999 ms ≈ 316.88 years from 1970). Leading-zero / all-zero 13-digit tokens are rejected. 12- or 14-digit numbers are not matched. |
+
+```csharp
+var input = "id=11111111-2222-3333-4444-555555555555 ts=2026-05-07T13:45:30Z ms=1746619530000";
+
+await Assert.That(input)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Guid)
+    .WithScrubber(Scrubbers.Iso8601Timestamp)
+    .WithScrubber(Scrubbers.UnixEpochMillis);
+// Compared content: "id=<guid:0> ts=<iso8601:0> ms=<unixms:0>"
+```
+
+### The `Scrubbers.Default` preset
+
+For the common case, `Scrubbers.Default` chains all three built-ins in deterministic order (`Guid` → `Iso8601Timestamp` → `UnixEpochMillis`):
+
+```csharp
+await Assert.That(jsonResponse)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Default);
+```
+
+The order is unobservable when the underlying patterns do not overlap (a GUID can't be a timestamp can't be a 13-digit number), so `Scrubbers.Default` is equivalent to chaining the three built-ins individually.
+
+### Indexed-token format and recurring-value handling
+
+The indexed format (`<kind:N>`) means: **first occurrence of a value gets index 0, the second distinct value gets index 1, and so on, per kind.** Subsequent occurrences of an earlier value reuse its index.
+
+```csharp
+var input = """
+    user-id=abcdef00-1111-2222-3333-444444444444
+    request-id=11111111-2222-3333-4444-555555555555
+    user-id=ABCDEF00-1111-2222-3333-444444444444
+    """;
+
+// Compared content (line endings normalized for prose):
+//   user-id=<guid:0>
+//   request-id=<guid:1>
+//   user-id=<guid:0>      ← case-insensitive match; same index as first occurrence
+```
+
+Different kinds maintain **independent** index counters: `<guid:0>`, `<iso8601:0>`, and `<unixms:0>` can all coexist in the same snapshot — index 0 is per-kind, not per-snapshot.
+
+Indexing state is **per-snapshot evaluation**: state lives only for the duration of a single `MatchesSnapshot()` call. State never crosses test boundaries — even within the same test run, two `.MatchesSnapshot()` calls on different fields each get fresh state.
+
+### `Scrubbers.Pattern` for custom regex matches
+
+Two overloads of `Scrubbers.Pattern(...)` cover values not handled by the built-ins. **No indexing** is applied — every match becomes the same literal token.
+
+```csharp
+// String overload: compiles the regex with NonBacktracking + CultureInvariant
+await Assert.That(httpLog)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
+
+// Regex overload: pass a pre-compiled Regex (recommended for hot paths)
+private static readonly Regex SessionTokenPattern = new(
+    @"\bsession=[A-Za-z0-9_-]+",
+    RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+
+await Assert.That(httpLog)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(SessionTokenPattern, "session=<scrubbed>"));
+```
+
+Note that regex backreferences (`$1`, `${name}`) in the replacement token are **NOT** interpreted — the literal characters are emitted. This keeps the API predictable; if you need backreferences, the right tool is a custom scrubber (see [Custom scrubbers](#custom-scrubbers)).
+
+### Composing multiple scrubbers
+
+Chained `.WithScrubber(...)` calls compose left-to-right: the first scrubber receives the raw actual content; each subsequent scrubber receives the previous scrubber's output. All scrubbers in the chain share a single `SnapshotScrubberState` so recurring values keep stable tokens across the whole snapshot.
+
+```csharp
+await Assert.That(httpLog)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"))
+    .WithScrubber(Scrubbers.Default)  // applied AFTER the pattern scrubber
+    .WithScrubber(Scrubbers.Pattern(@"\bclient-version=\d+\.\d+\.\d+", "client-version=<v>"));
+```
+
+### Custom scrubbers
+
+`SnapshotScrubber` is a public abstract class. Derive from it to implement custom indexed or non-indexed scrubbing logic; the per-snapshot `SnapshotScrubberState` is supplied so custom scrubbers can keep stable token assignments for recurring values via `state.GetOrAssignIndex(kind, originalValue)`.
+
+```csharp
+public sealed class SessionIdScrubber : SnapshotScrubber
+{
+    private static readonly Regex Pattern = new(
+        @"\bsession-[a-f0-9]{32}\b",
+        RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+
+    public override string Apply(string input, SnapshotScrubberState state)
+    {
+        return Pattern.Replace(input, m =>
+        {
+            var idx = state.GetOrAssignIndex("session", m.Value);
+            return $"<session:{idx}>";
+        });
+    }
+}
+
+// Use:
+await Assert.That(serverLog)
+    .MatchesSnapshot()
+    .WithScrubber(new SessionIdScrubber());
+```
+
+Custom scrubbers must be deterministic for a given input, must not perform IO, must not capture cross-test state, and must not depend on time. The built-in scrubbers all use `RegexOptions.NonBacktracking | RegexOptions.CultureInvariant` (ReDoS-resistant); follow the same pattern for custom regexes.
 
 ## Failure diagnostics
 
@@ -438,7 +582,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 |---|---|---|
 | Text snapshot (string → file) | ✅ | ✅ |
 | Object-graph snapshot (any object → file) | ❌ | ✅ |
-| Automatic scrubbing of dynamic content (Guids, dates, IPs) | ❌ (planned for 0.3.0) | ✅ |
+| Automatic scrubbing of dynamic content (Guids, dates, IPs) | ⚠️ partial — opt-in via `WithScrubber()` for GUIDs / ISO 8601 / Unix-epoch-millis / custom regex; no IPs or auto-detection | ✅ |
 | IDE-integrated diff display | ❌ (relies on file paths in failure message) | ✅ |
 | `Microsoft.CodeCoverage` Linux compatibility | ✅ | ❌ ([TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149)) |
 | AOT-compatible | ✅ | ⚠️ (some scenarios) |
@@ -446,8 +590,11 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 | Coexists in the same project | ✅ | ✅ |
 
 **When to use which:** if you only need text-snapshot assertions and run coverage on Linux,
-prefer `SnapshotAssertions.TUnit`. If you need object-graph diffing, scrubbers, or
-IDE-integrated diff display, use Verify (and accept the coverage workaround). The two libraries
+prefer `SnapshotAssertions.TUnit`. The opt-in scrubbers (GUIDs, ISO 8601 timestamps, Unix-epoch-millis,
+custom regex) cover the common volatile-value cases via `WithScrubber()` — see [Scrubbers](#scrubbers-volatile-value-handling).
+If you need object-graph diffing or IDE-integrated diff display, use Verify (and accept the
+Linux coverage workaround). For auto-detection of arbitrary dynamic content (e.g. IP addresses,
+hostnames, paths) without writing a regex, Verify is also the better fit. The two libraries
 do not depend on each other and can coexist in the same project.
 
 ## Troubleshooting
@@ -599,20 +746,20 @@ The 0.x series may include breaking changes on minor-version bumps. Concretely:
   cosmetic — both produce the same equality outcome. Future versions may add a stricter
   check for `Forbidden` that fails when either side has a trailing newline.
 
-`PackageValidationBaselineVersion` will pin to 0.1.0 in the 0.1.1 release; once pinned, any
+`PackageValidationBaselineVersion` is pinned to 0.1.0 from 0.2.0 onwards; once pinned, any
 breaking change to the listed surface will fail the package-validation build.
 
 ## Limitations and future work
 
-The 0.1.0 surface is intentionally minimal. Confirmed roadmap:
+### Resolved
 
-- **0.1.1** — recursive public-API self-test project, `PackageValidationBaselineVersion` pinned to 0.1.0.
-- **0.2.0** — JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order /
-  array-order / ignored-properties options.
-- **0.3.0** — pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`) with built-in
-  scrubbers for Guids, ISO-8601 timestamps, IP addresses.
-- **0.4.0+** — Verify interop helpers (`ToVerifyString()` adapters) **only if** real consumer
-  demand emerges; coexistence is supported today without it.
+- ✅ **0.1.1 housekeeping** — folded into 0.2.0 (dependency refresh, `PackageValidationBaselineVersion=0.1.0`, CONVENTIONS.md v0.2). Shipped in v0.2.0.
+- ✅ **Pattern-based scrubbing** — originally targeted for 0.3.0 under `MatchesSnapshotScrubbed(IScrubber)`. Pulled forward to 0.2.0 with a different shape: `.WithScrubber(SnapshotScrubber)` chain method, `Scrubbers` static factory, and indexed-token format for stable recurring-value handling. See [Scrubbers (volatile value handling)](#scrubbers-volatile-value-handling).
+
+### Confirmed roadmap
+
+- **0.3.0** — JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order / array-order / ignored-properties options.
+- **0.4.0+** — Verify interop helpers (`ToVerifyString()` adapters) **only if** real consumer demand emerges; coexistence is supported today without it.
 
 Out of scope (intentionally — use Verify instead):
 
@@ -620,6 +767,15 @@ Out of scope (intentionally — use Verify instead):
 - Image / binary diffing
 - IDE plugins
 - Cross-process snapshot comparison
+
+## Family compatibility
+
+The three assertion-family packages — `LogAssertions.TUnit`, `TimeAssertions.TUnit`, and `SnapshotAssertions.TUnit` — release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+
+For per-package release notes:
+- [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
+- [TimeAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/TimeAssertions.TUnit/blob/main/CHANGELOG.md)
+- [SnapshotAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 

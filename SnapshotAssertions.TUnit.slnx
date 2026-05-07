@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="src/SnapshotAssertions/SnapshotAssertions.csproj" />
   <Project Path="src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj" />
+  <Project Path="tests/SnapshotAssertions.TUnit.SnapshotTests/SnapshotAssertions.TUnit.SnapshotTests.csproj" />
   <Project Path="tests/SnapshotAssertions.TUnit.Tests/SnapshotAssertions.TUnit.Tests.csproj" />
 </Solution>

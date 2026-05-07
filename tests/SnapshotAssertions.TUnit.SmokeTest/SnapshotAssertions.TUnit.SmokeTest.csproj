@@ -58,15 +58,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.43.2" />
+    <PackageReference Include="TUnit" Version="1.43.11" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
-    <!-- Floating version: consumes whatever 0.1.x preview was packed into the local feed at
-         ../../artifacts. Use a wide pre-release pattern so any 0.1.0-rc / 0.1.0 also resolves
+    <!-- Floating version: consumes whatever 0.2.x preview was packed into the local feed at
+         ../../artifacts. Use a wide pre-release pattern so any 0.2.0-rc / 0.2.0 also resolves
          once published, which lets local devs run this against either a freshly-packed nupkg
          or a real published version. -->
-    <PackageReference Include="SnapshotAssertions.TUnit" Version="0.1.0-*" />
+    <PackageReference Include="SnapshotAssertions.TUnit" Version="0.2.0-*" />
   </ItemGroup>
 
 </Project>

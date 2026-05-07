@@ -97,6 +97,60 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("foo", "foo\n", options)).IsTrue();
     }
 
+    /// <summary>The combination of <c>IgnoreLineEndings</c> + <c>Required</c> + a trailing
+    /// newline on the input drives the empty-separator branch of
+    /// <c>ApplyTrailingNewlinePolicy</c> (which appends a stable LF marker so the
+    /// trailing-newline state is preserved despite the line-separator being empty).</summary>
+    [Test]
+    public async Task RequiredTrailingNewline_WithIgnoreLineEndings_PreservesTrailingState(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with
+        {
+            LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+            TrailingNewline = SnapshotTrailingNewline.Required,
+        };
+        // Both have a trailing newline -> Required-policy path with separator.Length == 0
+        // appends an LF marker on both, equality holds.
+        await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "a\r\nb\r\n", options)).IsTrue();
+        // One has trailing, the other doesn't -> the LF marker is appended on one side only,
+        // the comparison reports a mismatch (preserves Required semantics under empty separator).
+        await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "a\r\nb", options)).IsFalse();
+    }
+
+    /// <summary>An invalid enum value for <c>TrailingNewline</c> falls through the switch
+    /// statement to the default branch, throwing <see cref="ArgumentOutOfRangeException"/>.
+    /// Covers the defensive default arm.</summary>
+    [Test]
+    public async Task InvalidTrailingNewline_ThrowsArgumentOutOfRange(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var bogusOptions = SnapshotOptions.Default with
+        {
+            LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
+            TrailingNewline = (SnapshotTrailingNewline)999,
+        };
+        await Assert.That(() => SnapshotComparer.AreEqual("foo\n", "foo\n", bogusOptions))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>Forbidden trailing newline: same equality outcome as Optional today (both
+    /// strip trailing newlines before comparison so presence vs absence is unobservable). The
+    /// test pins the current behaviour and exercises the <c>Forbidden</c> branch of
+    /// <see cref="SnapshotComparer.Normalize"/>'s <c>ApplyTrailingNewlinePolicy</c> helper.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_PresentOrAbsent_Match(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with
+        {
+            LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
+            TrailingNewline = SnapshotTrailingNewline.Forbidden,
+        };
+        await Assert.That(SnapshotComparer.AreEqual("foo", "foo\n", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo", options)).IsTrue();
+    }
+
     /// <summary>Null arguments throw <see cref="ArgumentNullException"/>.</summary>
     [Test]
     public void NullArguments_Throw(CancellationToken cancellationToken)
