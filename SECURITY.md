@@ -105,7 +105,7 @@ Both attestations are signed via [Sigstore](https://www.sigstore.dev/) keyless s
 | Source code → build environment | GitHub Actions workflow with pinned action SHAs | — |
 | Build → nupkg artifact | `actions/attest-build-provenance@v2` | [SLSA v1.0 Provenance](https://slsa.dev/spec/v1.0/provenance) |
 | Build → SBOM (in-package) | `Microsoft.Sbom.Targets` at pack time | SPDX 3.0 (in `_manifest/spdx_3.0/`) |
-| Build → SBOM (sibling) | CycloneDX dotnet tool + `actions/attest-sbom@v2` | CycloneDX 1.6 + Sigstore signature |
+| Build → SBOM (sibling) | CycloneDX dotnet tool + `actions/attest@v4` | CycloneDX 1.6 + Sigstore signature |
 | Build → vulnerability disclosure | VEX (Vulnerability Exploitability eXchange) | [OpenVEX v0.2.0](https://github.com/openvex/spec) sibling release artifact |
 | Artifact → nuget.org | NuGet OIDC Trusted Publishing | — |
 | Git commits + tags | SSH-signed via 1Password | — |

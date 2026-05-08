@@ -51,7 +51,7 @@ jobs:
             exit 1
           fi
           echo "All three agree on version $TAG_VERSION"
-          # Export to subsequent steps so attest-sbom (which doesn't accept globs in sbom-path)
+          # Export to subsequent steps so actions/attest (which doesn't accept globs in sbom-path)
           # can reference exact version-tagged filenames.
           echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
 
@@ -90,7 +90,7 @@ jobs:
         # only runtime-relevant dependencies — same set NuGet records under
         # <dependencies>/<group> in the nuspec.
         # --exclude-test-projects keeps the BOM free of test-only coupling.
-        # NOTE: serialNumber is intentionally INCLUDED. actions/attest-sbom uses serialNumber
+        # NOTE: serialNumber is intentionally INCLUDED. actions/attest uses serialNumber
         # as part of its CycloneDX format-detection check (with bomFormat + specVersion); the
         # earlier `--no-serial-number` flag (chosen for deterministic-friendly output) made
         # the BOM unrecognisable to the attestation step. Determinism takes a back seat to
@@ -159,13 +159,13 @@ jobs:
         # Explicit filenames (not globs) because (a) sbom-path is single-file only, and (b)
         # `SnapshotAssertions.*.nupkg` would also match `SnapshotAssertions.TUnit.<ver>.nupkg`,
         # creating ambiguity about which package gets attested.
-        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-path: ./artifacts/SnapshotAssertions.${{ env.TAG_VERSION }}.nupkg
           sbom-path: ./artifacts/SnapshotAssertions.${{ env.TAG_VERSION }}.cdx.json
 
       - name: Attest CycloneDX SBOM for SnapshotAssertions.TUnit (Sigstore-signed)
-        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-path: ./artifacts/SnapshotAssertions.TUnit.${{ env.TAG_VERSION }}.nupkg
           sbom-path: ./artifacts/SnapshotAssertions.TUnit.${{ env.TAG_VERSION }}.cdx.json
