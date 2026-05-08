@@ -15,7 +15,7 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 ## Submitting a pull request
 
 1. Fork the repo and create a branch from `main`. Branch name convention: `fix/short-description`, `feat/short-description`, `docs/short-description`.
-2. Make your change. Keep it focused — a single logical change per PR.
+2. Make your change. Keep it focused: a single logical change per PR.
 3. Add or update tests. The project uses TUnit; existing tests in `tests/SnapshotAssertions.TUnit.Tests/` show the patterns.
 4. Build clean: `dotnet build` must produce zero warnings (`TreatWarningsAsErrors=true` is enforced).
 5. Test green: `dotnet test` must pass.
@@ -44,8 +44,8 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 
 Tests that use `MatchesSnapshot()` produce two file types:
 
-- `*.expected.txt` — the committed baseline. Diffed against actual output on every run.
-- `*.actual.txt` — the transient diff output, written when actual diverges from expected. Gitignored; never commit.
+- `*.expected.txt`: the committed baseline. Diffed against actual output on every run.
+- `*.actual.txt`: the transient diff output, written when actual diverges from expected. Gitignored; never commit.
 
 To accept a snapshot change:
 
@@ -56,7 +56,7 @@ To accept a snapshot change:
 ## Releases
 
 Versioning follows [Semantic Versioning](https://semver.org/):
-- `0.x.y` while the API is evolving — minor bumps may include breaking changes.
+- `0.x.y` while the API is evolving: minor bumps may include breaking changes.
 - `1.0.0` and beyond: breaking changes only on major-version bumps.
 
 Releases are published to NuGet via a tagged commit on `main`. The `<Version>` in `SnapshotAssertions.TUnit.csproj` is the source of truth for the package version. Both packages (`SnapshotAssertions` and `SnapshotAssertions.TUnit`) ship in lockstep on every tag.

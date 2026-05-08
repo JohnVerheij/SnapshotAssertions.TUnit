@@ -2,7 +2,7 @@ namespace Smoke.Consumer;
 
 /// <summary>
 /// Smoke tests proving that an external consumer can adopt SnapshotAssertions.TUnit purely via
-/// the README's recommended GlobalUsings.cs snippet — no extra <c>using SnapshotAssertions.TUnit;</c>
+/// the README's recommended GlobalUsings.cs snippet: no extra <c>using SnapshotAssertions.TUnit;</c>
 /// directive at the test-file level, no other wiring. The test class lives in
 /// <c>Smoke.Consumer</c> deliberately: SnapshotAssertions.TUnit's own test project is in the
 /// <c>SnapshotAssertions.TUnit.Tests</c> namespace, which inherits parent-namespace visibility

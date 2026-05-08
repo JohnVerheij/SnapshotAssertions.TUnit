@@ -131,11 +131,11 @@ jobs:
 
       - name: Test snapshot suite (no coverage)
         # SnapshotTests pins the public API surface using THIS package's own MatchesSnapshot()
-        # chain — pure dogfooding: the snapshot tool tests itself on its own public surface.
+        # chain: pure dogfooding: the snapshot tool tests itself on its own public surface.
         # Run in a separate step from the main coverage run because the project measures API
         # surface, not behaviour: its execution contributes nothing useful to the coverage
         # rate. The .config/codecoverage.settings.xml already restricts ModulePaths to the
-        # production DLLs so SnapshotTests-internal code is excluded automatically — the
+        # production DLLs so SnapshotTests-internal code is excluded automatically: the
         # separate step makes that intent explicit.
         run: |
           dotnet run --project tests/SnapshotAssertions.TUnit.SnapshotTests/SnapshotAssertions.TUnit.SnapshotTests.csproj \

@@ -33,5 +33,5 @@ ignore:
   - "**/obj/**"
   # Build outputs.
   - "**/bin/**"
-  # Test project itself — measuring its own coverage produces noise, not signal.
+  # Test project itself: measuring its own coverage produces noise, not signal.
   - "tests/**"

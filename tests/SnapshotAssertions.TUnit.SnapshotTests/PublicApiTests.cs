@@ -43,7 +43,12 @@ internal sealed class PublicApiTests
     {
         ct.ThrowIfCancellationRequested();
         var assembly = typeof(SnapshotComparer).Assembly;
-        var publicApi = assembly.GeneratePublicApi();
+        // Normalize line endings so the snapshot baseline survives both Linux CI (LF native)
+        // and Windows local dev (CRLF native). Without this, PublicApiGenerator emits the
+        // platform's native EOL while the committed .expected.txt baseline is always LF
+        // (per .gitattributes), and Windows local runs would diff against the CI-accepted
+        // baseline.
+        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }
@@ -59,7 +64,12 @@ internal sealed class PublicApiTests
     {
         ct.ThrowIfCancellationRequested();
         var assembly = typeof(SnapshotAssertion).Assembly;
-        var publicApi = assembly.GeneratePublicApi();
+        // Normalize line endings so the snapshot baseline survives both Linux CI (LF native)
+        // and Windows local dev (CRLF native). Without this, PublicApiGenerator emits the
+        // platform's native EOL while the committed .expected.txt baseline is always LF
+        // (per .gitattributes), and Windows local runs would diff against the CI-accepted
+        // baseline.
+        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }

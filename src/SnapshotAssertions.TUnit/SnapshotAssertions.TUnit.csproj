@@ -43,14 +43,14 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation).
-         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3 — better
+         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3: better
          positioned for CRA Annex I §2(1) "commonly used and machine-readable format" alignment.
          Tooling lag note: very old scanners that don't yet parse SPDX 3.0 fall back to the
          CycloneDX 1.6 sibling artifact emitted by the release workflow. -->
     <GenerateSBOM>true</GenerateSBOM>
     <SbomGenerationManifestInfo>SPDX:3.0</SbomGenerationManifestInfo>
 
-    <!-- AOT / trimming — lib code uses no reflection, safe for AOT-mode test contexts -->
+    <!-- AOT / trimming: lib code uses no reflection, safe for AOT-mode test contexts -->
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -89,7 +89,7 @@
     <!-- NuGet auto-imports the build folder targets file from the consuming project. The
          shipped file auto-includes the consumer's Snapshots/*.expected.txt with
          CopyToOutputDirectory=PreserveNewest, so consumers do not write any csproj wiring
-         to enable the snapshot file layout — install plus write tests, no MSBuild ceremony. -->
+         to enable the snapshot file layout: install plus write tests, no MSBuild ceremony. -->
     <None Include="build/SnapshotAssertions.TUnit.targets" Pack="true" PackagePath="build/" />
   </ItemGroup>
 

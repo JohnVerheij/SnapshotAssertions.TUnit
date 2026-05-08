@@ -50,7 +50,7 @@ public static class SnapshotFileResolver
 
         // Reject empty/whitespace directory explicitly. Without this, Path.Combine("", name)
         // returns just `name`, and Path.GetFullPath then resolves it against the process
-        // working directory — which is almost never what the caller intended and produces
+        // working directory: which is almost never what the caller intended and produces
         // mysterious file-not-found behavior far from the call site.
         if (string.IsNullOrWhiteSpace(snapshotsDirectory))
             throw new ArgumentException("Snapshots directory must be non-empty.", nameof(snapshotsDirectory));

@@ -79,15 +79,15 @@ jobs:
         # <SbomGenerationManifestInfo> in the src csprojs). CycloneDX 1.6 lands as a sibling
         # release artifact for security tooling that prefers CycloneDX (OWASP Dependency-Track,
         # Snyk, etc.). CRA Annex I §2(1) says SBOM "in a commonly used and machine-readable
-        # format" — singular — so either format alone satisfies; emitting both gives consumers
+        # format": singular: so either format alone satisfies; emitting both gives consumers
         # their choice.
-        # Pin to a specific version so the SBOM tooling itself is deterministic — matches the
+        # Pin to a specific version so the SBOM tooling itself is deterministic: matches the
         # SHA-pinning posture for every other action in this workflow.
         run: dotnet tool install --global CycloneDX --version 6.2.0
 
       - name: Generate CycloneDX 1.6 SBOM (release artifact)
         # --exclude-dev strips analyzer / build-time-only packages from the BOM so it lists
-        # only runtime-relevant dependencies — same set NuGet records under
+        # only runtime-relevant dependencies: same set NuGet records under
         # <dependencies>/<group> in the nuspec.
         # --exclude-test-projects keeps the BOM free of test-only coupling.
         # NOTE: serialNumber is intentionally INCLUDED. actions/attest uses serialNumber
@@ -141,7 +141,7 @@ jobs:
         #   gh attestation verify ./SnapshotAssertions.<version>.nupkg --owner JohnVerheij
         # which downloads the attestation, validates the Sigstore certificate chain, and
         # confirms the artifact was built by THIS repo at THIS commit by THIS workflow.
-        # End-to-end supply-chain provenance — the missing link between "this nupkg is signed
+        # End-to-end supply-chain provenance: the missing link between "this nupkg is signed
         # by some NuGet account" and "this nupkg was built from this audited source tree".
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:

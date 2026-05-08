@@ -86,7 +86,7 @@ internal sealed class SnapshotFileResolverTests
 
     /// <summary>Empty / whitespace snapshots-directory throws. Without this check, an empty
     /// directory string would Path.Combine into the bare snapshot name and Path.GetFullPath
-    /// would resolve it against the process working directory — almost never what the
+    /// would resolve it against the process working directory: almost never what the
     /// caller intended.</summary>
     [Test]
     public void ResolveByName_EmptyDirectory_Throws(CancellationToken cancellationToken)

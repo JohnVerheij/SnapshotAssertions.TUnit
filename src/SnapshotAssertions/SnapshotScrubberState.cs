@@ -19,7 +19,7 @@ public sealed class SnapshotScrubberState
     /// <param name="kind">The scrubber-defined kind namespace (e.g. <c>"guid"</c>, <c>"iso8601"</c>,
     /// <c>"unixms"</c>). Different kinds maintain independent index counters.</param>
     /// <param name="originalValue">The exact substring observed in the snapshot. Equality is
-    /// ordinal — callers normalise the matched text (e.g. lower-casing GUIDs) before look-up
+    /// ordinal: callers normalise the matched text (e.g. lower-casing GUIDs) before look-up
     /// when case-insensitive equality is desired.</param>
     /// <returns>The zero-based index of the value within its kind namespace.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>

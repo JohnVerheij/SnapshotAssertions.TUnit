@@ -129,8 +129,8 @@ public sealed class SnapshotAssertion : Assertion<string>
 
         // ResolvePaths intentionally lets InvalidOperationException (no test context) propagate
         // to the test runner rather than downgrading it to AssertionResult.Failed. The misuse
-        // signal — "you called MatchesSnapshot() with no name or explicit path outside an
-        // active TUnit test method" — is more useful as a raw exception that surfaces at the
+        // signal: "you called MatchesSnapshot() with no name or explicit path outside an
+        // active TUnit test method": is more useful as a raw exception that surfaces at the
         // call site than as a generic failed assertion message. Likewise, IO failures
         // (filesystem permissions, disk full, etc.) propagate from EvaluateAsync.
         var paths = ResolvePaths();

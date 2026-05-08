@@ -220,7 +220,7 @@ internal sealed class MatchesSnapshotChainTests
     public async Task WithScrubber_NullScrubber_ThrowsArgumentNull(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        // The inner chain is built but not awaited — we only want WithScrubber's argument
+        // The inner chain is built but not awaited: we only want WithScrubber's argument
         // validation to fire synchronously. Suppress the "must await" analyzer for the
         // builder line; the outer Assert.That(() => ...).Throws is what's being awaited.
 #pragma warning disable TUnitAssertions0002
@@ -258,7 +258,7 @@ internal sealed class MatchesSnapshotChainTests
     /// <summary>
     /// Self-cleaning temp directory used by snapshot tests. Constructor allocates the dir
     /// under <see cref="Path.GetTempPath"/>; <see cref="Dispose"/> recursively removes it (best
-    /// effort — swallows IO errors so a flaky teardown never masks the actual test failure).
+    /// effort: swallows IO errors so a flaky teardown never masks the actual test failure).
     /// Implicit conversion to <see cref="string"/> keeps existing call sites readable
     /// (<c>Path.Combine(dir, ...)</c>) while still scoping cleanup to <c>using var</c>.
     /// </summary>
@@ -287,7 +287,7 @@ internal sealed class MatchesSnapshotChainTests
             }
             catch (UnauthorizedAccessException)
             {
-                // Same — best effort.
+                // Same: best effort.
             }
         }
 

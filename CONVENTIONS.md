@@ -1,15 +1,15 @@
 # Code conventions
 
 Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
-`SnapshotAssertions.TUnit`, and `TimeAssertions.TUnit`). The same file is copied identically
-into each repo.
+`SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, and `MathAssertions.TUnit`). The same
+file is copied identically into each repo.
 
 **Document version:** v0.2 (2026-05-07). Changes from v0.1: codified the family rule against
-promoting Verify; added polling-loop default-calibration agreement; added `ToSnapshotString()`
+promoting Verify; added polling-loop default-schedule agreement; added `ToSnapshotString()`
 format-version header rule; added test-projects-only scope blockquote as a binding
 cross-repo convention; codified TFM policy (LTS-anchored; multi-target during STS support
-windows); expanded the `CancellationToken`
-plumbing rule with provider-driven polling-sleep semantics.
+windows); expanded the `CancellationToken` plumbing rule with provider-driven polling-sleep
+semantics.
 
 ## Naming patterns
 
@@ -42,9 +42,9 @@ For polling, looping, or internal-timeout APIs, the additional rules are:
 
 - Call `ct.ThrowIfCancellationRequested()` at the top of every poll iteration. Don't wait
   for the next sleep to surface cancellation.
-- For sleep / delay between iterations, use `Task.Delay(interval, ct)` — propagates
-  cancellation cleanly. When a `TimeProvider?` is supplied non-null on the API, see the
-  polling-loop default-calibration section below for the provider-driven variant.
+- For sleep / delay between iterations, use `Task.Delay(interval, ct)` for cancellation
+  cleanup. When a `TimeProvider?` is supplied non-null on the API, see the polling-loop
+  default-schedule section below for the provider-driven variant.
 - For internal-timeout APIs (e.g. `WithinHardTimeBudget(TimeSpan)`), create the internal
   `CancellationTokenSource(timeout)` and link it with the supplied external CT via
   `CancellationTokenSource.CreateLinkedTokenSource(externalCt, internalCts.Token)`. Either
@@ -59,14 +59,14 @@ the optional parameter and the assertion uses `timeProvider.GetTimestamp()` /
 `timeProvider.GetElapsedTime(...)` for monotonic measurement.
 
 `TimeAssertions.TUnit` is the canonical implementation of this convention. Every sibling
-package's timing-related API accepts `TimeProvider` independently — no shared dependency.
+package's timing-related API accepts `TimeProvider` independently; no shared dependency.
 
-## Polling-loop default-calibration agreement
+## Polling-loop default-schedule agreement
 
 `LogAssertions.WithinTimeout` and `TimeAssertions.Eventually` (and any future polling
 terminator across the family) follow an explicit, fully-pinned schedule. Each package
 implements independently (the family rule forbids cross-package code reference); the
-convention pins the calibration so consumers see uniform behaviour without literal code
+convention pins the schedule so consumers see uniform behaviour without literal code
 sharing.
 
 **Schedule.** Exponential schedule: 100ms, 200ms, 400ms, 800ms, then 1000ms cap. Escalates
@@ -109,9 +109,9 @@ reasons but are hidden from IntelliSense.
 
 | Type / member | Namespace | Auto-imported? |
 |---|---|---|
-| Source-generated assertion entry points (`HasLogged()`, `MatchesSnapshot()`, `WithinTimeBudget()`, etc.) | `TUnit.Assertions.Extensions` | Yes — TUnit auto-imports |
-| Shorthand entry points | `TUnit.Assertions.Extensions` | Yes — same path |
-| Internal types (matchers, options, builders) | Package's own namespace (`SnapshotAssertions`, `LogAssertions`, `TimeAssertions`, ...) | No — needs explicit `using` |
+| Source-generated assertion entry points (`HasLogged()`, `MatchesSnapshot()`, `WithinTimeBudget()`, `IsApproximatelyEqualTo()`, etc.) | `TUnit.Assertions.Extensions` | Yes (TUnit auto-imports) |
+| Shorthand entry points | `TUnit.Assertions.Extensions` | Yes (same path) |
+| Internal types (matchers, options, builders) | Package's own namespace (`SnapshotAssertions`, `LogAssertions`, `TimeAssertions`, `MathAssertions`, ...) | No (needs explicit `using`) |
 
 ## No reflection policy
 
@@ -148,15 +148,15 @@ the single target until its STS sibling appears the following November.
 
 | Window (approximate dates) | Target frameworks |
 |---|---|
-| Now — .NET 10 LTS only (Nov 2025 → Nov 2026) | `net10.0` |
-| .NET 11 STS in support (Nov 2026 → Nov 2027) | `net10.0;net11.0` |
-| .NET 12 LTS ships, drop 10 + 11 (Nov 2027 → Nov 2028) | `net12.0` |
-| .NET 13 STS in support (Nov 2028 → Nov 2029) | `net12.0;net13.0` |
+| Now, .NET 10 LTS only (Nov 2025 to Nov 2026) | `net10.0` |
+| .NET 11 STS in support (Nov 2026 to Nov 2027) | `net10.0;net11.0` |
+| .NET 12 LTS ships, drop 10 + 11 (Nov 2027 to Nov 2028) | `net12.0` |
+| .NET 13 STS in support (Nov 2028 to Nov 2029) | `net12.0;net13.0` |
 | ... | ... |
 
 The TFM rotation lands at major-version boundaries (`2.0`, `3.0`, ...). Consumers who need an
 older TFM pin to an older package version. Wide multi-targeting (e.g. `net8;net9;net10`) is not
-used; the goal is "current LTS, plus current STS while it exists" — never long historical tails.
+used; the goal is "current LTS, plus current STS while it exists" with no long historical tails.
 
 ## Verify is not promoted
 

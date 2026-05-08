@@ -12,7 +12,7 @@ namespace SnapshotAssertions;
 /// Accept-mode is enabled when <c>SNAPSHOT_ACCEPT</c> is set to a truthy value (one of
 /// <c>1</c>, <c>true</c>, or <c>yes</c>; case-insensitive). It is unconditionally
 /// <em>disabled</em> in CI: if the <c>CI</c> environment variable is set to a truthy value
-/// (which all major hosted CI services do — GitHub Actions, GitLab CI, Azure Pipelines,
+/// (which all major hosted CI services do: GitHub Actions, GitLab CI, Azure Pipelines,
 /// CircleCI, etc.), accept-mode is refused even if <c>SNAPSHOT_ACCEPT</c> is set, to prevent
 /// a stray pipeline configuration from silently accepting baseline drift.
 /// </para>

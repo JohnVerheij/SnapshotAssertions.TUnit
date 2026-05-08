@@ -18,7 +18,7 @@ Reports submitted this way are visible only to repository maintainers and are en
 
 ### Alternative: open a contact-request issue
 
-If GitHub's private reporting form is unavailable in your account (e.g. organisation-level restrictions), open a regular issue with the title `Security: contact request` and **no exploit details in the body** — just enough to indicate you have a security report to file. The maintainer will move the conversation to a private channel from there.
+If GitHub's private reporting form is unavailable in your account (e.g. organisation-level restrictions), open a regular issue with the title `Security: contact request` and **no exploit details in the body**. Just enough to indicate you have a security report to file. The maintainer will move the conversation to a private channel from there.
 
 (Drafting a GitHub Security Advisory directly is restricted to repository admins and security managers, so it is not a viable fallback for external reporters.)
 
@@ -26,12 +26,12 @@ If GitHub's private reporting form is unavailable in your account (e.g. organisa
 
 A useful report typically includes:
 
-- **Affected version(s)** — exact NuGet package version where the issue is observed
-- **Severity assessment** — your view of the impact (CVSS 3.1 or 4.0 vector if you have one, otherwise prose)
-- **Reproduction steps** — the smallest test project / call sequence that triggers the issue
+- **Affected version(s):** exact NuGet package version where the issue is observed
+- **Severity assessment:** your view of the impact (CVSS 3.1 or 4.0 vector if you have one, otherwise prose)
+- **Reproduction steps:** the smallest test project / call sequence that triggers the issue
 - **Suggested fix or mitigation** if you have one
 
-Reports without these are still welcome — maintainers will work with you to fill the gaps.
+Reports without these are still welcome; maintainers will work with you to fill the gaps.
 
 ## Response targets
 
@@ -53,7 +53,7 @@ A **coordinated disclosure** (public CVE filing + advisory + patched release) is
 | `0.1.x` | Previous stable | ✅ Yes (security fixes only; no new features) |
 | `< 0.1.0` | Pre-stable | ❌ No |
 
-This table is updated alongside each release that bumps the current line. Coverage of older lines for security-only fixes follows the [.NET LTS / STS rotation](CONVENTIONS.md#tfm-policy) — when the package's TFM changes at a major-version boundary, security fixes for the previous line continue to ship for one minor cycle.
+This table is updated alongside each release that bumps the current line. Coverage of older lines for security-only fixes follows the [.NET LTS / STS rotation](CONVENTIONS.md#tfm-policy): when the package's TFM changes at a major-version boundary, security fixes for the previous line continue to ship for one minor cycle.
 
 ## Scope
 
@@ -71,9 +71,9 @@ In scope:
 
 Out of scope (please report upstream instead):
 
-- Vulnerabilities in **direct dependencies** (`TUnit.*`, `PublicApiGenerator`, etc.) — report to the relevant upstream maintainer; we will pull in their fix once released
-- Vulnerabilities in **the .NET runtime / SDK** itself — report to [Microsoft Security Response Center](https://msrc.microsoft.com/)
-- Issues affecting **production code** that incorrectly references this package — see the "Test projects only" scope blockquote on the package README; production use is unsupported by design
+- Vulnerabilities in **direct dependencies** (`TUnit.*`, `PublicApiGenerator`, etc.). Report to the relevant upstream maintainer; we will pull in their fix once released.
+- Vulnerabilities in **the .NET runtime / SDK** itself. Report to [Microsoft Security Response Center](https://msrc.microsoft.com/).
+- Issues affecting **production code** that incorrectly references this package. See the "Test projects only" scope blockquote on the package README; production use is unsupported by design.
 
 ## What this project does NOT have
 
@@ -98,17 +98,17 @@ gh attestation verify ./<package>.<version>.nupkg \
     --repo JohnVerheij/SnapshotAssertions.TUnit --predicate-type https://cyclonedx.org/bom
 ```
 
-Both attestations are signed via [Sigstore](https://www.sigstore.dev/) keyless signing — there is no long-lived signing key for an attacker to compromise; verification proves the artifact came from this exact GitHub repo at the exact commit and workflow that built it.
+Both attestations are signed via [Sigstore](https://www.sigstore.dev/) keyless signing; there is no long-lived signing key for an attacker to compromise; verification proves the artifact came from this exact GitHub repo at the exact commit and workflow that built it.
 
 | Layer | Mechanism | Format / standard |
 |---|---|---|
-| Source code → build environment | GitHub Actions workflow with pinned action SHAs | — |
-| Build → nupkg artifact | `actions/attest-build-provenance@v2` | [SLSA v1.0 Provenance](https://slsa.dev/spec/v1.0/provenance) |
-| Build → SBOM (in-package) | `Microsoft.Sbom.Targets` at pack time | SPDX 3.0 (in `_manifest/spdx_3.0/`) |
-| Build → SBOM (sibling) | CycloneDX dotnet tool + `actions/attest@v4` | CycloneDX 1.6 + Sigstore signature |
-| Build → vulnerability disclosure | VEX (Vulnerability Exploitability eXchange) | [OpenVEX v0.2.0](https://github.com/openvex/spec) sibling release artifact |
-| Artifact → nuget.org | NuGet OIDC Trusted Publishing | — |
-| Git commits + tags | SSH-signed via 1Password | — |
+| Source code to build environment | GitHub Actions workflow with pinned action SHAs | (n/a) |
+| Build to nupkg artifact | `actions/attest-build-provenance@v2` | [SLSA v1.0 Provenance](https://slsa.dev/spec/v1.0/provenance) |
+| Build to SBOM (in-package) | `Microsoft.Sbom.Targets` at pack time | SPDX 3.0 (in `_manifest/spdx_3.0/`) |
+| Build to SBOM (sibling) | CycloneDX dotnet tool + `actions/attest@v4` | CycloneDX 1.6 + Sigstore signature |
+| Build to vulnerability disclosure | VEX (Vulnerability Exploitability eXchange) | [OpenVEX v0.2.0](https://github.com/openvex/spec) sibling release artifact |
+| Artifact to nuget.org | NuGet OIDC Trusted Publishing | (n/a) |
+| Git commits + tags | SSH-signed | (n/a) |
 
 This stack matches what most CRA-bound EU Manufacturers will be required to ship from December 2027. Personal-OSS distributed outside the course of commercial activity is excluded from CRA scope; shipping the stack anyway is a hygiene choice.
 

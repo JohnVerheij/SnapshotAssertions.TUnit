@@ -80,4 +80,4 @@ The two libraries can coexist in the same test project; this package does not de
 
 ## License
 
-[MIT](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/LICENSE) — Copyright (c) 2026 John Verheij
+[MIT](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/LICENSE). Copyright (c) 2026 John Verheij.

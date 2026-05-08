@@ -3,7 +3,7 @@
   <!--
     Public-API surface snapshot test project for SnapshotAssertions / SnapshotAssertions.TUnit.
     Dogfoods the package's own MatchesSnapshot() against the public surface emitted by
-    PublicApiGenerator — proving end-to-end that the framework a real consumer would use for
+    PublicApiGenerator: proving end-to-end that the framework a real consumer would use for
     public-API testing also works for the package itself, with no Verify dependency.
 
     Why a separate project from SnapshotAssertions.TUnit.Tests:

@@ -26,7 +26,7 @@ public static partial class Scrubbers
     /// <summary>Replaces all GUIDs (8-4-4-4-12 hex format, case-insensitive) with
     /// <c>&lt;guid:N&gt;</c>; recurring GUIDs share an index. Comparison is case-insensitive
     /// (lower-case canonical form is used for index look-up).</summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Domain term — this property identifies the GUID scrubber, not a System.Guid value. Renaming would obscure the family-wide API of one factory property per kind.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Domain term: this property identifies the GUID scrubber, not a System.Guid value. Renaming would obscure the family-wide API of one factory property per kind.")]
     public static SnapshotScrubber Guid { get; } = new GuidScrubber();
 
     /// <summary>Replaces ISO 8601 timestamps (e.g. <c>2026-05-07T13:45:30Z</c>,
@@ -48,7 +48,7 @@ public static partial class Scrubbers
     /// <paramref name="token"/>. No indexing is applied; every match becomes the same token.</summary>
     /// <param name="pattern">The regex to match against.</param>
     /// <param name="token">The replacement string. Note that regex backreferences (e.g.
-    /// <c>$1</c>) are NOT interpreted — the literal characters are emitted.</param>
+    /// <c>$1</c>) are NOT interpreted: the literal characters are emitted.</param>
     /// <returns>A pattern scrubber.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotScrubber Pattern(Regex pattern, string token)
@@ -115,7 +115,7 @@ public static partial class Scrubbers
         // -HH:MM zone marker. Non-capturing groups (?:...) keep MA0023 happy alongside
         // NonBacktracking (which doesn't compose with ExplicitCapture in current runtime).
         // Trailing \b prevents partial matches against tokens like `2026-05-07T13:45:30Zsuffix`
-        // or `2026-05-07T13:45:30+02:003` — a missing end boundary would otherwise scrub the
+        // or `2026-05-07T13:45:30+02:003`: a missing end boundary would otherwise scrub the
         // valid prefix and leave the trailing word characters dangling.
         [GeneratedRegex(
             @"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})\b",

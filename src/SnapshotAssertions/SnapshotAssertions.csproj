@@ -43,7 +43,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- SBOM generation per dpfa Proj0243 (Microsoft.Sbom.Targets pack-time generation).
-         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3 — better
+         SPDX 3.0 (April 2024) emits richer security-profile metadata than 2.2 / 2.3: better
          positioned for CRA Annex I §2(1) "commonly used and machine-readable format" alignment.
          Tooling lag note: very old scanners that don't yet parse SPDX 3.0 fall back to the
          CycloneDX 1.6 sibling artifact emitted by the release workflow. -->

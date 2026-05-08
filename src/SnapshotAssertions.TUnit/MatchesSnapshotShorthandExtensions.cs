@@ -6,7 +6,7 @@ namespace TUnit.Assertions.Extensions;
 
 /// <summary>
 /// Top-level shorthand entry points that wrap the most common <c>MatchesSnapshot()...</c>
-/// chains. Each shorthand is equivalent to spelling out the underlying chain — they exist
+/// chains. Each shorthand is equivalent to spelling out the underlying chain: they exist
 /// purely to reduce ceremony.
 /// </summary>
 /// <remarks>
@@ -15,7 +15,7 @@ namespace TUnit.Assertions.Extensions;
 /// <c>using</c> directive to discover these shorthands. If you can call
 /// <c>Assert.That(actual).MatchesSnapshot()</c> in a file, you can also call
 /// <c>Assert.That(actual).MatchesSnapshot("custom-name")</c> and
-/// <c>Assert.That(actual).MatchesSnapshotFile("/path/to/file.txt")</c> there — same auto-import.
+/// <c>Assert.That(actual).MatchesSnapshotFile("/path/to/file.txt")</c> there: same auto-import.
 /// </remarks>
 public static class MatchesSnapshotShorthandExtensions
 {

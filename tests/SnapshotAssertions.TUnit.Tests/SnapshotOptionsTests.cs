@@ -29,7 +29,7 @@ internal sealed class SnapshotOptionsTests
     /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset relaxes both
     /// line-ending mode (line breaks stripped) and trailing-newline policy (presence vs
     /// absence unobservable). BOM and per-line trailing-whitespace handling stay strict.
-    /// The two relaxations go together — under <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/>
+    /// The two relaxations go together: under <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/>
     /// the trailing newline is just another stripped line break, so any consumer reaching
     /// for "ignore line endings" expects the trailing one to be ignored too.</summary>
     [Test]

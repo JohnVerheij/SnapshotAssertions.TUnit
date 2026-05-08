@@ -187,7 +187,7 @@ internal sealed class ScrubbersTests
         ct.ThrowIfCancellationRequested();
         var state = new SnapshotScrubberState();
         // The replacement uses Replace(input, _ => token), so $1-style references are NOT
-        // interpreted as backreferences — they emit literally. This pin guards against an
+        // interpreted as backreferences: they emit literally. This pin guards against an
         // accidental refactor to Regex.Replace(input, token) which DOES interpret $1.
         var scrubber = Scrubbers.Pattern(@"\bid=\d+\b", "id=$1<scrubbed>");
         var input = "begin id=42 end";
