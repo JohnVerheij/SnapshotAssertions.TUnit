@@ -23,6 +23,41 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("foo", "foo", SnapshotOptions.Default)).IsTrue();
     }
 
+    /// <summary>Content ending with a bare CR (no LF) is detected as having a trailing newline.
+    /// Pins the third short-circuit branch in the <c>content[^1] == '\r'</c> check inside
+    /// <c>NormalizeLineByLine</c>, which the standard \n / \r\n test inputs do not exercise.</summary>
+    [Test]
+    public async Task NormalizedLineEndings_BareCarriageReturnTerminator_TreatedAsTrailingNewline(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var lhs = "alpha\rbeta\r";
+        var rhs = "alpha\nbeta\n";
+        await Assert.That(SnapshotComparer.AreEqual(lhs, rhs, SnapshotOptions.NormalizedLineEndings)).IsTrue();
+    }
+
+    /// <summary>Custom options: <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> with the
+    /// strict <see cref="SnapshotTrailingNewline.Required"/> policy. Pins both the
+    /// IgnoreLineEndings case in <c>ResolveSeparator</c> (the only case that returns an empty
+    /// separator) AND the <c>separator.Length is 0</c> branch in
+    /// <c>ApplyTrailingNewlinePolicy</c>'s Required arm, which appends a stable LF marker so
+    /// trailing-newline-presence remains observable across the otherwise-flattened content.</summary>
+    [Test]
+    public async Task IgnoreLineEndingsWithRequiredPolicy_PreservesTrailingNewlineSemantics(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var opts = new SnapshotOptions
+        {
+            LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+            TrailingNewline = SnapshotTrailingNewline.Required,
+        };
+        // Both have a trailing newline; line breaks are stripped; the LF marker preserves the
+        // "ended in newline" semantics so both inputs collapse to the same normalized form.
+        await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "a\r\nb\r\n", opts)).IsTrue();
+        // One has trailing newline, one does not: under Required + IgnoreLineEndings the LF
+        // marker is appended only to the first side, so the normalized forms differ.
+        await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "a\nb", opts)).IsFalse();
+    }
+
     /// <summary>Strict default options: differing single character fails the match.</summary>
     [Test]
     public async Task DefaultOptions_DifferingByOneChar_ReturnsFalse(CancellationToken cancellationToken)

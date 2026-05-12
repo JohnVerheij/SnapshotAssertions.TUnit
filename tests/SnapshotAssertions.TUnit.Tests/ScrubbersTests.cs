@@ -253,4 +253,105 @@ internal sealed class ScrubbersTests
         var rx = new Regex("foo", RegexOptions.NonBacktracking);
         await Assert.That(() => Scrubbers.Pattern(rx, null!)).Throws<ArgumentNullException>();
     }
+
+    // ----- Combine factory -----
+
+    [Test]
+    public async Task Combine_EmptyArray_ReturnsIdentityScrubber(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.Combine();
+        var input = "id=11111111-2222-3333-4444-555555555555 ts=2026-05-07T13:45:30Z";
+        var output = scrubber.Apply(input, state);
+        // Identity: input passes through unchanged regardless of content.
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task Combine_SingleScrubber_ReturnsTheElementUnchanged(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // No wrapper allocation on the single-element fast path. Verified by reference
+        // equality: the combined result IS the input element.
+        var combined = Scrubbers.Combine(Scrubbers.Guid);
+        await Assert.That(combined).IsSameReferenceAs(Scrubbers.Guid);
+    }
+
+    [Test]
+    public async Task Combine_MultipleScrubbers_AppliesLeftToRight(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.Combine(Scrubbers.Guid, Scrubbers.Iso8601Timestamp);
+        var input = "id=11111111-2222-3333-4444-555555555555 ts=2026-05-07T13:45:30Z";
+        var output = scrubber.Apply(input, state);
+        await Assert.That(output).IsEqualTo("id=<guid:0> ts=<iso8601:0>");
+    }
+
+    [Test]
+    public async Task Combine_AllInnerScrubbersShareState(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Build a chain Default + custom-mask. Recurring GUIDs / timestamps must keep stable
+        // indices across the combined scrubber, proving that the state is threaded through
+        // every inner scrubber instead of each one starting fresh.
+        var scrubber = Scrubbers.Combine(Scrubbers.Default, Scrubbers.Pattern(@"\bsecret-[a-z]+\b", "<secret>"));
+        var g = "11111111-2222-3333-4444-555555555555";
+        var input = $"first {g} then secret-foo and again {g}";
+        var output = scrubber.Apply(input, state);
+        await Assert.That(output).IsEqualTo("first <guid:0> then <secret> and again <guid:0>");
+    }
+
+    [Test]
+    public async Task Combine_NullArray_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.Combine((SnapshotScrubber[])null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Combine_NullElement_ThrowsArgumentException(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.Combine(Scrubbers.Guid, null!, Scrubbers.Iso8601Timestamp))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task Combine_DefensiveCopy_LaterMutationDoesNotAffectResult(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Caller passes an explicit array, then later mutates it. The combined scrubber
+        // must reflect the snapshot at construction time, not the mutated state.
+        var array = new[] { Scrubbers.Guid, Scrubbers.Iso8601Timestamp };
+        var scrubber = Scrubbers.Combine(array);
+        array[0] = Scrubbers.Pattern(@".+", "TOTALLY-DIFFERENT");
+        var input = "id=11111111-2222-3333-4444-555555555555 ts=2026-05-07T13:45:30Z";
+        var output = scrubber.Apply(input, state);
+        await Assert.That(output).IsEqualTo("id=<guid:0> ts=<iso8601:0>");
+    }
+
+    [Test]
+    public async Task Combine_EmptyArray_Apply_NullInputThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Pins that the identity-scrubber returned for an empty array honours the
+        // SnapshotScrubber.Apply non-null contract on its input argument; the input null-check
+        // branch in IdentityScrubber.Apply is otherwise unreachable from valid client code.
+        var scrubber = Scrubbers.Combine();
+        var state = new SnapshotScrubberState();
+        await Assert.That(() => scrubber.Apply(null!, state)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Combine_EmptyArray_Apply_NullStateThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Same as above, for the state null-check branch.
+        var scrubber = Scrubbers.Combine();
+        await Assert.That(() => scrubber.Apply("input", null!)).Throws<ArgumentNullException>();
+    }
 }

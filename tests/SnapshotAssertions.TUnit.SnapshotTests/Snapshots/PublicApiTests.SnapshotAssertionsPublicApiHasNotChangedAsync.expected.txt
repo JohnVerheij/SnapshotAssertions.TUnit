@@ -15,6 +15,7 @@ namespace SnapshotAssertions
         public static SnapshotAssertions.SnapshotScrubber Guid { get; }
         public static SnapshotAssertions.SnapshotScrubber Iso8601Timestamp { get; }
         public static SnapshotAssertions.SnapshotScrubber UnixEpochMillis { get; }
+        public static SnapshotAssertions.SnapshotScrubber Combine(params SnapshotAssertions.SnapshotScrubber[] scrubbers) { }
         public static SnapshotAssertions.SnapshotScrubber Pattern(System.Text.RegularExpressions.Regex pattern, string token) { }
         public static SnapshotAssertions.SnapshotScrubber Pattern(string pattern, string token) { }
     }

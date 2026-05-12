@@ -44,6 +44,44 @@ public static partial class Scrubbers
     /// single composable scrubber.</summary>
     public static SnapshotScrubber Default { get; } = new ChainScrubber([Guid, Iso8601Timestamp, UnixEpochMillis]);
 
+    /// <summary>
+    /// Combines the supplied <paramref name="scrubbers"/> into a single scrubber that applies
+    /// them left-to-right. All inner scrubbers share the
+    /// <see cref="SnapshotScrubberState"/> passed to <see cref="SnapshotScrubber.Apply"/>, so
+    /// recurring volatile values keep stable indexed tokens across the combined pipeline.
+    /// </summary>
+    /// <param name="scrubbers">The scrubbers to combine. Each element must be non-<see langword="null"/>.</param>
+    /// <returns>
+    /// An identity scrubber (returns input unchanged) when <paramref name="scrubbers"/> is empty;
+    /// the single element when the array has exactly one entry (no wrapper allocation);
+    /// a chain over a defensive copy of the array otherwise. The defensive copy means later
+    /// mutations of <paramref name="scrubbers"/> do not affect the returned scrubber.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scrubbers"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">An element of <paramref name="scrubbers"/> is <see langword="null"/>.</exception>
+    public static SnapshotScrubber Combine(params SnapshotScrubber[] scrubbers)
+    {
+        ArgumentNullException.ThrowIfNull(scrubbers);
+        for (var i = 0; i < scrubbers.Length; i++)
+        {
+            if (scrubbers[i] is null)
+            {
+                throw new ArgumentException(
+                    string.Create(CultureInfo.InvariantCulture, $"Scrubber at index {i} is null."),
+                    nameof(scrubbers));
+            }
+        }
+
+        if (scrubbers.Length is 0)
+            return IdentityScrubber.Instance;
+        if (scrubbers.Length is 1)
+            return scrubbers[0];
+
+        var copy = new SnapshotScrubber[scrubbers.Length];
+        Array.Copy(scrubbers, copy, scrubbers.Length);
+        return new ChainScrubber(copy);
+    }
+
     /// <summary>Replaces every match of <paramref name="pattern"/> with the literal
     /// <paramref name="token"/>. No indexing is applied; every match becomes the same token.</summary>
     /// <param name="pattern">The regex to match against.</param>
@@ -192,6 +230,18 @@ public static partial class Scrubbers
                 work = s.Apply(work, state);
             }
             return work;
+        }
+    }
+
+    private sealed class IdentityScrubber : SnapshotScrubber
+    {
+        public static readonly IdentityScrubber Instance = new();
+
+        public override string Apply(string input, SnapshotScrubberState state)
+        {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentNullException.ThrowIfNull(state);
+            return input;
         }
     }
 }

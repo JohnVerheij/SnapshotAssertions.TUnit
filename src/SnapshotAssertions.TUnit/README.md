@@ -17,7 +17,7 @@ TUnit-native text-snapshot assertions on top of TUnit's `[AssertionExtension]` s
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.43.11 or later, .NET 10.
+`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.44.0 or later, .NET 10.
 
 ## Quick start
 
@@ -63,11 +63,32 @@ await Assert.That(jsonResponse)
 await Assert.That(httpLog)
     .MatchesSnapshot()
     .WithScrubber(Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
+
+// Assemble a reusable bundle once; pass as a single scrubber (v0.3.0+)
+private static readonly SnapshotScrubber FixturesScrubber = Scrubbers.Combine(
+    Scrubbers.Default,
+    Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
 ```
 
-The built-in indexed scrubbers (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`) emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing).
+The built-in indexed scrubbers (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`) emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing). `Scrubbers.Combine(...)` (v0.3.0+) wraps an array of scrubbers into a single composite so a reused bundle does not have to be re-chained on every assertion.
 
 [Full Scrubbers reference, custom-scrubber recipe, and design notes on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#scrubbers-volatile-value-handling)
+
+## Parameterized tests (`[Arguments]`)
+
+For parameterized tests, the default file resolver hashes the row's argument values and appends an 8-hex-character suffix to the snapshot file name, so each row gets a distinct baseline:
+
+```csharp
+[Test]
+[Arguments("alpha", 200)]
+[Arguments("beta", 404)]
+public async Task Response_per_route_matches(string route, int statusCode)
+{
+    await Assert.That(RenderResponse(route, statusCode)).MatchesSnapshot();
+}
+```
+
+Baselines land at `Snapshots/{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`. The hash is `InvariantCulture`-stable so the same arguments produce the same file across developer machines and CI. [Full details on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook--common-patterns)
 
 ## Why not Verify
 
@@ -77,6 +98,14 @@ Verify is excellent for object-graph diffing, scrubbers, IDE-integrated diff dis
 - The 30-50 lines of per-project file-compare scaffolding consumers otherwise reproduce in every repo
 
 The two libraries can coexist in the same test project; this package does not depend on Verify.
+
+## Family
+
+Part of an assertion family for TUnit:
+
+- [LogAssertions.TUnit](https://github.com/JohnVerheij/LogAssertions.TUnit)
+- [TimeAssertions.TUnit](https://github.com/JohnVerheij/TimeAssertions.TUnit)
+- [MathAssertions.TUnit](https://github.com/JohnVerheij/MathAssertions.TUnit)
 
 ## License
 

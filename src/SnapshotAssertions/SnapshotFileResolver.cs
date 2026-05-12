@@ -151,7 +151,12 @@ public static class SnapshotFileResolver
         if (arg is IFormattable formattable)
             return formattable.ToString(format: null, formatProvider: CultureInfo.InvariantCulture);
 
-        return arg.ToString() ?? string.Empty;
+        // Fall back to the type's own ToString for non-IFormattable references. The hash
+        // contract documents that callers using custom types are responsible for providing a
+        // stable ToString, so calling object.ToString here is intentional (not a culture-leak
+        // risk). Meziantou MA0107 warns generically against object.ToString; this is the one
+        // case in the resolver where it is the correct call.
+        return Convert.ToString(arg, CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     /// <summary>

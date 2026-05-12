@@ -2,29 +2,15 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
-    <DiagnosticId>CP0001</DiagnosticId>
-    <Target>T:SnapshotAssertions.Scrubbers</Target>
-    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
-    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0001</DiagnosticId>
-    <Target>T:SnapshotAssertions.SnapshotScrubber</Target>
-    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
-    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
-    <IsBaselineSuppression>true</IsBaselineSuppression>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0001</DiagnosticId>
-    <Target>T:SnapshotAssertions.SnapshotScrubberState</Target>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:SnapshotAssertions.Scrubbers.Combine(SnapshotAssertions.SnapshotScrubber[])</Target>
     <Left>lib/net10.0/SnapshotAssertions.dll</Left>
     <Right>lib/net10.0/SnapshotAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>SnapshotAssertions, Version=0.1.0.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Target>SnapshotAssertions, Version=0.2.0.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/SnapshotAssertions.dll</Left>
     <Right>lib/net10.0/SnapshotAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>

@@ -59,15 +59,15 @@ public static class SnapshotComparer
 
     private static string StripBomIfRequested(string content, SnapshotOptions options)
     {
-        if (options.BomHandling == SnapshotBomHandling.StripBom && content.Length > 0 && content[0] == Bom)
+        if (options.BomHandling is SnapshotBomHandling.StripBom && content.Length > 0 && content[0] == Bom)
             return content[1..];
         return content;
     }
 
     private static bool NeedsLineByLineNormalization(SnapshotOptions options)
-        => options.LineEndingMode != SnapshotLineEndingMode.Ordinal
-            || options.TrailingWhitespace == SnapshotTrailingWhitespace.TrimTrailingPerLine
-            || options.TrailingNewline != SnapshotTrailingNewline.Required;
+        => options.LineEndingMode is not SnapshotLineEndingMode.Ordinal
+            || options.TrailingWhitespace is SnapshotTrailingWhitespace.TrimTrailingPerLine
+            || options.TrailingNewline is not SnapshotTrailingNewline.Required;
 
     private static string NormalizeLineByLine(string content, SnapshotOptions options)
     {
@@ -79,10 +79,10 @@ public static class SnapshotComparer
         // If the content ended with a newline, Split adds an empty trailing element. Drop it
         // for trimming/joining; we re-emit a trailing line below per TrailingNewline policy.
         var lastIndex = lines.Length;
-        if (hasTrailingNewline && lastIndex > 0 && lines[lastIndex - 1].Length == 0)
+        if (hasTrailingNewline && lastIndex > 0 && lines[lastIndex - 1].Length is 0)
             lastIndex--;
 
-        if (options.TrailingWhitespace == SnapshotTrailingWhitespace.TrimTrailingPerLine)
+        if (options.TrailingWhitespace is SnapshotTrailingWhitespace.TrimTrailingPerLine)
         {
             for (var i = 0; i < lastIndex; i++)
                 lines[i] = lines[i].TrimEnd();
@@ -125,7 +125,7 @@ public static class SnapshotComparer
                 {
                     if (separator.Length > 0 && lineCount > 0)
                         return joined + separator;
-                    if (separator.Length == 0)
+                    if (separator.Length is 0)
                         return joined + "\n";
                 }
                 return joined;

@@ -60,23 +60,40 @@ public static class LineDiffRenderer
         var hasExpected = i < expectedLines.Length;
         var hasActual = i < actualLines.Length;
 
-        if (hasExpected && hasActual && string.Equals(expectedLines[i], actualLines[i], StringComparison.Ordinal))
+        if (LinesMatch(hasExpected, hasActual, expectedLines, actualLines, i))
         {
-            if (!state.Truncated)
-                WriteLine(writer, ' ', expectedLines[i]);
+            EmitMatchingLine(writer, expectedLines[i], ref state);
             return;
         }
 
-        state.TotalDiffering += hasExpected ? 1 : 0;
-        state.TotalDiffering += hasActual ? 1 : 0;
-
+        AccumulateDifferingTotal(hasExpected, hasActual, ref state);
         if (state.Truncated)
             return;
 
-        // Check before each write so a replacement-style diff (one '-' line followed by one
-        // '+' line on the same position) cannot exceed MaxDifferingLines by emitting both
-        // lines after the cap. The post-write toggle the previous implementation used could
-        // emit MaxDifferingLines + 1 lines.
+        EmitDifferingPair(writer, hasExpected, hasActual, expectedLines, actualLines, i, ref state);
+    }
+
+    private static bool LinesMatch(bool hasExpected, bool hasActual, string[] expectedLines, string[] actualLines, int i)
+        => hasExpected && hasActual && string.Equals(expectedLines[i], actualLines[i], StringComparison.Ordinal);
+
+    private static void EmitMatchingLine(TextWriter writer, string content, ref DiffState state)
+    {
+        if (!state.Truncated)
+            WriteLine(writer, ' ', content);
+    }
+
+    private static void AccumulateDifferingTotal(bool hasExpected, bool hasActual, ref DiffState state)
+    {
+        state.TotalDiffering += hasExpected ? 1 : 0;
+        state.TotalDiffering += hasActual ? 1 : 0;
+    }
+
+    // Check before each write so a replacement-style diff (one '-' line followed by one
+    // '+' line on the same position) cannot exceed MaxDifferingLines by emitting both
+    // lines after the cap. The post-write toggle the previous implementation used could
+    // emit MaxDifferingLines + 1 lines.
+    private static void EmitDifferingPair(TextWriter writer, bool hasExpected, bool hasActual, string[] expectedLines, string[] actualLines, int i, ref DiffState state)
+    {
         if (hasExpected && !TryEmitDifferingLine(writer, '-', expectedLines[i], ref state))
             return;
         if (hasActual)
@@ -95,6 +112,13 @@ public static class LineDiffRenderer
         return true;
     }
 
+    // The diff renderer is intentionally synchronous: callers pass an in-memory StringWriter
+    // (the implementation in Render and the standard consumer pattern), there is no IO behind
+    // the TextWriter. Meziantou MA0045 fires generically on TextWriter.Write / .WriteLine
+    // without inspecting the underlying writer; the async variants would force the method
+    // signature to Task-returning for zero IO benefit. Suppress at the methods that emit
+    // small literal fragments.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Do not use blocking calls in a sync method (need to make calling method async)", Justification = "TextWriter writes are dispatched against an in-memory StringWriter; no IO occurs and making the helper async would propagate Task-returning signatures with no benefit.")]
     private static void EmitTruncationFooter(TextWriter writer, int totalDiffering)
     {
         writer.Write("... (truncated; ");
@@ -104,6 +128,7 @@ public static class LineDiffRenderer
         writer.WriteLine(")");
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Do not use blocking calls in a sync method (need to make calling method async)", Justification = "TextWriter writes are dispatched against an in-memory StringWriter; no IO occurs and making the helper async would propagate Task-returning signatures with no benefit.")]
     private static void WriteLine(TextWriter writer, char prefix, string content)
     {
         writer.Write(prefix);

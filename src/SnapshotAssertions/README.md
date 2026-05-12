@@ -8,7 +8,7 @@
 
 Framework-agnostic core for text-snapshot assertions.
 
-> **Most users want [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/), not this package directly.** This is the shared engine; framework-specific adapter packages add the assertion entry points your test framework expects.
+> **For TUnit test projects, install [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) instead; this package comes with it transitively.** `SnapshotAssertions` is the framework-agnostic shared engine; framework-specific adapter packages add the assertion entry points each test framework expects.
 
 ---
 
@@ -19,7 +19,7 @@ Framework-agnostic core for text-snapshot assertions.
 - **`SnapshotAcceptMode`**: env-var-driven accept logic (`SNAPSHOT_ACCEPT=1` writes the actual content over the expected baseline) with a `CI=true` guard so accidental pipeline acceptance is impossible.
 - **`SnapshotOptions`**: line-ending, BOM, whitespace, and trailing-newline configuration with strict defaults.
 - **`LineDiffRenderer`**: terminal line-based diff display, truncated to the first 20 differing lines for very large diffs (`LineDiffRenderer.MaxDifferingLines = 20`).
-- **`SnapshotScrubber` + `Scrubbers` factory** *(v0.2.0+)*: text-transform pipeline that replaces volatile substrings (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex matches) with stable indexed tokens before comparison. Five built-ins (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`, two `Scrubbers.Pattern` overloads), one curated chain (`Scrubbers.Default`), and `SnapshotScrubberState` for stable indexed-token assignment across recurring values.
+- **`SnapshotScrubber` + `Scrubbers` factory** *(v0.2.0+)*: text-transform pipeline that replaces volatile substrings (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex matches) with stable indexed tokens before comparison. Five built-ins (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`, two `Scrubbers.Pattern` overloads), one curated chain (`Scrubbers.Default`), and `SnapshotScrubberState` for stable indexed-token assignment across recurring values. `Scrubbers.Combine(params SnapshotScrubber[])` *(v0.3.0+)* assembles an array of scrubbers into a single composite for reusable bundles.
 
 ## Test-framework adapters
 

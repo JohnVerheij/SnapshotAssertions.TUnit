@@ -229,6 +229,47 @@ internal sealed class MatchesSnapshotChainTests
         await Assert.That(() => assertion.WithScrubber(null!)).Throws<ArgumentNullException>();
     }
 
+    /// <summary>
+    /// End-to-end pin that <c>[Arguments]</c>-driven rows produce distinct per-row baseline
+    /// files when calling the no-arg <c>MatchesSnapshot()</c> entry. The test pre-writes the
+    /// expected baseline at the hashed path the resolver computes for the row's arguments;
+    /// the assertion then must locate the exact same path via
+    /// <c>TestContext.Current.TestDetails.TestMethodArguments</c>. If TUnit's per-row argument
+    /// propagation broke (or the resolver dropped the args), the pre-written file would not
+    /// match the assertion's lookup path and the test would fail with "no baseline" rather
+    /// than passing. Two rows are exercised so a regression that produced the same hash for
+    /// every row would surface as one row overwriting the other's expected file.
+    /// </summary>
+    [Test]
+    [Arguments("alpha", 1)]
+    [Arguments("beta", 2)]
+    public async Task DefaultPath_WithArguments_UsesPerRowBaseline(string label, int rowId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var snapshotsDir = SnapshotFileResolver.GetDefaultSnapshotsDirectory(AppContext.BaseDirectory);
+        Directory.CreateDirectory(snapshotsDir);
+        var paths = SnapshotFileResolver.ResolveByTest(
+            snapshotsDir,
+            nameof(MatchesSnapshotChainTests),
+            nameof(DefaultPath_WithArguments_UsesPerRowBaseline),
+            new object?[] { label, rowId });
+
+        var content = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"label={label} row={rowId}\n");
+        await File.WriteAllTextAsync(paths.ExpectedFilePath, content, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await Assert.That(content).MatchesSnapshot();
+        }
+        finally
+        {
+            if (File.Exists(paths.ExpectedFilePath))
+                File.Delete(paths.ExpectedFilePath);
+            if (File.Exists(paths.ActualFilePath))
+                File.Delete(paths.ActualFilePath);
+        }
+    }
+
     private static async Task WithExpectedFileAsync(
         string snapshotName,
         string expectedContent,
