@@ -143,7 +143,7 @@ jobs:
         # confirms the artifact was built by THIS repo at THIS commit by THIS workflow.
         # End-to-end supply-chain provenance: the missing link between "this nupkg is signed
         # by some NuGet account" and "this nupkg was built from this audited source tree".
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
             ./artifacts/*.nupkg
@@ -176,7 +176,7 @@ jobs:
       # secret is stored in this repository; the trust relationship is configured
       # on nuget.org under Account -> Trusted Publishing.
       - name: NuGet login (Trusted Publishing)
-        uses: NuGet/login@ebc737b6fc418a6ca0073cf116ec8dc156d8b81e # v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: nuget-login
         with:
           user: JohnVerheij
