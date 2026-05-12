@@ -14,10 +14,32 @@
          updates) rather than risk silent regressions while waiting to opt-in to each new
          warning code. The choice is deliberate; suppressing the rule itself rather than
          demoting it to a build-noise warning. -->
-    <NoWarn>$(NoWarn);Proj0039</NoWarn>
+    <!-- MA0174 (record class keyword required) is mutually exclusive with MA0175 (no keyword).
+         We keep MA0175 satisfied: `record` (shorter, language default) over `record class`.
+         MA0038 is officially deprecated by Meziantou (the rule docs say "use CA1822 instead");
+         CA1822 is already active via EnableNETAnalyzers and correctly excludes test methods
+         and TUnit-required-instance APIs.
+         MA0137 (Async suffix on awaitable-returning methods) is disabled for the same reason
+         the family-wide convention disables VSTHRD200 in test projects: TUnit `[Test]`
+         methods use descriptive scenario names (Foo_WhenX_ProducesY) without an Async suffix,
+         which is the documented family convention in CONVENTIONS.md. -->
+    <!-- MA0190 (partial property for GeneratedRegex) is suppressed because the [GeneratedRegex]
+         source generator emits lazy-init code that registers as additional unhit branches in
+         coverage instrumentation. The partial-method form is the original stable pattern,
+         compiles to the same call-site IL, and does not regress branch coverage. -->
+    <NoWarn>$(NoWarn);Proj0039;MA0038;MA0137;MA0174;MA0190</NoWarn>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-all</AnalysisLevel>
+    <!-- Promote every Meziantou.Analyzer rule (including Info / Hidden defaults) to Warning
+         on production code in src/, then let TreatWarningsAsErrors=true above escalate each
+         one to a build error. Test projects retain Meziantou defaults: the all-warnings set
+         contains rules (MA0191 null-forgiving, MA0181 cast, MA0110 Regex source generator,
+         MA0003 name parameter, MA0038 static methods, MA0137 Async suffix) whose family-
+         convention exceptions all relate to test-only idioms (argument-validation tests
+         passing `null!`, instance test methods without an Async suffix, ad-hoc one-off
+         regexes in test code, etc.). -->
+    <MeziantouAnalysisMode Condition="!$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/').Contains('/tests/'))">all-warnings</MeziantouAnalysisMode>
 
     <!-- Reproducibility: lock files + auditing -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

@@ -73,7 +73,7 @@ For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → com
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.43.11 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
+**Requirements:** TUnit 1.44.0 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
 ## Package layout
 
@@ -298,7 +298,7 @@ await Assert.That(actual).MatchesSnapshot(options);
 
 > *Available from v0.2.0.*
 
-Snapshots that contain values which change run-to-run (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, request IDs, generated session keys, machine-specific paths) are otherwise unmaintainable: every run produces a different actual file, every diff is noise, every consumer of the snapshot baseline learns to ignore "the parts that change". Scrubbers fix this by transforming the actual content before comparison: volatile substrings are replaced with stable indexed tokens (`<guid:0>`, `<iso8601:1>`, etc.) so the baseline survives multiple test runs, while the test still fails when the *non-volatile* content changes.
+Snapshots that contain values which change run-to-run (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, request IDs, generated session keys, machine-specific paths) are otherwise unmaintainable: every run produces a different actual file, every diff is noise, every reader of the snapshot baseline learns to ignore "the parts that change". Scrubbers fix this by transforming the actual content before comparison: volatile substrings are replaced with stable indexed tokens (`<guid:0>`, `<iso8601:1>`, etc.) so the baseline survives multiple test runs, while the test still fails when the *non-volatile* content changes.
 
 Scrubbers compose left-to-right via `.WithScrubber(...)` on the `MatchesSnapshot()` chain:
 
@@ -399,6 +399,23 @@ await Assert.That(httpLog)
     .WithScrubber(Scrubbers.Default)  // applied AFTER the pattern scrubber
     .WithScrubber(Scrubbers.Pattern(@"\bclient-version=\d+\.\d+\.\d+", "client-version=<v>"));
 ```
+
+When the same scrubber bundle is reused across many tests (the typical shape: `Scrubbers.Default` plus a handful of project-specific masks), assemble the bundle once with `Scrubbers.Combine(...)` and pass the single result to `.WithScrubber(...)`:
+
+```csharp
+private static readonly SnapshotScrubber FixturesScrubber = Scrubbers.Combine(
+    Scrubbers.Default,
+    Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"),
+    Scrubbers.Pattern(@"\bclient-version=\d+\.\d+\.\d+", "client-version=<v>"));
+
+[Test]
+public async Task Reuses_the_bundle()
+{
+    await Assert.That(httpLog).MatchesSnapshot().WithScrubber(FixturesScrubber);
+}
+```
+
+`Combine` returns an identity scrubber when the array is empty, the single element unchanged when the array has exactly one entry, and otherwise wraps a defensive copy of the array (so mutating it post-call does not affect the returned scrubber). All inner scrubbers share the same `SnapshotScrubberState` as when they would be chained directly.
 
 ### Custom scrubbers
 
@@ -576,6 +593,33 @@ await Assert.That(actual).MatchesSnapshot(options);
 await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expected.txt");
 ```
 
+**Parameterized tests with `[Arguments]`: per-row baselines:**
+
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each `[Arguments]` row gets its own baseline file instead of overwriting one another. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture.
+
+```csharp
+[Test]
+[Arguments("alpha", 200)]
+[Arguments("beta", 404)]
+public async Task Response_for_each_route_matches(string route, int statusCode)
+{
+    var rendered = RenderResponse(route, statusCode);
+    await Assert.That(rendered).MatchesSnapshot();
+}
+```
+
+Baselines committed under `Snapshots/` carry names of the form:
+
+```text
+{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt
+```
+
+For example, the two rows above produce two distinct files such as
+`Snapshots/Foo.Response_for_each_route_matches.7A3F1B2C.expected.txt` and
+`Snapshots/Foo.Response_for_each_route_matches.D9E0A4B5.expected.txt`. The hash is computed from argument **values** in declaration order, so it is stable across runs and across machines (`InvariantCulture` is used for `IFormattable` types). Changing any value or reordering the values in the `[Arguments]` attribute changes the hash and requires renaming the committed baseline. Renaming the C# method parameters (without touching the values passed via `[Arguments]`) does **not** affect the hash. The argument types themselves do not appear in the file name; if two rows happen to stringify to the same byte sequence under `InvariantCulture`, they collide (a documented edge case for callers using custom types whose `ToString()` is not unique per value).
+
+When a row's argument list is empty (no `[Arguments]` on the method, or `[Arguments()]` with no values), no hash is appended and the file name is `{TestClassName}.{TestMethodName}.expected.txt` as for non-parameterized tests.
+
 ## Comparison with Verify
 
 | Capability | `SnapshotAssertions.TUnit` | Verify |
@@ -746,8 +790,7 @@ The 0.x series may include breaking changes on minor-version bumps. Concretely:
   cosmetic: both produce the same equality outcome. Future versions may add a stricter
   check for `Forbidden` that fails when either side has a trailing newline.
 
-`PackageValidationBaselineVersion` is pinned to 0.1.0 from 0.2.0 onwards; once pinned, any
-breaking change to the listed surface will fail the package-validation build.
+`PackageValidationBaselineVersion` tracks the previous shipped version (pinned to 0.1.0 in 0.2.0; bumped to 0.2.0 in 0.3.0); once pinned, any breaking change to the listed surface fails the package-validation build.
 
 ## Limitations and future work
 
@@ -755,11 +798,15 @@ breaking change to the listed surface will fail the package-validation build.
 
 - ✅ **0.1.1 housekeeping**: folded into 0.2.0 (dependency refresh, `PackageValidationBaselineVersion=0.1.0`, CONVENTIONS.md v0.2). Shipped in v0.2.0.
 - ✅ **Pattern-based scrubbing**: originally targeted for 0.3.0 under `MatchesSnapshotScrubbed(IScrubber)`. Pulled forward to 0.2.0 with a different shape: `.WithScrubber(SnapshotScrubber)` chain method, `Scrubbers` static factory, and indexed-token format for stable recurring-value handling. See [Scrubbers (volatile value handling)](#scrubbers-volatile-value-handling).
+- ✅ **Reusable scrubber bundles**: `Scrubbers.Combine(params SnapshotScrubber[])` factory shipped in v0.3.0. Lets a project assemble `Scrubbers.Default + custom-patterns` once as a `static readonly` field and pass that single value to `.WithScrubber(...)` on every assertion rather than re-chaining the same bundle per test.
+- ✅ **Snapshot.Render namespace reservation**: `SnapshotAssertions.Render` reserved in v0.3.0 as the family convention for sibling-package text renderers (consumed via `using SnapshotAssertions.Render;`). No public surface ships under it from this package today; the namespace exists to keep sibling renderer entry points discoverable through a single `using` directive.
+- ✅ **Parameterized-test baselines**: `MatchesSnapshot()` already routes `[Arguments]`-row values through `SnapshotFileResolver` and produces per-row baseline files (`{TestClass}.{TestMethod}.{ArgsHash8}.expected.txt`). The v0.3.0 cookbook documents the file-name convention, the `InvariantCulture`-stable hash contract, and the edge cases (same stringified bytes collide; argument-order change requires baseline rename).
 
 ### Confirmed roadmap
 
-- **0.3.0**: JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order / array-order / ignored-properties options.
-- **0.4.0+**: Verify interop helpers (`ToVerifyString()` adapters) **only if** real consumer demand emerges; coexistence is supported today without it.
+- **0.4.0+**: Dedicated framework-agnostic test project for the `SnapshotAssertions` core (no TUnit reference), enforcing the BCL-only public-API contract end-to-end at build time. Internal architectural work; no public-surface impact.
+- **Demand-driven (0.4.0+)**: JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order / array-order / ignored-properties options. Originally targeted for 0.3.0; deferred to keep the `JsonSnapshotOptions` shape from being designed against a speculative spec. The bundled `Scrubbers` plus sorted-key serialization handles the typical JSON-snapshot case today. Open a GitHub issue with a concrete example if the current path falls short.
+- **Demand-driven**: Verify interop helpers (`ToVerifyString()` adapters), shipped only on request via a GitHub issue with a concrete use case; coexistence is supported today without them.
 
 Out of scope (intentionally: use Verify instead):
 
@@ -770,12 +817,13 @@ Out of scope (intentionally: use Verify instead):
 
 ## Family compatibility
 
-The three assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, and `SnapshotAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The four assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, and `MathAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
 - [TimeAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/TimeAssertions.TUnit/blob/main/CHANGELOG.md)
 - [SnapshotAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/blob/main/CHANGELOG.md)
+- [MathAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/MathAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 
@@ -783,6 +831,14 @@ For per-package release notes:
   log assertions over `Microsoft.Extensions.Logging.Testing.FakeLogCollector`. Use
   `MatchesSnapshot()` to pin the rendered output of `LogAssertions`'s `LogAssertionRendering`
   in integration tests.
+- **[`TimeAssertions.TUnit`](https://www.nuget.org/packages/TimeAssertions.TUnit/)**:
+  assertion-level timing budgets via `.And.WithinTimeBudget(...)` plus `FakeTimeProvider`
+  state checks. Compose with `MatchesSnapshot()` when you want both content stability and a
+  bounded execution-time guarantee in the same assertion chain.
+- **[`MathAssertions.TUnit`](https://www.nuget.org/packages/MathAssertions.TUnit/)**:
+  tolerance-aware numeric and geometric assertions over the BCL and `System.Numerics` types.
+  Mixes freely with snapshot assertions in multi-assertion tests for numerically-rich
+  rendered artefacts.
 
 ## Contributing
 

@@ -107,4 +107,22 @@ internal sealed class SnapshotFileResolverTests
 
         await Assert.That(snaps).IsEqualTo(Path.GetFullPath(Path.Combine(baseDir, "Snapshots")));
     }
+
+    /// <summary>Empty / whitespace test-class name throws.</summary>
+    [Test]
+    public void ResolveByTest_EmptyTestClassName_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", string.Empty, "M"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "   ", "M"));
+    }
+
+    /// <summary>Empty / whitespace test-method name throws.</summary>
+    [Test]
+    public void ResolveByTest_EmptyTestMethodName_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", string.Empty));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", "   "));
+    }
 }

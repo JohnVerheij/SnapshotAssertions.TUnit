@@ -35,7 +35,14 @@ For larger ideas (new entry points, breaking changes, cross-cutting refactors), 
 
 ## Tests
 
-- Tests live in `tests/SnapshotAssertions.TUnit.Tests/`.
+Test projects (under `tests/`):
+
+- `SnapshotAssertions.TUnit.Tests/`: the main TUnit-adapter test suite, exercising the `MatchesSnapshot()` / `MatchesSnapshotFile()` chain, the `WithName` / `AtPath` / `WithOptions` / `WithScrubber` methods, and the `Scrubbers` / `SnapshotScrubberState` / `SnapshotFileResolver` framework-agnostic core via TUnit `[Test]` cases.
+- `SnapshotAssertions.TUnit.SnapshotTests/`: self-test that pins the public API surface of both packages by piping `PublicApiGenerator` output through `MatchesSnapshot()` against checked-in `.expected.txt` baselines. Dogfooding: the snapshot tool tests itself on its own surface.
+- `SnapshotAssertions.TUnit.SmokeTest/`: minimal one-test consumer-install verification project, used to validate that the `.nupkg` packs and resolves correctly against a fresh consumer csproj.
+
+General test rules:
+
 - Each public method on the assertion classes should have at least one test covering its happy path and at least one covering an invalid-input path.
 - Tests use TUnit's `[Test]` and the project's own assertion style (we eat our own dog food where possible).
 - Add `[Category("Smoke")]` to tests that should run in the pre-commit / fast feedback loop.

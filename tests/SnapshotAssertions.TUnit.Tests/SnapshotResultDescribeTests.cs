@@ -90,6 +90,28 @@ internal sealed class SnapshotResultDescribeTests
         Assert.Throws<ArgumentNullException>(() => result.WriteDescription(null!));
     }
 
+    /// <summary>
+    /// When the rendered diff does NOT end with a newline (an edge case: a custom diff
+    /// renderer or a hand-built Mismatched result), the describer appends one to keep the
+    /// accept-flow guidance on its own line. Pins the <c>if (!Diff.EndsWith('\n'))</c> THEN
+    /// branch, which is rarely exercised because the bundled <see cref="LineDiffRenderer"/>
+    /// always emits a newline-terminated diff.
+    /// </summary>
+    [Test]
+    public async Task WriteDescription_MismatchedWithoutNewlineTerminatedDiff_AppendsNewline(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = SnapshotResult.Mismatched("/tmp/x.expected.txt", "/tmp/x.actual.txt", "no-newline");
+
+        var description = result.Describe();
+        // The describer must close the diff line with a newline before the trailing blank line
+        // and the accept-flow guidance, otherwise the guidance prose would render on the same
+        // line as the last diff entry. StringWriter.WriteLine emits Environment.NewLine, which
+        // is platform-dependent (\r\n on Windows, \n on *nix); test for either form.
+        await Assert.That(description.Contains("no-newline\n", System.StringComparison.Ordinal)
+            || description.Contains("no-newline\r\n", System.StringComparison.Ordinal)).IsTrue();
+    }
+
     /// <summary>WriteDescription writes the same content as <see cref="SnapshotResult.Describe"/>
     /// to the supplied <see cref="TextWriter"/>.</summary>
     [Test]

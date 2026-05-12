@@ -1,18 +1,14 @@
 # BannedSymbols.txt for SnapshotAssertions and SnapshotAssertions.TUnit.
-#
 # Codifies the no-reflection convention from CONVENTIONS.md as a build-time error: any
 # attempt to add the listed APIs to the production code in src/ produces a Roslyn analyzer
 # diagnostic (RS0030) that fails the build via TreatWarningsAsErrors=true.
-#
 # This file is referenced from each src/<package>/<package>.csproj via
 # <AdditionalFiles Include="../../BannedSymbols.txt"/>. Test projects do not reference it,
 # so reflection-using helpers such as PublicApiGenerator continue to work in tests.
-#
 # Format: each line is one of
 #   T:Full.Type.Name; <reason>
 #   M:Full.Type.Name.MethodName(System.Type[,System.Type...]); <reason>
 #   P:Full.Type.Name.PropertyName; <reason>
-
 # Runtime method invocation. BannedApiAnalyzers uses exact symbol matching, not inheritance,
 # so the parent-class entry on MethodBase does NOT catch derived-class overrides on MethodInfo
 # / ConstructorInfo. Each derived overload is listed explicitly to close the bypass gap.

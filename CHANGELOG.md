@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-12: Scrubbers.Combine + Render namespace + parameterized-test cookbook
+
+Additive release. Surface area grows by one public factory method on `Scrubbers` plus a reserved namespace; no breaking changes; no behavioural changes to existing API.
+
+### Added (SnapshotAssertions, framework-agnostic core)
+
+- **`Scrubbers.Combine(params SnapshotScrubber[])`**: composes an array of scrubbers into a single scrubber that applies them left-to-right. All inner scrubbers share the same `SnapshotScrubberState`, so recurring volatile values keep stable indexed tokens across the combined pipeline (same semantics as chained `.WithScrubber(...)` calls). Returns an identity scrubber for an empty array; returns the single element unchanged for a one-element array; otherwise wraps a defensive copy. Replaces hand-rolled `var s1 = ...; var s2 = ...; var s3 = ...;` patterns and chains of three or more `.WithScrubber(...)` calls per assertion when the same bundle is reused across many tests.
+- **`SnapshotAssertions.Render` namespace reserved.** Internal anchor type only; no public surface. Sibling family packages publish their text renderer entry points under this shared namespace in their own assemblies so consumers can discover them with a single `using SnapshotAssertions.Render;`. Convention is namespace-shared, not type-shared: each package owns its renderer types.
+
+### Documentation
+
+- **README cookbook entry for parameterized `[Arguments]` tests.** Pins the file-name convention (`{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`) and documents the `InvariantCulture` stringification behaviour for `IFormattable` argument types (so baselines are portable across developer machines and CI regardless of current culture).
+- **`Scrubbers.Combine` usage example** added to the "Composing multiple scrubbers" section of the GitHub README and to the packaged README's Scrubbers overview.
+- **`CONVENTIONS.md` upgraded to v0.3.** Adds the `SnapshotAssertions.Render` namespace convention so sibling packages have a stable cross-repo target for their text renderers.
+
+### Tests
+
+- **`Scrubbers.Combine` coverage**: empty array → identity, single element → reference equality, multi-element left-to-right composition, shared `SnapshotScrubberState` across inner scrubbers, null-array / null-element argument validation, defensive-copy semantics, identity-scrubber `Apply` null-input / null-state argument validation.
+- **TUnit `[Arguments]` integration test** in `MatchesSnapshotChainTests`: pins that two `[Arguments]`-driven rows produce distinct per-row baseline files when calling the no-arg `MatchesSnapshot()` entry point, end-to-end through the TUnit `TestContext` → `SnapshotFileResolver` flow. Unit-level argument-hash coverage was already present at the resolver level.
+- **Coverage-improvement tests** for previously-uncovered branches: `ResolveByTest` empty-test-class-name / empty-test-method-name validation; `LineDiffRenderer` expected-longer-than-actual (trailing `-` lines, no `+`) and actual-longer-than-expected (trailing `+` lines, no `-`); `SnapshotComparer` bare-`\r` line-terminator recognition and `IgnoreLineEndings` × `Required` trailing-newline-policy preservation; `SnapshotResult` Mismatched-without-newline-terminated-diff path.
+
+### Refactored
+
+- **`LineDiffRenderer.EmitLine` split into helpers** (`LinesMatch`, `EmitMatchingLine`, `AccumulateDifferingTotal`, `EmitDifferingPair`). Behaviour is unchanged; the previous 18-Cyclomatic-Complexity main method is now under the family's 15 threshold and each branch path is independently named for clarity. Public API surface is untouched.
+
+### Quality
+
+- **`PackageValidationBaselineVersion` bumped `0.1.0` → `0.2.0`** for both packages (pins last-released baseline; `Scrubbers.Combine` is additive and auto-suppressed in `CompatibilitySuppressions.xml`).
+- **Branch coverage: 94.5%** (139 of 147), up from 0.2.0's 92.25%. Line coverage: 99.4% (533 of 536). Method coverage: 100% (85 of 85). Above both the CI 90% hard gates.
+- **Risk Hotspots: no methods exceed Cyclomatic Complexity 15** (was 18 on `LineDiffRenderer.EmitLine` in 0.2.0; the refactor split brings every method comfortably under the family threshold).
+- **AOT smoke verified.** Building the external-consumer `SnapshotAssertions.TUnit.SmokeTest` against the packed `0.3.0` nupkgs with `-p:PublishAot=true` produces **0 warnings, 0 errors**, confirming both packages remain AOT-consumer-safe (no new reflection patterns, no IL-level dynamic-code requirements).
+
+### Changed
+
+- **Dependency refresh.** Bumped direct dependencies and analyzer packs to latest stable:
+  - `TUnit` / `TUnit.Assertions` / `TUnit.Core`: 1.43.11 → 1.44.0
+  - `Microsoft.CodeAnalysis.BannedApiAnalyzers`: 3.3.4 → 4.14.0
+  - `Meziantou.Analyzer`: 3.0.72 → 3.0.78
+  - `Microsoft.SourceLink.GitHub`: held at 10.0.203 (the 11.x line is preview-only at time of release).
+- **`MeziantouAnalysisMode=all-warnings` enabled for `src/` projects** (test projects keep the analyzer defaults; TUnit's instance-method test style and argument-validation idioms like `null!` are by design and would conflict with rules MA0038 / MA0137 / MA0181 / MA0191). The stricter mode caught a handful of pre-existing style improvements: pattern-matching for discrete-value checks (`is`/`is not` over `==`/`!=`), `Convert.ToString(value, InvariantCulture)` over `object.ToString()` on the resolver's argument-stringifier, and `<see langword="…"/>` in XML docs over `<c>…</c>` for keyword literals.
+- **`BannedSymbols.txt`**: collapsed standalone `#` comment lines into adjacent text-bearing comment lines. `Microsoft.CodeAnalysis.BannedApiAnalyzers` 4.x is stricter about parsing the file format and treated standalone `#` lines as empty banned-symbol entries.
+
+### Family-wide doc sync
+
+- **Family compatibility count corrected to four packages.** Root `README.md` now references the four shipped family packages (`LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`) in both the "Family compatibility" CHANGELOG-link list and the "Pair with" entries. Previous text said "three" and omitted `MathAssertions.TUnit`.
+- **Packaged README "Family" section added.** The on-NuGet `src/SnapshotAssertions.TUnit/README.md` now mirrors the family-shared packaged-README structure with a `## Family` block linking the three sibling packages (visible on nuget.org).
+- **`CONTRIBUTING.md` test-project list expanded.** Enumerates the three test projects (`SnapshotAssertions.TUnit.Tests`, `SnapshotAssertions.TUnit.SnapshotTests`, `SnapshotAssertions.TUnit.SmokeTest`) with their purposes, mirroring the family-shared CONTRIBUTING structure. Previous text mentioned only the main `.Tests` project.
+- **Bug-report issue template TUnit-version placeholder bumped `1.43.2` → `1.44.0`** to match the shipped dependency in `Directory.Packages.props`.
+- **CHANGELOG header convention aligned with Keep a Changelog 1.1.0**: this entry uses `## [0.3.0] - YYYY-MM-DD: tagline` (date in ISO form). Existing 0.1.0 / 0.2.0 entries kept as-is to avoid post-hoc rewrites.
+
 ## [0.2.0]: Built-in scrubbers, dependency refresh
 
 Feature release plus rolled-in housekeeping. Lockstep version bump for both packages; ApiCompat baseline pinned to 0.1.0 (the previous shipped release). The intermediate v0.1.1 housekeeping work is folded into this release rather than shipping as a separate intermediate version.

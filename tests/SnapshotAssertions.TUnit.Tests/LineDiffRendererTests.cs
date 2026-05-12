@@ -65,4 +65,36 @@ internal sealed class LineDiffRendererTests
         Assert.Throws<ArgumentNullException>(() => LineDiffRenderer.Render(null!, "x"));
         Assert.Throws<ArgumentNullException>(() => LineDiffRenderer.Render("x", null!));
     }
+
+    /// <summary>Expected has more lines than actual: trailing expected-only lines render with
+    /// a <c>-</c> prefix and no matching <c>+</c> line. Pins the <c>hasActual = false</c> ternary
+    /// branch in <c>AccumulateDifferingTotal</c> and the <c>if (hasActual)</c> false branch in
+    /// <c>EmitDifferingPair</c>.</summary>
+    [Test]
+    public async Task ExpectedLongerThanActual_TrailingExpectedLinesEmitMinusOnly(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diff = LineDiffRenderer.Render("a\nb\nc\n", "a\n");
+
+        await Assert.That(diff).Contains("-b");
+        await Assert.That(diff).Contains("-c");
+        await Assert.That(diff).DoesNotContain("+b");
+        await Assert.That(diff).DoesNotContain("+c");
+    }
+
+    /// <summary>Actual has more lines than expected: trailing actual-only lines render with a
+    /// <c>+</c> prefix and no matching <c>-</c> line. Pins the <c>hasExpected = false</c>
+    /// ternary branch and the <c>if (hasExpected && ...)</c> short-circuit-false path in
+    /// <c>EmitDifferingPair</c>.</summary>
+    [Test]
+    public async Task ActualLongerThanExpected_TrailingActualLinesEmitPlusOnly(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diff = LineDiffRenderer.Render("a\n", "a\nb\nc\n");
+
+        await Assert.That(diff).Contains("+b");
+        await Assert.That(diff).Contains("+c");
+        await Assert.That(diff).DoesNotContain("-b");
+        await Assert.That(diff).DoesNotContain("-c");
+    }
 }

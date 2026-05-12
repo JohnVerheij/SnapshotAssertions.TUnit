@@ -10,19 +10,19 @@
          SnapshotAssertions core has zero NuGet dependencies beyond BCL: it only does file I/O,
          string comparison, and rendering. The list below covers the TUnit adapter, snapshot
          and smoke tests, and pack-time tooling (SBOM, SourceLink, PublicApiGenerator). -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="4.1.5" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.203" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
-    <PackageVersion Include="TUnit" Version="1.43.11" />
-    <PackageVersion Include="TUnit.Assertions" Version="1.43.11" />
-    <PackageVersion Include="TUnit.Core" Version="1.43.11" />
+    <PackageVersion Include="TUnit" Version="1.44.0" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.44.0" />
+    <PackageVersion Include="TUnit.Core" Version="1.44.0" />
   </ItemGroup>
 
   <!-- Analyzer pack (applied to every project automatically via GlobalPackageReference) -->
   <ItemGroup>
     <GlobalPackageReference Include="DotNetProjectFile.Analyzers" Version="1.13.1" />
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.72" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.78" />
     <GlobalPackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15" />
     <GlobalPackageReference Include="Roslynator.Analyzers" Version="4.15.0" />
     <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.25.0.139117" />

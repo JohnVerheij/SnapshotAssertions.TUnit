@@ -12,7 +12,7 @@ namespace TUnit.Assertions.Extensions;
 /// <remarks>
 /// Lives in <c>TUnit.Assertions.Extensions</c> (where TUnit's source generator emits the core
 /// entry-point extension method <c>MatchesSnapshot()</c>) so consumers do not need a second
-/// <c>using</c> directive to discover these shorthands. If you can call
+/// <see langword="using"/> directive to discover these shorthands. If you can call
 /// <c>Assert.That(actual).MatchesSnapshot()</c> in a file, you can also call
 /// <c>Assert.That(actual).MatchesSnapshot("custom-name")</c> and
 /// <c>Assert.That(actual).MatchesSnapshotFile("/path/to/file.txt")</c> there: same auto-import.
