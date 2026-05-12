@@ -610,13 +610,13 @@ public async Task Response_for_each_route_matches(string route, int statusCode)
 
 Baselines committed under `Snapshots/` carry names of the form:
 
-```
+```text
 {TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt
 ```
 
 For example, the two rows above produce two distinct files such as
 `Snapshots/Foo.Response_for_each_route_matches.7A3F1B2C.expected.txt` and
-`Snapshots/Foo.Response_for_each_route_matches.D9E0A4B5.expected.txt`. The hash is stable as long as the argument values and their order do not change; reordering or renaming arguments changes the hash and requires renaming the committed baseline. The argument types themselves do not appear in the file name; if two rows happen to stringify to the same byte sequence under `InvariantCulture`, they collide (a documented edge case for callers using custom types whose `ToString()` is not unique per value).
+`Snapshots/Foo.Response_for_each_route_matches.D9E0A4B5.expected.txt`. The hash is computed from argument **values** in declaration order, so it is stable across runs and across machines (`InvariantCulture` is used for `IFormattable` types). Changing any value or reordering the values in the `[Arguments]` attribute changes the hash and requires renaming the committed baseline. Renaming the C# method parameters (without touching the values passed via `[Arguments]`) does **not** affect the hash. The argument types themselves do not appear in the file name; if two rows happen to stringify to the same byte sequence under `InvariantCulture`, they collide (a documented edge case for callers using custom types whose `ToString()` is not unique per value).
 
 When a row's argument list is empty (no `[Arguments]` on the method, or `[Arguments()]` with no values), no hash is appended and the file name is `{TestClassName}.{TestMethodName}.expected.txt` as for non-parameterized tests.
 

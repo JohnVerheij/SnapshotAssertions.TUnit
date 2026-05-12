@@ -53,8 +53,8 @@ Additive release. Surface area grows by one public factory method on `Scrubbers`
 
 - **Family compatibility count corrected to four packages.** Root `README.md` now references the four shipped family packages (`LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`) in both the "Family compatibility" CHANGELOG-link list and the "Pair with" entries. Previous text said "three" and omitted `MathAssertions.TUnit`.
 - **Packaged README "Family" section added.** The on-NuGet `src/SnapshotAssertions.TUnit/README.md` now mirrors the family-shared packaged-README structure with a `## Family` block linking the three sibling packages (visible on nuget.org).
-- **`CONTRIBUTING.md` test-project list expanded.** Enumerates the four test projects (`SnapshotAssertions.TUnit.Tests`, `SnapshotAssertions.TUnit.SnapshotTests`, `SnapshotAssertions.TUnit.SmokeTest`) with their purposes, mirroring the family-shared CONTRIBUTING structure. Previous text mentioned only the main `.Tests` project.
-- **Bug-report issue template TUnit-version placeholder bumped `1.43.2` → `1.43.11`** to match the shipped dependency in `Directory.Packages.props`.
+- **`CONTRIBUTING.md` test-project list expanded.** Enumerates the three test projects (`SnapshotAssertions.TUnit.Tests`, `SnapshotAssertions.TUnit.SnapshotTests`, `SnapshotAssertions.TUnit.SmokeTest`) with their purposes, mirroring the family-shared CONTRIBUTING structure. Previous text mentioned only the main `.Tests` project.
+- **Bug-report issue template TUnit-version placeholder bumped `1.43.2` → `1.44.0`** to match the shipped dependency in `Directory.Packages.props`.
 - **CHANGELOG header convention aligned with Keep a Changelog 1.1.0**: this entry uses `## [0.3.0] - YYYY-MM-DD: tagline` (date in ISO form). Existing 0.1.0 / 0.2.0 entries kept as-is to avoid post-hoc rewrites.
 
 ## [0.2.0]: Built-in scrubbers, dependency refresh

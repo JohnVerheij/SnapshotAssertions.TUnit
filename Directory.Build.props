@@ -39,7 +39,7 @@
          convention exceptions all relate to test-only idioms (argument-validation tests
          passing `null!`, instance test methods without an Async suffix, ad-hoc one-off
          regexes in test code, etc.). -->
-    <MeziantouAnalysisMode Condition="!$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('tests'))">all-warnings</MeziantouAnalysisMode>
+    <MeziantouAnalysisMode Condition="!$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/').Contains('/tests/'))">all-warnings</MeziantouAnalysisMode>
 
     <!-- Reproducibility: lock files + auditing -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
