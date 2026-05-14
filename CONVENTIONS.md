@@ -1,8 +1,12 @@
 # Code conventions
 
 Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
-`SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, and `MathAssertions.TUnit`). The same
-file is copied identically into each repo.
+`SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, and
+`JsonAssertions.TUnit`). The same file is copied identically into each repo.
+
+**Document version:** v0.4 (2026-05-14). Changes from v0.3: added `JsonAssertions.TUnit` to
+the family roster (the fifth package; JSON path / value / shape assertions over
+`System.Text.Json`).
 
 **Document version:** v0.3 (2026-05-12). Changes from v0.2: added the `SnapshotAssertions.Render`
 namespace reservation for sibling-package text renderers so consumers discover renderer
@@ -115,7 +119,7 @@ reasons but are hidden from IntelliSense.
 |---|---|---|
 | Source-generated assertion entry points (`HasLogged()`, `MatchesSnapshot()`, `WithinTimeBudget()`, `IsApproximatelyEqualTo()`, etc.) | `TUnit.Assertions.Extensions` | Yes (TUnit auto-imports) |
 | Shorthand entry points | `TUnit.Assertions.Extensions` | Yes (same path) |
-| Internal types (matchers, options, builders) | Package's own namespace (`SnapshotAssertions`, `LogAssertions`, `TimeAssertions`, `MathAssertions`, ...) | No (needs explicit `using`) |
+| Internal types (matchers, options, builders) | Package's own namespace (`SnapshotAssertions`, `LogAssertions`, `TimeAssertions`, `MathAssertions`, `JsonAssertions`, ...) | No (needs explicit `using`) |
 | Text renderer entry points: types whose role is to project a domain object into a deterministic string for `MatchesSnapshot()` | `SnapshotAssertions.Render` | No (needs `using SnapshotAssertions.Render;`) |
 
 ### `SnapshotAssertions.Render` for sibling-package renderers
