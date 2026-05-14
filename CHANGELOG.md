@@ -200,3 +200,8 @@ Two paths to accept a baseline change:
   local accept run; deferred to 0.1.1 once that flow is fully documented. *(Resolved: shipped in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
+
+[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
+[0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.2.0
+[0.1.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.1.0
