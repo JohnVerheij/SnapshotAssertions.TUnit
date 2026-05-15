@@ -4,7 +4,9 @@ This project adopts the [Contributor Covenant, version 3.0](https://www.contribu
 
 ## Reporting
 
-To report a concern, contact the project maintainer privately via the contact options listed on the [project owner's GitHub profile](https://github.com/JohnVerheij). Reports are handled confidentially.
+To report a Code of Conduct concern, contact the project maintainer privately at [oss@verheij.io](mailto:oss@verheij.io). Reports are handled confidentially.
+
+For security vulnerabilities, use the repository's [private security advisory channel](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/security/advisories/new) instead; see [SECURITY.md](./SECURITY.md) for the full vulnerability-disclosure policy.
 
 ## Enforcement
 

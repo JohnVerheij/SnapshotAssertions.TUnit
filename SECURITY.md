@@ -8,6 +8,8 @@ This document is the project's coordinated-vulnerability-disclosure (CVD) policy
 
 **Please do NOT open a public issue for security vulnerabilities.** Use one of the private channels below.
 
+> **Code of Conduct concerns** are reported through a separate channel: contact the maintainer at [oss@verheij.io](mailto:oss@verheij.io) (see [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)). The security channels below are scoped to vulnerabilities.
+
 ### Preferred: GitHub private vulnerability reporting
 
 1. Navigate to the repository's [Security tab](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/security)
