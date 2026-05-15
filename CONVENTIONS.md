@@ -4,6 +4,12 @@ Rules for how code is written across the assertion family (`LogAssertions.TUnit`
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`, and
 `JsonAssertions.TUnit`). The same file is copied identically into each repo.
 
+**Document version:** v0.5 (2026-05-15). Changes from v0.4: added the **CHANGELOG conventions**
+section (Keep a Changelog 1.1.0 standard headers, user-facing-only content, header order,
+stylistic rules) and the **`PackageReleaseNotes` auto-extract** convention that ties the
+per-version CHANGELOG section to nuget.org's Release Notes tab via a shared
+`Directory.Build.targets` build extension.
+
 **Document version:** v0.4 (2026-05-14). Changes from v0.3: added `JsonAssertions.TUnit` to
 the family roster (the fifth package; JSON path / value / shape assertions over
 `System.Text.Json`).
@@ -187,3 +193,79 @@ consumers toward it. The reason: `SnapshotAssertions.TUnit` exists specifically 
 provide a coverage-friendly, AOT-first text-snapshot tool that avoids the Verify+MTP
 coverage interaction on Linux runners, and promoting Verify in family documentation
 would directly contradict that founding rationale.
+
+## CHANGELOG conventions
+
+Each repo's `CHANGELOG.md` follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
+The rules below codify what that means in practice across the family.
+
+**Content rules:**
+
+1. **User-facing only.** A CHANGELOG entry describes what changed for consumers: API
+   additions or changes, behavioural changes, bug fixes a consumer can hit, dependency bumps
+   with a transitive effect. Internal refactors with no behavioural change, test-only
+   tweaks, and dev-dependency bumps with no transitive effect belong in commit messages,
+   not the CHANGELOG.
+2. **Only the six Keep a Changelog headers.** `Added`, `Changed`, `Deprecated`, `Removed`,
+   `Fixed`, `Security`. No `Notes` / `Documentation` / `Tests` / `Quality` sections; doc
+   changes that affect consumers go under `Changed`, and test / coverage changes do not
+   belong in the CHANGELOG at all (rule 1).
+3. **Standard header order within each version section.** `Added` → `Changed` → `Deprecated`
+   → `Removed` → `Fixed` → `Security`. Within a header, list entries by significance, not
+   alphabetically.
+
+**Stylistic rules:**
+
+4. Past-tense active voice, one change per bullet: "Added X", "Fixed Y", "Changed Z" — not
+   "X has been added" or "Will be removed in 2.0".
+5. Lead each bullet with the affected API in `code` formatting: ``HasJsonProperty`` now
+   returns ``AssertionResult`` instead of ``bool``. ...
+6. Mark breaking changes prominently: either a `### BREAKING` callout at the top of the
+   version section, or a `**BREAKING:**` prefix on the affected bullet.
+7. Don't edit published version sections. A shipped `## [0.1.0]` section is a historical
+   record; corrections go in a newer section.
+8. ISO 8601 dates: `YYYY-MM-DD`.
+9. `## [Unreleased]` is always present at the top of the file. At release time, rename it
+   to the version section and add a new `## [Unreleased]` above it.
+10. Keep the reference-link footer (`[unreleased]: ...` / `[x.y.z]: ...`) in lockstep with
+    every version bump.
+
+## `PackageReleaseNotes` auto-extract from CHANGELOG
+
+Each repo ships an identical `Directory.Build.targets` at the repo root that auto-populates
+`<PackageReleaseNotes>` at pack time from the matching `## [<Version>]` section in
+`CHANGELOG.md`. nuget.org's Release Notes tab is driven by `<PackageReleaseNotes>` (not by
+shipping `CHANGELOG.md` in the nupkg) so this is the mechanism that surfaces the per-version
+notes on nuget.org.
+
+The mechanism is a `RoslynCodeTaskFactory` inline C# task that runs `BeforeTargets="GenerateNuspec"`:
+it reads `CHANGELOG.md`, matches `^## \[<Version>\]`, captures the body up to the next
+`## [` or end-of-file, prepends a `View the rendered release notes: <url>` line pointing at
+the matching GitHub Release, and overrides `PackageReleaseNotes` when a section is found.
+When no matching section is found, the task emits an MSBuild Warning and the csproj fallback
+is preserved.
+
+The prepended URL exists because nuget.org renders the Release Notes tab as plaintext-with-line-breaks
+rather than rendered markdown ([NuGet/NuGetGallery#8889](https://github.com/NuGet/NuGetGallery/issues/8889)
+is the open feature request; the linked issue is the source of truth for current status). The
+prepended URL gives consumers a one-click route to the rendered-markdown version of the same
+notes on GitHub.
+
+Every csproj's `<PackageReleaseNotes>` carries this fallback for the no-match case:
+
+```xml
+<PackageReleaseNotes>$(RepositoryUrl)/releases/tag/v$(Version)</PackageReleaseNotes>
+```
+
+`$(RepositoryUrl)` is set in `Directory.Build.props`; nuget.org auto-links the URL, so a
+consumer one-clicks through to the corresponding GitHub Release (release notes are
+auto-generated there via the release workflow). This handles both bare-package csprojs and
+adapter-package csprojs in repos that have two.
+
+Two caveats consumers should know:
+
+- nuget.org renders the Release Notes tab as plaintext-with-line-breaks, not as rendered
+  markdown. Bullets show as literal `- foo`; headers as literal `### foo`. URLs auto-link,
+  blank lines preserve. Still vastly better than "See CHANGELOG.md" but not pretty.
+- Only future releases benefit. nupkgs on nuget.org are immutable; an already-shipped
+  release continues to display the original `<PackageReleaseNotes>` value forever.

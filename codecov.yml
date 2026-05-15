@@ -22,10 +22,10 @@ coverage:
         threshold: 1%
     patch:
       default:
-        # New code in a PR must be at least 80% covered (line). Stricter than the
+        # New code in a PR must be at least 90% covered (line). Stricter than the
         # project gate to encourage adding tests for new code rather than coasting
         # on the overall percentage.
-        target: 80%
+        target: 90%
 
 ignore:
   # Source-generated files from TUnit's [AssertionExtension] generator and any
