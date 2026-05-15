@@ -1,10 +1,10 @@
 # Code of Conduct
 
-This project adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) as its Code of Conduct. All contributors, maintainers, and participants in project spaces are expected to follow it.
+This project adopts the [Contributor Covenant, version 3.0](https://www.contributor-covenant.org/version/3/0/code_of_conduct/) as its Code of Conduct. All contributors, maintainers, and participants in project spaces are expected to follow it.
 
 ## Reporting
 
-To report a concern, contact the project maintainer privately via the email address listed on the [project owner's GitHub profile](https://github.com/JohnVerheij). Reports are handled confidentially.
+To report a concern, contact the project maintainer privately via the contact options listed on the [project owner's GitHub profile](https://github.com/JohnVerheij). Reports are handled confidentially.
 
 ## Enforcement
 

@@ -1,0 +1,84 @@
+<Project>
+
+  <!--
+    Auto-extracts the section for the current <Version> from CHANGELOG.md and feeds it into
+    <PackageReleaseNotes> at pack time, so the Release Notes tab on nuget.org renders the
+    per-version section body verbatim rather than the literal csproj fallback. The csproj
+    keeps the GitHub-release-tag URL as its <PackageReleaseNotes> fallback; the auto-extract
+    overrides it whenever a matching CHANGELOG section is found.
+
+    Failure modes are non-fatal. If CHANGELOG.md is absent, the target is skipped via its
+    Condition. If CHANGELOG.md is present but has no '## [<Version>]' section, the target
+    emits an MSBuild warning and leaves the csproj fallback in place. Either way `dotnet pack`
+    succeeds and produces a useful Release Notes value.
+
+    Mirrors the family pattern (Directory.Build.props for property defaults; this targets file
+    is the property-side build extension that runs after the SDK has set $(Version)). Rolls to
+    the other four family repos after the JsonAssertions pilot cycle.
+  -->
+
+  <UsingTask TaskName="ExtractChangelogSection"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ChangelogPath ParameterType="System.String" Required="true" />
+      <Version       ParameterType="System.String" Required="true" />
+      <RepositoryUrl ParameterType="System.String" Required="false" />
+      <Notes         ParameterType="System.String" Output="true" />
+      <Found         ParameterType="System.Boolean" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        Found = false;
+        Notes = string.Empty;
+        if (!File.Exists(ChangelogPath))
+        {
+            return true;
+        }
+        var text = File.ReadAllText(ChangelogPath, Encoding.UTF8);
+        var pattern = @"^##\s+\[" + Regex.Escape(Version) + @"\][^\r\n]*\r?\n(?<body>.*?)(?=^##\s+\[|\z)";
+        var match = Regex.Match(text, pattern, RegexOptions.Multiline | RegexOptions.Singleline);
+        if (!match.Success)
+        {
+            return true;
+        }
+        var body = match.Groups["body"].Value.Trim('\r', '\n', ' ', '\t');
+        if (!string.IsNullOrEmpty(RepositoryUrl))
+        {
+            // nuget.org renders the Release Notes tab as plaintext-with-line-breaks rather
+            // than rendered markdown (NuGet/NuGetGallery#8889 is the open feature request).
+            // Prepending the matching GitHub Release URL gives consumers a one-click route to
+            // the rendered-markdown version while keeping the extracted body inline below.
+            Notes = "View the rendered release notes: " + RepositoryUrl + "/releases/tag/v" + Version + "\n\n" + body;
+        }
+        else
+        {
+            Notes = body;
+        }
+        Found = true;
+        return true;
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="SetPackageReleaseNotesFromChangelog"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(IsPackable)' == 'true' AND '$(Version)' != '' AND Exists('$(MSBuildThisFileDirectory)CHANGELOG.md')">
+    <ExtractChangelogSection ChangelogPath="$(MSBuildThisFileDirectory)CHANGELOG.md"
+                             Version="$(Version)"
+                             RepositoryUrl="$(RepositoryUrl)">
+      <Output TaskParameter="Notes" PropertyName="_ChangelogNotes" />
+      <Output TaskParameter="Found" PropertyName="_ChangelogFound" />
+    </ExtractChangelogSection>
+    <PropertyGroup Condition="'$(_ChangelogFound)' == 'true'">
+      <PackageReleaseNotes>$(_ChangelogNotes)</PackageReleaseNotes>
+    </PropertyGroup>
+    <Warning Condition="'$(_ChangelogFound)' != 'true'"
+             Text="CHANGELOG.md has no '## [$(Version)]' section; PackageReleaseNotes falls back to the csproj default." />
+  </Target>
+
+</Project>

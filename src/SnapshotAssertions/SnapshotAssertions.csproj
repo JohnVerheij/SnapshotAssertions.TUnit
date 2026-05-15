@@ -20,7 +20,11 @@
     <PackageProjectUrl>https://github.com/JohnVerheij/SnapshotAssertions.TUnit</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
+    <!-- Fallback: nuget.org renders this as a clickable link to the matching GitHub release.
+         Directory.Build.targets overrides this at pack time when CHANGELOG.md contains a
+         matching '## [$(Version)]' section, in which case the section body becomes the
+         Release Notes shown on nuget.org. -->
+    <PackageReleaseNotes>$(RepositoryUrl)/releases/tag/v$(Version)</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
     <!-- Pre-1.0 suppressions:
