@@ -82,6 +82,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The adapter's internal helpers (e.g. SnapshotAssertionImpl.ResolvePaths) are
+         exercised indirectly through MatchesSnapshot from the test project, but the
+         defensive throw-on-no-test-context path cannot be hit from inside a [Test] method
+         because TestContext.Current is always set there. Granting visibility to the test
+         assembly lets that one defensive branch be covered by a focused unit test running
+         on a flow-suppressed thread. -->
+    <InternalsVisibleTo Include="SnapshotAssertions.TUnit.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Use the per-package short README for the nuget.org page. The root README.md is the
          comprehensive reference rendered by GitHub on the repo home; nuget.org needs a focused
          'can I use this in 60 seconds' view, so the package ships a shorter README that links
