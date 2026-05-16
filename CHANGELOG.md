@@ -7,11 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-16: Smart-diff suggestions, renderer pattern, `Scrubbers.Common`
+
+Additive release. No breaking changes; baselines that opted into `Scrubbers.Default` produce byte-identical output.
+
+### Added
+
+- `Scrubbers.GuidN`: scrubs 32-character GUID-N format strings (the `Guid.ToString("N")` shape) into `<guid:N>` tokens. Shares the `"guid"` kind name with `Scrubbers.Guid`, so the index counter is unified across both formats; the Nth GUID occurrence in a snapshot gets the same N regardless of which format produced it.
+- `Scrubbers.ElapsedMs`: scrubs elapsed-millisecond values (`42ms`, `42.5ms`, `1234.567 ms`) into `<elapsed-ms:N>` tokens. Case-sensitive on the `ms` suffix.
+- `Scrubbers.Common`: curated chain of `Guid` + `GuidN` + `Iso8601Timestamp` + `UnixEpochMillis` + `ElapsedMs`. Superset of `Scrubbers.Default`; opt-in for the extended pattern set. Ordering follows the most-specific-first rule to avoid double-scrubbing.
+- `DiffSuggestionAnalyzer.Analyze(string diff)`: scans a snapshot-mismatch diff for known volatile patterns and returns `DiffSuggestion` entries recommending applicable built-in scrubbers, ordered by hit count descending with stable secondary ordering by declaration order. Counts matches only on lines that begin with `+` or `-`; context lines are skipped so patterns unchanged on both sides do not surface as suggestions.
+- `DiffSuggestion(string PatternName, int Count, string Recommendation)` record: one scrubber recommendation surfaced by `DiffSuggestionAnalyzer`.
+- `SnapshotResult.Describe()` / `WriteDescription` smart-diff suggestion section: on `Mismatched` outcomes with detected patterns, the failure message now includes a "Suggestion(s)" section between the diff and the accept-flow guidance. The list is capped at the top 3 patterns by hit count; surplus patterns roll up into an "... and N more" line pointing consumers at `Scrubbers.Common`. Failure messages for `Mismatched` outcomes with no detected patterns, and for all other outcomes (`Matched`, `NoBaseline`, `Accepted`), are byte-identical to v0.3.0.
+- `SnapshotAssertions.Render.SnapshotRenderer<T>` abstract base class: consumers subclass to plug domain types (Google.Protobuf messages, `XDocument`, `Activity`, project-specific value objects) into the snapshot pipeline.
+- `SnapshotAssertions.Render.Renderer.For<T>(Func<T, string>)` static factory: builds a renderer from a lambda when a full subclass is unnecessary.
+- `RenderedSnapshotAssertion<T>`: renderer-projected assertion type returned by the two new `MatchesSnapshot<T>` overloads. Carries the same chain methods as `SnapshotAssertion` (`WithName`, `AtPath`, `WithOptions`, `WithScrubber`).
+- `MatchesSnapshot<T>(this IAssertionSource<T>, SnapshotRenderer<T>)` extension: renderer-projected entry point taking a subclass renderer. Use when the renderer is reusable and owns configuration or state.
+- `MatchesSnapshot<T>(this IAssertionSource<T>, Func<T, string>)` extension: delegate-shaped entry point. Use for inline projections and for composing with a sibling family package's static renderer method without taking a reference on its assembly.
+
 ### Changed
 
-- **TUnit dependency bumped `1.44.0` -> `1.44.39`** (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep.
-- **Dependency lockstep catch-up**: `Microsoft.SourceLink.GitHub` `10.0.203` -> `10.0.300`, `DotNetProjectFile.Analyzers` `1.13.1` -> `1.14.0`, `Meziantou.Analyzer` `3.0.78` -> `3.0.84`, bringing the analyzer / SourceLink pins back in line with the rest of the family. `packages.lock.json` regenerated.
-- **`CONVENTIONS.md` updated to v0.4**: added `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) to the family roster. The file is copied identically across all five repos.
+- `TUnit` package reference bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep.
+- `Microsoft.SourceLink.GitHub` bumped `10.0.203` → `10.0.300`. The embedded source-link metadata in shipped `.pdb` files now points at the updated SourceLink schema; debugging-into-the-package from consumers' IDEs is unaffected in behaviour but uses the newer SourceLink format.
+- README cookbook documents `Scrubbers.Common` ordering rationale, smart-diff suggestion output shape and top-3 cap, the renderer-pattern API with four worked subclass examples (`OtelTraceIdScrubber`, `EphemeralPathScrubber`, `PortScrubber`, `NumericTokenScrubber` as a parameterised variant), and sibling-family composition without cross-package dependency.
+- Packaged READMEs (`src/SnapshotAssertions.TUnit/README.md`, `src/SnapshotAssertions/README.md`) mention `Scrubbers.Common`, smart-diff suggestions, and the renderer-pattern API with deep-links to the root README.
 
 ## [0.3.0] - 2026-05-12: Scrubbers.Combine + Render namespace + parameterized-test cookbook
 
@@ -207,7 +226,8 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.1.0

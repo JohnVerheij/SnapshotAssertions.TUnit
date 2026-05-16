@@ -29,6 +29,22 @@ public static partial class Scrubbers
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Domain term: this property identifies the GUID scrubber, not a System.Guid value. Renaming would obscure the family-wide API of one factory property per kind.")]
     public static SnapshotScrubber Guid { get; } = new GuidScrubber();
 
+    /// <summary>Replaces all GUID-N format strings (32 contiguous hex chars,
+    /// <c>Guid.ToString("N")</c>) with <c>&lt;guid:N&gt;</c>. Shares the
+    /// <c>"guid"</c> kind-name with <see cref="Guid"/>, so the indexed-token counter is
+    /// drawn from the same pool: across a snapshot containing both canonical and N-format
+    /// GUID strings, indices increment in unified first-occurrence order across both
+    /// formats. Recurring N-format values get the same index. Comparison is case-insensitive
+    /// (lower-case canonical form is used for index look-up).</summary>
+    public static SnapshotScrubber GuidN { get; } = new GuidNScrubber();
+
+    /// <summary>Replaces all elapsed-millisecond values (e.g. <c>42ms</c>,
+    /// <c>42 ms</c>, <c>42.5ms</c>, <c>1234.567 ms</c>) with
+    /// <c>&lt;elapsed-ms:N&gt;</c>. Recurring elapsed values share an index. Pattern is
+    /// case-sensitive on the <c>ms</c> suffix (uppercase <c>MS</c> is not matched); use
+    /// <see cref="Pattern(string, string)"/> for case-insensitive needs.</summary>
+    public static SnapshotScrubber ElapsedMs { get; } = new ElapsedMsScrubber();
+
     /// <summary>Replaces ISO 8601 timestamps (e.g. <c>2026-05-07T13:45:30Z</c>,
     /// <c>2026-05-07T13:45:30.123+02:00</c>) with <c>&lt;iso8601:N&gt;</c>; recurring timestamps
     /// share an index. Comparison is ordinal (different precisions or offsets get different
@@ -43,6 +59,25 @@ public static partial class Scrubbers
     /// <see cref="UnixEpochMillis"/>. Matches the most common volatile-value cases in a
     /// single composable scrubber.</summary>
     public static SnapshotScrubber Default { get; } = new ChainScrubber([Guid, Iso8601Timestamp, UnixEpochMillis]);
+
+    /// <summary>Extended curated chain of <see cref="Guid"/>, <see cref="GuidN"/>,
+    /// <see cref="Iso8601Timestamp"/>, <see cref="UnixEpochMillis"/>, and <see cref="ElapsedMs"/>.
+    /// Superset of <see cref="Default"/>: adds GUID-N format coverage and elapsed-millisecond
+    /// matching. Ordering follows the most-specific-first rule (canonical GUID before N-format
+    /// to avoid hex-segment consumption; ISO 8601 before 13-digit numeric to avoid year-month
+    /// component consumption).</summary>
+    public static SnapshotScrubber Common { get; } = new ChainScrubber([Guid, GuidN, Iso8601Timestamp, UnixEpochMillis, ElapsedMs]);
+
+    // Internal regex accessors for DiffSuggestionAnalyzer (same assembly). Each accessor
+    // returns the SAME Regex instance the corresponding public scrubber uses, so a change
+    // to the underlying regex automatically applies to the analyzer's detection without
+    // creating a drift risk. The outer Scrubbers type has access to its nested private
+    // classes' private fields, so no visibility promotion of the scrubber types is needed.
+    internal static Regex GuidPatternRegex => GuidScrubber.GuidPattern;
+    internal static Regex GuidNPatternRegex => GuidNScrubber.GuidNPattern;
+    internal static Regex Iso8601PatternRegex => Iso8601TimestampScrubber.Iso8601Pattern;
+    internal static Regex UnixEpochMillisPatternRegex => UnixEpochMillisScrubber.UnixMsPattern;
+    internal static Regex ElapsedMsPatternRegex => ElapsedMsScrubber.ElapsedMsPattern;
 
     /// <summary>
     /// Combines the supplied <paramref name="scrubbers"/> into a single scrubber that applies
@@ -113,7 +148,7 @@ public static partial class Scrubbers
 
     private sealed partial class GuidScrubber : SnapshotScrubber
     {
-        private static readonly Regex GuidPattern = GuidRegex();
+        internal static readonly Regex GuidPattern = GuidRegex();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "RFC 4122 canonical GUID rendering is lowercase; matching MEL / xUnit / Verify defaults expect lowercase. Upper-casing here would surprise consumers with non-canonical baselines.")]
         public override string Apply(string input, SnapshotScrubberState state)
@@ -134,9 +169,69 @@ public static partial class Scrubbers
         private static partial Regex GuidRegex();
     }
 
+    private sealed partial class GuidNScrubber : SnapshotScrubber
+    {
+        internal static readonly Regex GuidNPattern = GuidNRegex();
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "RFC 4122 canonical GUID rendering is lowercase; matching MEL / xUnit / Verify defaults expect lowercase. Upper-casing here would surprise consumers with non-canonical baselines.")]
+        public override string Apply(string input, SnapshotScrubberState state)
+        {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentNullException.ThrowIfNull(state);
+            return GuidNPattern.Replace(input, m =>
+            {
+                var key = m.Value.ToLowerInvariant();
+                // Share the "guid" kind name with the canonical GuidScrubber so the index
+                // counter is unified across the two formats: the Nth GUID occurrence in a
+                // snapshot gets the same N regardless of whether it was hyphenated or N-format.
+                var idx = state.GetOrAssignIndex("guid", key);
+                return string.Create(CultureInfo.InvariantCulture, $"<guid:{idx}>");
+            });
+        }
+
+        // 32 contiguous hex chars at word boundaries. The trailing \b prevents over-matching
+        // longer hex tokens (e.g. SHA-256, 64-hex). The canonical GuidScrubber's hyphenated
+        // pattern runs first in Scrubbers.Common; consumers chaining GuidN alone need to be
+        // aware that a 32-hex prefix of a longer hex string is NOT a Guid:N and will not
+        // match here (the \b anchor refuses match in mid-word position). Note: per the
+        // family ordering rule, the canonical (hyphenated) GuidScrubber runs first so its
+        // hex segments are already consumed before this pattern evaluates.
+        [GeneratedRegex(
+            @"\b[0-9a-fA-F]{32}\b",
+            RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+        private static partial Regex GuidNRegex();
+    }
+
+    private sealed partial class ElapsedMsScrubber : SnapshotScrubber
+    {
+        internal static readonly Regex ElapsedMsPattern = ElapsedMsRegex();
+
+        public override string Apply(string input, SnapshotScrubberState state)
+        {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentNullException.ThrowIfNull(state);
+            return ElapsedMsPattern.Replace(input, m =>
+            {
+                var idx = state.GetOrAssignIndex("elapsed-ms", m.Value);
+                return string.Create(CultureInfo.InvariantCulture, $"<elapsed-ms:{idx}>");
+            });
+        }
+
+        // Integer or fixed-point number, optional whitespace, literal "ms", at word
+        // boundaries. The leading \b prevents matching a digit sequence that's the tail of
+        // a longer numeric token (e.g. "1234.567" inside "v1234.567ms" would still match
+        // because the \b sits before the digit run; for v0.4.0 we accept this minor case as
+        // out-of-scope. Consumers needing tighter matching use Scrubbers.Pattern.). The
+        // trailing \b after "ms" prevents matching "msdb" or "mscorlib" tokens.
+        [GeneratedRegex(
+            @"\b\d+(?:\.\d+)?\s*ms\b",
+            RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+        private static partial Regex ElapsedMsRegex();
+    }
+
     private sealed partial class Iso8601TimestampScrubber : SnapshotScrubber
     {
-        private static readonly Regex Iso8601Pattern = Iso8601Regex();
+        internal static readonly Regex Iso8601Pattern = Iso8601Regex();
 
         public override string Apply(string input, SnapshotScrubberState state)
         {
@@ -163,7 +258,7 @@ public static partial class Scrubbers
 
     private sealed partial class UnixEpochMillisScrubber : SnapshotScrubber
     {
-        private static readonly Regex UnixMsPattern = UnixMsRegex();
+        internal static readonly Regex UnixMsPattern = UnixMsRegex();
 
         public override string Apply(string input, SnapshotScrubberState state)
         {

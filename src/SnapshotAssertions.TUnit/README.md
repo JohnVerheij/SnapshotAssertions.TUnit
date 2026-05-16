@@ -59,6 +59,11 @@ await Assert.That(jsonResponse)
     .MatchesSnapshot()
     .WithScrubber(Scrubbers.Default);
 
+// Extended curated chain (v0.4.0+): adds GuidN + ElapsedMs to the Default set
+await Assert.That(diagnostic)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Common);
+
 // Custom regex: replace request-id headers with a literal token
 await Assert.That(httpLog)
     .MatchesSnapshot()
@@ -66,13 +71,42 @@ await Assert.That(httpLog)
 
 // Assemble a reusable bundle once; pass as a single scrubber (v0.3.0+)
 private static readonly SnapshotScrubber FixturesScrubber = Scrubbers.Combine(
-    Scrubbers.Default,
+    Scrubbers.Common,
     Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
 ```
 
-The built-in indexed scrubbers (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`) emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing). `Scrubbers.Combine(...)` (v0.3.0+) wraps an array of scrubbers into a single composite so a reused bundle does not have to be re-chained on every assertion.
+The built-in indexed scrubbers emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing). `Scrubbers.Combine(...)` (v0.3.0+) wraps an array of scrubbers into a single composite so a reused bundle does not have to be re-chained on every assertion. `Scrubbers.Common` (v0.4.0+) is the extended curated chain: `Guid` + `GuidN` + `Iso8601Timestamp` + `UnixEpochMillis` + `ElapsedMs`. Reach for `Common` first; fall back to `Default` for the v0.3.0-and-earlier three-pattern chain only when an existing baseline depends on it.
 
 [Full Scrubbers reference, custom-scrubber recipe, and design notes on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#scrubbers-volatile-value-handling)
+
+## Smart-diff suggestions in failure messages (v0.4.0+)
+
+On a snapshot mismatch, the failure message now scans the rendered diff for known volatile patterns and recommends applicable built-in scrubbers automatically. No configuration is required. Wider diffs that match many patterns get a top-3 list plus a `... and N more` rollup, so the failure message stays scannable.
+
+[Smart-diff suggestions reference on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
+
+## Renderer pattern for typed values (v0.4.0+)
+
+For values that are not already strings, project them via a renderer:
+
+```csharp
+// Inline delegate projection.
+await Assert.That(myProto)
+    .MatchesSnapshot(p => Formatter.Format(p))
+    .WithScrubber(Scrubbers.Common);
+
+// Reusable subclass for project-wide canonical renderers.
+internal sealed class MyProtoRenderer : SnapshotRenderer<MyProto>
+{
+    public override string Render(MyProto value) => Formatter.Format(value);
+}
+// ...
+await Assert.That(myProto).MatchesSnapshot(new MyProtoRenderer());
+```
+
+The two overloads enable sibling family packages (`LogAssertions.TUnit`, `MathAssertions.TUnit`, etc.) to publish renderers for their own types as static helper methods without taking a reference on `SnapshotAssertions`. Consumers compose at the test call site via the delegate overload.
+
+[Renderer pattern reference and sibling-family composition recipe on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
 
 ## Parameterized tests (`[Arguments]`)
 

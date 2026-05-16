@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.TUnit.Tests;
+namespace SnapshotAssertions.Tests;
 
 /// <summary>
 /// Pins the <see cref="Scrubbers"/> built-ins, the <see cref="Scrubbers.Default"/> chain, the
@@ -353,5 +353,250 @@ internal sealed class ScrubbersTests
         // Same as above, for the state null-check branch.
         var scrubber = Scrubbers.Combine();
         await Assert.That(() => scrubber.Apply("input", null!)).Throws<ArgumentNullException>();
+    }
+
+    // ----- GuidN scrubber (v0.4.0) -----
+
+    [Test]
+    public async Task GuidN_SingleOccurrence_ReplacedWithIndexZero(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "id=f47ac10b58cc4372a5670e02b2c3d479 done";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo("id=<guid:0> done");
+    }
+
+    [Test]
+    public async Task GuidN_RecurringValue_SharesSameIndex(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "a=f47ac10b58cc4372a5670e02b2c3d479 b=f47ac10b58cc4372a5670e02b2c3d479";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo("a=<guid:0> b=<guid:0>");
+    }
+
+    [Test]
+    public async Task GuidN_DifferentValues_GetDifferentIndices(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "a=f47ac10b58cc4372a5670e02b2c3d479 b=00000000000000000000000000000001";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo("a=<guid:0> b=<guid:1>");
+    }
+
+    [Test]
+    public async Task GuidN_CaseInsensitive_SameValueSharesIndex(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "lower=f47ac10b58cc4372a5670e02b2c3d479 upper=F47AC10B58CC4372A5670E02B2C3D479";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo("lower=<guid:0> upper=<guid:0>");
+    }
+
+    [Test]
+    public async Task GuidN_NoMatches_PassesThroughUnchanged(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "no hex here, just words and 1234 numbers";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task GuidN_ThirtyOneOrThirtyThreeHex_NotMatched(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // 31 chars and 33 chars should NOT match (only 32-char hex tokens at word boundaries).
+        var state = new SnapshotScrubberState();
+        var input = "short=f47ac10b58cc4372a5670e02b2c3d47 long=f47ac10b58cc4372a5670e02b2c3d4790";
+        var output = Scrubbers.GuidN.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task GuidN_SharedKindWithCanonicalGuid_UnifiedIndexCounter(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Critical contract: GuidN shares the "guid" kind name with Scrubbers.Guid, so
+        // a chain that runs both scrubbers gets one unified index counter. The Nth GUID
+        // occurrence (canonical or N) gets index N, not separate index spaces per format.
+        var state = new SnapshotScrubberState();
+        var input = "a=11111111-2222-3333-4444-555555555555 b=f47ac10b58cc4372a5670e02b2c3d479";
+        var afterGuid = Scrubbers.Guid.Apply(input, state);
+        var output = Scrubbers.GuidN.Apply(afterGuid, state);
+        await Assert.That(output).IsEqualTo("a=<guid:0> b=<guid:1>");
+    }
+
+    [Test]
+    public async Task GuidN_NullInput_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        await Assert.That(() => Scrubbers.GuidN.Apply(null!, state)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task GuidN_NullState_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.GuidN.Apply("input", null!)).Throws<ArgumentNullException>();
+    }
+
+    // ----- ElapsedMs scrubber (v0.4.0) -----
+
+    [Test]
+    public async Task ElapsedMs_Integer_ReplacedWithIndexedToken(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.ElapsedMs.Apply("took 42ms", state);
+        await Assert.That(output).IsEqualTo("took <elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task ElapsedMs_Decimal_Replaced(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.ElapsedMs.Apply("took 42.5ms", state);
+        await Assert.That(output).IsEqualTo("took <elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task ElapsedMs_WithSpaceBeforeUnit_Replaced(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.ElapsedMs.Apply("took 42 ms", state);
+        await Assert.That(output).IsEqualTo("took <elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task ElapsedMs_RecurringValue_SharesIndex(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.ElapsedMs.Apply("first=42ms second=42ms", state);
+        await Assert.That(output).IsEqualTo("first=<elapsed-ms:0> second=<elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task ElapsedMs_DifferentValues_GetDifferentIndices(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.ElapsedMs.Apply("first=42ms second=99.9ms", state);
+        await Assert.That(output).IsEqualTo("first=<elapsed-ms:0> second=<elapsed-ms:1>");
+    }
+
+    [Test]
+    public async Task ElapsedMs_CaseSensitiveOnMs_UppercaseMSNotMatched(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // The conservative pattern is case-sensitive on "ms" to avoid matching tokens like
+        // "MSdb=42" or column-name fragments containing uppercase MS.
+        var input = "took 42MS";
+        var output = Scrubbers.ElapsedMs.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task ElapsedMs_TokenStartingWithMs_NotMatched(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Trailing \b on "ms" prevents matching "msdb" or "mscorlib".
+        var input = "loaded 42 mscorlib";
+        var output = Scrubbers.ElapsedMs.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task ElapsedMs_NoMatches_PassesThroughUnchanged(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "no durations in this string";
+        var output = Scrubbers.ElapsedMs.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task ElapsedMs_NullInput_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        await Assert.That(() => Scrubbers.ElapsedMs.Apply(null!, state)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task ElapsedMs_NullState_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.ElapsedMs.Apply("input", null!)).Throws<ArgumentNullException>();
+    }
+
+    // ----- Common chain (v0.4.0) -----
+
+    [Test]
+    public async Task Common_AppliesAllFiveBuiltins(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var input = "id=11111111-2222-3333-4444-555555555555 " +
+                    "idn=f47ac10b58cc4372a5670e02b2c3d479 " +
+                    "ts=2026-05-07T13:45:30Z " +
+                    "epoch=1714999530000 " +
+                    "elapsed=42ms";
+        var output = Scrubbers.Common.Apply(input, state);
+        // Shared "guid" kind: canonical first (0), N-format second (1).
+        // Independent kind spaces for the other patterns.
+        await Assert.That(output).IsEqualTo(
+            "id=<guid:0> idn=<guid:1> ts=<iso8601:0> epoch=<unixms:0> elapsed=<elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task Common_OrderingPreventsHexSegmentCollision(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Pins the most-specific-first ordering: canonical Guid (hyphenated) runs before
+        // GuidN (32-hex). If GuidN ran first, the hex segments of the hyphenated form
+        // would be partially consumed (each hex segment is < 32 chars so \b would prevent
+        // direct consumption, but the rule still matters for documentation).
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.Common.Apply("g=11111111-2222-3333-4444-555555555555", state);
+        await Assert.That(output).IsEqualTo("g=<guid:0>");
+    }
+
+    [Test]
+    public async Task Common_KindNamespacesAreIndependent(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Same numeric value rendered as both a Unix epoch ms and an elapsed-ms duration
+        // gets independent indices because the two scrubbers use different kind names.
+        var state = new SnapshotScrubberState();
+        var output = Scrubbers.Common.Apply("epoch=1714999530000 dur=1714999530000ms", state);
+        await Assert.That(output).IsEqualTo("epoch=<unixms:0> dur=<elapsed-ms:0>");
+    }
+
+    [Test]
+    public async Task Common_NullInput_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        await Assert.That(() => Scrubbers.Common.Apply(null!, state)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Common_NullState_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.Common.Apply("input", null!)).Throws<ArgumentNullException>();
     }
 }

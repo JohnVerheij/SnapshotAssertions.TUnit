@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace SnapshotAssertions;
@@ -141,11 +142,103 @@ public sealed record SnapshotResult
                     writer.Write(Diff);
                     if (!Diff.EndsWith('\n'))
                         writer.WriteLine();
+                    WriteDiffSuggestions(writer, Diff);
                 }
                 writer.WriteLine();
                 writer.WriteLine("To accept the change, rename the actual file over the expected file,");
                 writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Top-of-suggestion-list cap. Wider diffs that match many patterns would print one
+    /// suggestion block per pattern; the cap keeps the failure message scannable. When
+    /// suggestions exceed the cap, the surplus is rolled up into an "and N more"
+    /// summary line that points consumers at <see cref="Scrubbers.Common"/>.
+    /// </summary>
+    private const int SuggestionDisplayCap = 3;
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Make method async", Justification = "Helper for the synchronous WriteDescription method; matches the parent's sync TextWriter contract.")]
+    private static void WriteDiffSuggestions(System.IO.TextWriter writer, string diff)
+    {
+        var suggestions = DiffSuggestionAnalyzer.Analyze(diff);
+        if (suggestions.Count is 0)
+            return;
+
+        var totalHits = SumHits(suggestions, 0);
+        writer.WriteLine();
+        WriteHeaderLine(writer, suggestions.Count, totalHits);
+        WriteCappedSuggestionLines(writer, suggestions);
+        WriteRollupOrChainHint(writer, suggestions);
+    }
+
+    private static int SumHits(IReadOnlyList<DiffSuggestion> suggestions, int startIndex)
+    {
+        var total = 0;
+        for (var i = startIndex; i < suggestions.Count; i++)
+            total += suggestions[i].Count;
+        return total;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Make method async", Justification = "Helper for synchronous suggestion-rendering.")]
+    private static void WriteHeaderLine(System.IO.TextWriter writer, int suggestionCount, int totalHits)
+    {
+        var hits = totalHits.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (suggestionCount is 1)
+        {
+            writer.Write("Suggestion: ");
+            writer.Write(hits);
+            writer.WriteLine(totalHits is 1
+                ? " of 1 difference matches a known volatile pattern."
+                : " differences match a known volatile pattern.");
+        }
+        else
+        {
+            writer.Write("Suggestions: ");
+            writer.Write(hits);
+            writer.WriteLine(" differences match known volatile patterns.");
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Make method async", Justification = "Helper for synchronous suggestion-rendering.")]
+    private static void WriteCappedSuggestionLines(System.IO.TextWriter writer, IReadOnlyList<DiffSuggestion> suggestions)
+    {
+        var displayCount = System.Math.Min(suggestions.Count, SuggestionDisplayCap);
+        for (var i = 0; i < displayCount; i++)
+        {
+            var s = suggestions[i];
+            writer.Write("  - ");
+            writer.Write(s.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            writer.Write(s.Count is 1 ? " match for " : " matches for ");
+            writer.Write(s.PatternName);
+            writer.Write(". ");
+            writer.WriteLine(s.Recommendation);
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Make method async", Justification = "Helper for synchronous suggestion-rendering.")]
+    private static void WriteRollupOrChainHint(System.IO.TextWriter writer, IReadOnlyList<DiffSuggestion> suggestions)
+    {
+        if (suggestions.Count > SuggestionDisplayCap)
+        {
+            var hiddenCount = suggestions.Count - SuggestionDisplayCap;
+            var hiddenHits = SumHits(suggestions, SuggestionDisplayCap);
+            writer.Write("  ... and ");
+            writer.Write(hiddenCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            writer.Write(" more pattern type");
+            if (hiddenCount is not 1)
+                writer.Write('s');
+            writer.Write(" (");
+            writer.Write(hiddenHits.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            writer.Write(" hit");
+            if (hiddenHits is not 1)
+                writer.Write('s');
+            writer.WriteLine("). Consider .WithScrubber(Scrubbers.Common)");
+        }
+        else if (suggestions.Count >= 2)
+        {
+            writer.WriteLine("  Or use the curated chain: .WithScrubber(Scrubbers.Common)");
         }
     }
 }
