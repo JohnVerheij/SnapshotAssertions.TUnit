@@ -46,6 +46,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 - [Accept-changes workflow](#accept-changes-workflow)
 - [Cookbook: common patterns](#cookbook--common-patterns)
 - [Comparison with Verify](#comparison-with-verify)
+  - [Migrating from Verify.TUnit](#migrating-from-verifytunit)
 - [Troubleshooting](#troubleshooting)
 - [Modern .NET 10+ practices on display](#modern-net-10-practices-on-display)
 - [Design notes](#design-notes)
@@ -632,6 +633,23 @@ await Assert.That(actual)
 
 Each new scrubber in `Common` (`GuidN`, `ElapsedMs`) is also exposed as a standalone property; use the standalone form when you want one new pattern without the rest.
 
+**Combine `Scrubbers.Common` with project-specific scrubbers:**
+
+The curated chain composes with custom scrubbers via `Scrubbers.Combine`. Place `Scrubbers.Common` first so domain scrubbers see already-normalized standard tokens; reverse the order if a domain scrubber must run before a standard pattern matches.
+
+```csharp
+private static readonly SnapshotScrubber FixturesScrubber = Scrubbers.Combine(
+    Scrubbers.Common,
+    new OtelTraceIdScrubber(),
+    new NumericTokenScrubber("OrderId"));
+
+await Assert.That(httpLog)
+    .MatchesSnapshot()
+    .WithScrubber(FixturesScrubber);
+```
+
+The composed bundle shares a single `SnapshotScrubberState`, so recurring values keep stable tokens across the whole pipeline regardless of which scrubber matched them first.
+
 **Smart-diff suggestions in failure messages (v0.4.0):**
 
 When `MatchesSnapshot()` fails, the failure message scans the rendered diff for known volatile patterns and recommends applicable built-in scrubbers. No configuration is required; the suggestions appear automatically between the diff and the accept-flow guidance:
@@ -703,6 +721,66 @@ await Assert.That(logRecord)
 ```
 
 This pattern keeps the family packages decoupled: each ships independently, with its own release cadence; renderers compose at the consumer's call site without requiring a bridge package or a transitive dependency. Sibling packages that want a configurable / stateful renderer can subclass `SnapshotRenderer<T>` instead; that path adds a reference on the framework-agnostic `SnapshotAssertions` core (no TUnit dep).
+
+**Common renderer subclass shapes:**
+
+Four renderer shapes cover the most-common projection targets. Each subclasses `SnapshotRenderer<T>` and exposes a static `Instance` field so callers re-use a single allocation across tests.
+
+*Pattern 1: protobuf message via canonical JSON.* `Google.Protobuf.JsonFormatter` produces a deterministic field ordering across runs; reuse a static `Settings` instance to avoid per-call allocation. Requires the `Google.Protobuf` package.
+
+```csharp
+internal sealed class ProtobufJsonRenderer<T> : SnapshotRenderer<T>
+    where T : IMessage
+{
+    public static readonly ProtobufJsonRenderer<T> Instance = new();
+
+    private static readonly JsonFormatter Formatter =
+        new(JsonFormatter.Settings.Default.WithIndentation("  "));
+
+    public override string Render(T value) => Formatter.Format(value);
+}
+```
+
+*Pattern 2: `XDocument` canonical XML.* `SaveOptions.None` preserves whitespace as authored; switch to `SaveOptions.DisableFormatting` if the snapshot should be insensitive to inter-element whitespace.
+
+```csharp
+internal sealed class XDocumentRenderer : SnapshotRenderer<XDocument>
+{
+    public static readonly XDocumentRenderer Instance = new();
+
+    public override string Render(XDocument doc) => doc.ToString(SaveOptions.None);
+}
+```
+
+*Pattern 3: domain value object, field by field.* Lay out the fields in a fixed order so the snapshot diff localizes per-field changes. Use `CultureInfo.InvariantCulture` for any `IFormattable` value to keep the baseline stable across developer machines and CI.
+
+```csharp
+internal sealed class OrderRenderer : SnapshotRenderer<Order>
+{
+    public static readonly OrderRenderer Instance = new();
+
+    public override string Render(Order o) =>
+        $"Id: {o.Id}\n" +
+        $"Status: {o.Status}\n" +
+        $"Total: {o.Total.ToString("F2", CultureInfo.InvariantCulture)}\n" +
+        $"Items: [{string.Join(", ", o.Items.Select(i => i.Sku))}]";
+}
+```
+
+*Pattern 4: domain timeline, one line per event.* For ordered collections, render one canonical line per element. The same shape works for log records, audit-trail rows, state-machine transitions, message envelopes.
+
+```csharp
+internal sealed class TimelineRenderer : SnapshotRenderer<IReadOnlyList<TimelineEvent>>
+{
+    public static readonly TimelineRenderer Instance = new();
+
+    public override string Render(IReadOnlyList<TimelineEvent> events) =>
+        string.Join("\n", events.Select(e =>
+            $"{e.Timestamp.ToString("o", CultureInfo.InvariantCulture)} [{e.Kind}] {e.Message}"));
+}
+```
+
+All four patterns work with both the renderer-typed overload (`MatchesSnapshot(OrderRenderer.Instance)`) and the inline factory (`MatchesSnapshot(Renderer.For<Order>(o => ...))`). Use the subclass form for project-wide renderers; the inline factory for one-off canonicalizations.
 
 **Custom-scrubber cookbook (v0.4.0): subclass `SnapshotScrubber` for domain-specific volatile patterns:**
 
@@ -839,6 +917,59 @@ If you need object-graph diffing or IDE-integrated diff display, use Verify (and
 Linux coverage workaround). For auto-detection of arbitrary dynamic content (e.g. IP addresses,
 hostnames, paths) without writing a regex, Verify is also the better fit. The two libraries
 do not depend on each other and can coexist in the same project.
+
+### Migrating from Verify.TUnit
+
+Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
+
+| Verify.TUnit | SnapshotAssertions.TUnit |
+| --- | --- |
+| `await Verifier.Verify(actual)` | `await Assert.That(actual).MatchesSnapshot()` |
+| `Verifier.UseDirectory("Snapshots")` | Default — `SnapshotAssertions.TUnit` writes to `Snapshots/` next to the test class automatically; no setup needed. Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
+| `Verifier.AddScrubber(s => ...)` | `await Assert.That(actual).MatchesSnapshot().WithScrubber(Scrubbers.Pattern(regex, "TOKEN"))` |
+| Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused if `CI` is set) |
+
+`Verifier.Verify(actual).IgnoreMember("Id")` has no one-to-one equivalent because Verify ignores members at the object-graph level (pre-serialization) while `SnapshotAssertions` scrubbers run against the rendered string (post-serialization). Two practical replacements:
+
+1. Project the value through a custom `SnapshotRenderer<T>` that omits the field:
+
+```csharp
+internal sealed class OrderRendererWithoutId : SnapshotRenderer<Order>
+{
+    public static readonly OrderRendererWithoutId Instance = new();
+
+    public override string Render(Order o) =>
+        $"Status: {o.Status}\nTotal: {o.Total.ToString("F2", CultureInfo.InvariantCulture)}";
+}
+```
+
+2. Pre-serialize the value, then scrub the serialized form with a regex pattern matching the field's rendered shape:
+
+```csharp
+var json = JsonSerializer.Serialize(order, MyJsonContext.Default.Order);
+
+await Assert.That(json)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(@"""Id"":\s*\d+", @"""Id"": <scrubbed>"));
+```
+
+The serialization step is explicit because `MatchesSnapshot()` operates on strings; the regex assumes the JSON-serialized shape of the field. For a one-chain variant, pass the serializer as an inline renderer:
+
+```csharp
+await Assert.That(order)
+    .MatchesSnapshot(o => JsonSerializer.Serialize(o, MyJsonContext.Default.Order))
+    .WithScrubber(Scrubbers.Pattern(@"""Id"":\s*\d+", @"""Id"": <scrubbed>"));
+```
+
+Pattern (1) is cleaner when several tests need the same omission; pattern (2) is the one-liner for ad-hoc cases.
+
+Key differences beyond the call-site mapping:
+
+- Composition first. Scrubbers and renderers compose via `Scrubbers.Combine` and `.WithScrubber(...)` chains rather than registry mutation. No global state.
+- Baselines live next to the test class by default; no `UseDirectory` setup unless you want to override.
+- AOT-clean by design. There is no reflection-based default renderer. Custom types require an explicit `SnapshotRenderer<T>` or a `Renderer.For<T>(Func<T, string>)` inline factory.
+
+For Verify features not listed here, open a [Discussion](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/discussions) with a concrete use case and either a mapping will be added or the gap will be documented.
 
 ## Troubleshooting
 
