@@ -925,7 +925,7 @@ Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
 | Verify.TUnit | SnapshotAssertions.TUnit |
 | --- | --- |
 | `await Verifier.Verify(actual)` | `await Assert.That(actual).MatchesSnapshot()` |
-| `Verifier.UseDirectory("Snapshots")` | `await Assert.That(actual).MatchesSnapshotFile("Snapshots/MyTest.expected.txt")` |
+| `Verifier.UseDirectory("Snapshots")` | Default — `SnapshotAssertions.TUnit` writes to `Snapshots/` next to the test class automatically; no setup needed. Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
 | `Verifier.AddScrubber(s => ...)` | `await Assert.That(actual).MatchesSnapshot().WithScrubber(Scrubbers.Pattern(regex, "TOKEN"))` |
 | Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused if `CI` is set) |
 
@@ -943,11 +943,21 @@ internal sealed class OrderRendererWithoutId : SnapshotRenderer<Order>
 }
 ```
 
-2. Scrub the serialized form with a regex pattern matching the field's rendered shape:
+2. Pre-serialize the value, then scrub the serialized form with a regex pattern matching the field's rendered shape:
+
+```csharp
+var json = JsonSerializer.Serialize(order, MyJsonContext.Default.Order);
+
+await Assert.That(json)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Pattern(@"""Id"":\s*\d+", @"""Id"": <scrubbed>"));
+```
+
+The serialization step is explicit because `MatchesSnapshot()` operates on strings; the regex assumes the JSON-serialized shape of the field. For a one-chain variant, pass the serializer as an inline renderer:
 
 ```csharp
 await Assert.That(order)
-    .MatchesSnapshot()
+    .MatchesSnapshot(o => JsonSerializer.Serialize(o, MyJsonContext.Default.Order))
     .WithScrubber(Scrubbers.Pattern(@"""Id"":\s*\d+", @"""Id"": <scrubbed>"));
 ```
 
