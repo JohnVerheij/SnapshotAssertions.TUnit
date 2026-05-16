@@ -207,4 +207,18 @@ internal sealed class DiffSuggestionAnalyzerTests
         var result = DiffSuggestionAnalyzer.Analyze(diff);
         await Assert.That(result.Count).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task DiffWithLeadingEmptyLine_EmptyRangeBranchSkipped(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // A diff that starts with a bare newline produces an empty-range call into
+        // AppendIfDiffering (start == end at i == 0). Pins the early-return on the
+        // empty-range guard.
+        var diff = "\n-id=11111111-2222-3333-4444-555555555555\n";
+        var result = DiffSuggestionAnalyzer.Analyze(diff);
+        await Assert.That(result.Count).IsEqualTo(1);
+        await Assert.That(result[0].PatternName).IsEqualTo("GUID");
+        await Assert.That(result[0].Count).IsEqualTo(1);
+    }
 }

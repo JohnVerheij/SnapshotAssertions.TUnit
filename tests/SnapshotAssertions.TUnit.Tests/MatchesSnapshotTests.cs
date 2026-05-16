@@ -91,6 +91,45 @@ internal sealed class MatchesSnapshotTests
             .MatchesSnapshotFile(expected, SnapshotOptions.NormalizedLineEndings);
     }
 
+    /// <summary>Source func that throws: the exception propagates through TUnit as
+    /// <c>EvaluationMetadata&lt;string&gt;.Exception</c>, and <c>CheckAsync</c> short-circuits to
+    /// an <c>AssertionResult.Failed</c> that names the thrown type. Pins the exception-from-
+    /// source branch of <c>SnapshotAssertion.CheckAsync</c>.</summary>
+    [Test]
+    public async Task SourceThrows_FailsWithThrownExceptionTypeInMessage(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var expected = Path.Combine(dir, "throws.expected.txt");
+        await File.WriteAllTextAsync(expected, "anything\n", cancellationToken).ConfigureAwait(false);
+
+        // Use an async lazy-source: Assert.That(Func<Task<string>>) routes the faulted task
+        // through TUnit's pipeline so the exception lands in EvaluationMetadata.Exception
+        // (the exception-from-source branch). A bare Func<string> would resolve to TUnit's
+        // IEnumerable<char>-shaped overload because string is char-enumerable.
+        Func<Task<string?>> source = () => Task.FromException<string?>(new InvalidOperationException("intentional source failure"));
+        var ex = await Assert.That(async () =>
+            await Assert.That(source).MatchesSnapshotFile(expected))
+            .Throws<AssertionException>();
+        await Assert.That(ex!.Message).Contains("InvalidOperationException");
+    }
+
+    /// <summary>Null source value: <c>CheckAsync</c> short-circuits to an
+    /// <c>AssertionResult.Failed</c> with the documented &quot;actual content was null&quot;
+    /// message. Pins the null-content branch.</summary>
+    [Test]
+    public async Task NullSource_FailsWithActualContentWasNullMessage(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var expected = Path.Combine(dir, "null.expected.txt");
+        await File.WriteAllTextAsync(expected, "anything\n", cancellationToken).ConfigureAwait(false);
+
+        string? source = null;
+        var ex = await Assert.That(async () =>
+            await Assert.That(source).MatchesSnapshotFile(expected))
+            .Throws<AssertionException>();
+        await Assert.That(ex!.Message).Contains("actual content was null");
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "matches-snapshot-" + Guid.NewGuid().ToString("N"));

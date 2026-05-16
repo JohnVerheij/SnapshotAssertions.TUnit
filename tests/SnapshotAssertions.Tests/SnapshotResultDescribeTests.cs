@@ -223,6 +223,19 @@ internal sealed class SnapshotResultDescribeTests
         await Assert.That(description).Contains("Suggestion: 2 differences match a known volatile pattern.");
     }
 
+    /// <summary>Mismatched + diff with one pattern that has exactly ONE hit: header reports
+    /// singular form ("of 1 difference matches"). Pins the singular branch of the totalHits
+    /// ternary in WriteHeaderLine.</summary>
+    [Test]
+    public async Task Mismatched_SinglePatternOneHit_SingularHeader(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var diff = "-a=11111111-2222-3333-4444-555555555555\n";
+        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var description = result.Describe();
+        await Assert.That(description).Contains("Suggestion: 1 of 1 difference matches a known volatile pattern.");
+    }
+
     /// <summary>Matched outcome: suggestion section never emitted (suggestions are
     /// mismatch-only).</summary>
     [Test]

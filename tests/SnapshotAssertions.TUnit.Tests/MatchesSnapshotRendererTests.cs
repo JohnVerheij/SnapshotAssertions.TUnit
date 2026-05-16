@@ -164,6 +164,27 @@ internal sealed class MatchesSnapshotRendererTests
         await Assert.That(ex.Message).Contains("intentional");
     }
 
+    /// <summary>Source func that throws: the renderer-projected assertion's <c>CheckAsync</c>
+    /// short-circuits to an <c>AssertionResult.Failed</c> that names the thrown type, mirroring
+    /// the string-source <c>SnapshotAssertion</c> behaviour. Pins the exception-from-source
+    /// branch of <c>RenderedSnapshotAssertion.CheckAsync</c>.</summary>
+    [Test]
+    public async Task RendererOverload_SourceThrows_FailsWithThrownExceptionTypeInMessage(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var expected = Path.Combine(dir, "source-throws.expected.txt");
+        await File.WriteAllTextAsync(expected, "anything\n", cancellationToken).ConfigureAwait(false);
+
+        // Lazy-source pattern: TUnit invokes the func inside its pipeline and the exception
+        // surfaces via EvaluationMetadata.Exception. Calling source() eagerly here would
+        // throw before MatchesSnapshot was ever invoked.
+        Func<int> source = () => throw new InvalidOperationException("intentional source failure");
+        var ex = await Assert.That(async () =>
+            await Assert.That(source).MatchesSnapshot(x => x.ToString(System.Globalization.CultureInfo.InvariantCulture)).AtPath(expected))
+            .Throws<AssertionException>();
+        await Assert.That(ex!.Message).Contains("InvalidOperationException");
+    }
+
     [Test]
     public async Task RendererOverload_RendererReturnsNull_FailsAssertion(CancellationToken cancellationToken)
     {
