@@ -95,25 +95,27 @@ internal sealed class MatchesSnapshotRendererTests
             .WithOptions(SnapshotOptions.NormalizedLineEndings);
     }
 
-    /// <summary>WithName chain method records the override and is reflected in the path.</summary>
+    /// <summary>WithName chain method drives path resolution. Verified by asserting the
+    /// supplied name appears in the resolved expected path of the failure message; if
+    /// WithName were broken (didn't override the test-context-derived name), the resolved
+    /// path would be the default test-method-derived one and would not contain the literal.
+    /// No AtPath override so name resolution is the only path-driver under test.</summary>
     [Test]
-    public async Task RendererOverload_WithName_RegistersExplicitName(CancellationToken cancellationToken)
+    public async Task RendererOverload_WithName_DrivesExpectedPathResolution(CancellationToken cancellationToken)
     {
-        var dir = CreateTempDirectory();
-        // Use the WithName form by pre-staging the file under the Snapshots folder.
-        Directory.CreateDirectory(Path.Combine(dir, "Snapshots"));
-        var expected = Path.Combine(dir, "Snapshots", "custom-name.expected.txt");
-        await File.WriteAllTextAsync(expected, "value:1\n", cancellationToken).ConfigureAwait(false);
-
-        // AtPath overrides name resolution entirely, so WithName is asserted via the
-        // path-resolution side effect: when AtPath is also set, AtPath wins. We
-        // therefore only assert that the chain doesn't throw. Path-based identity is
-        // covered by the AtPath tests.
         var actual = 1;
-        await Assert.That(actual)
-            .MatchesSnapshot(x => $"value:{x.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n")
-            .WithName("custom-name")
-            .AtPath(expected);
+        const string explicitName = "renderer-overload-withname-test-fixture";
+
+        // No baseline file exists at the WithName-resolved path, so the assertion fails
+        // with NoBaseline. The failure message names the resolved expected path; that
+        // path must contain the WithName literal for the override to be observably wired.
+        var ex = await Assert.That(async () =>
+            await Assert.That(actual)
+                .MatchesSnapshot(x => $"value:{x.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n")
+                .WithName(explicitName))
+            .Throws<AssertionException>();
+
+        await Assert.That(ex!.Message).Contains($"{explicitName}.expected.txt");
     }
 
     [Test]
