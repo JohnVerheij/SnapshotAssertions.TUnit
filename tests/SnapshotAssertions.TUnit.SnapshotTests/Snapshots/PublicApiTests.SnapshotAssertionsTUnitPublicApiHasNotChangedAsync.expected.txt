@@ -1,9 +1,20 @@
 [assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/SnapshotAssertions.TUnit")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SnapshotAssertions.TUnit.Tests")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace SnapshotAssertions.TUnit
 {
+    public sealed class RenderedSnapshotAssertion<T> : TUnit.Assertions.Core.Assertion<T>
+    {
+        public RenderedSnapshotAssertion(TUnit.Assertions.Core.AssertionContext<T> context, SnapshotAssertions.Render.SnapshotRenderer<T> renderer) { }
+        public SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> AtPath(string filePath) { }
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<T> metadata) { }
+        protected override string GetExpectation() { }
+        public SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> WithName(string snapshotName) { }
+        public SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> WithOptions(SnapshotAssertions.SnapshotOptions options) { }
+        public SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> WithScrubber(SnapshotAssertions.SnapshotScrubber scrubber) { }
+    }
     [TUnit.Assertions.Attributes.AssertionExtension("MatchesSnapshot")]
     public sealed class SnapshotAssertion : TUnit.Assertions.Core.Assertion<string>
     {
@@ -18,6 +29,11 @@ namespace SnapshotAssertions.TUnit
 }
 namespace TUnit.Assertions.Extensions
 {
+    public static class MatchesSnapshotRendererExtensions
+    {
+        public static SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> MatchesSnapshot<T>(this TUnit.Assertions.Core.IAssertionSource<T> source, SnapshotAssertions.Render.SnapshotRenderer<T> renderer) { }
+        public static SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> MatchesSnapshot<T>(this TUnit.Assertions.Core.IAssertionSource<T> source, System.Func<T, string> render) { }
+    }
     public static class MatchesSnapshotShorthandExtensions
     {
         public static SnapshotAssertions.TUnit.SnapshotAssertion MatchesSnapshot(this TUnit.Assertions.Core.IAssertionSource<string> source, SnapshotAssertions.SnapshotOptions options) { }

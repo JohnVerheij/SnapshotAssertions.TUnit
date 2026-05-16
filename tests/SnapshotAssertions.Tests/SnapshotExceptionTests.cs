@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.TUnit.Tests;
+namespace SnapshotAssertions.Tests;
 
 /// <summary>
 /// Pins the four <see cref="SnapshotException"/> constructors. The result-based constructor

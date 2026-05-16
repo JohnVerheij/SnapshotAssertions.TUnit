@@ -4,6 +4,17 @@
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace SnapshotAssertions
 {
+    public sealed class DiffSuggestion : System.IEquatable<SnapshotAssertions.DiffSuggestion>
+    {
+        public DiffSuggestion(string PatternName, int Count, string Recommendation) { }
+        public int Count { get; init; }
+        public string PatternName { get; init; }
+        public string Recommendation { get; init; }
+    }
+    public static class DiffSuggestionAnalyzer
+    {
+        public static System.Collections.Generic.IReadOnlyList<SnapshotAssertions.DiffSuggestion> Analyze(string diff) { }
+    }
     public static class LineDiffRenderer
     {
         public const int MaxDifferingLines = 20;
@@ -11,8 +22,11 @@ namespace SnapshotAssertions
     }
     public static class Scrubbers
     {
+        public static SnapshotAssertions.SnapshotScrubber Common { get; }
         public static SnapshotAssertions.SnapshotScrubber Default { get; }
+        public static SnapshotAssertions.SnapshotScrubber ElapsedMs { get; }
         public static SnapshotAssertions.SnapshotScrubber Guid { get; }
+        public static SnapshotAssertions.SnapshotScrubber GuidN { get; }
         public static SnapshotAssertions.SnapshotScrubber Iso8601Timestamp { get; }
         public static SnapshotAssertions.SnapshotScrubber UnixEpochMillis { get; }
         public static SnapshotAssertions.SnapshotScrubber Combine(params SnapshotAssertions.SnapshotScrubber[] scrubbers) { }
@@ -123,5 +137,17 @@ namespace SnapshotAssertions
     {
         Preserve = 0,
         TrimTrailingPerLine = 1,
+    }
+}
+namespace SnapshotAssertions.Render
+{
+    public static class Renderer
+    {
+        public static SnapshotAssertions.Render.SnapshotRenderer<T> For<T>(System.Func<T, string> renderFn) { }
+    }
+    public abstract class SnapshotRenderer<T>
+    {
+        protected SnapshotRenderer() { }
+        public abstract string Render(T value);
     }
 }

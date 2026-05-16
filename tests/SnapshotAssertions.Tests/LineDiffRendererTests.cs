@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.TUnit.Tests;
+namespace SnapshotAssertions.Tests;
 
 /// <summary>
 /// Pins the line-by-line diff renderer's prefix conventions and truncation behavior.

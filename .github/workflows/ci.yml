@@ -49,15 +49,29 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Test main suite (with coverage)
-        # TUnit on .NET 10 SDK invokes via the test exe directly. The Microsoft.Testing.Platform
-        # --coverage flag enables Microsoft.CodeCoverage collection (transitively pulled via TUnit).
-        # --coverage-settings is required: without an explicit ModulePaths/Include in the
-        # settings file, Microsoft.CodeCoverage emits an empty 178-byte cobertura skeleton on
-        # Linux runners (it instruments nothing because nothing is in scope). The settings file
-        # uses the MTP flat Configuration/CodeCoverage schema, NOT the VSTest
-        # DataCollectionRunSettings wrapper, which the coverage-settings flag does not accept.
-        # The = form for --coverage-output-format avoids a documented MTP space-form mis-parse.
+      - name: Test core suite (with coverage)
+        # Framework-agnostic core tests (SnapshotAssertions.Tests, v0.4.0+). Runs in isolation
+        # against the core assembly only - no SnapshotAssertions.TUnit adapter reference, so
+        # any future regression that leaks a TUnit type into the core's public surface fails
+        # at compile time here before the adapter test project's own TUnit reference hides it.
+        run: |
+          dotnet run --project tests/SnapshotAssertions.Tests/SnapshotAssertions.Tests.csproj \
+            --configuration Release --no-build \
+            -- \
+            --coverage \
+            --coverage-settings .config/codecoverage.settings.xml \
+            --coverage-output coverage.cobertura.xml \
+            --coverage-output-format=cobertura
+
+      - name: Test adapter suite (with coverage)
+        # TUnit adapter tests (SnapshotAssertions.TUnit.Tests). Covers MatchesSnapshot / chain
+        # methods / RenderedSnapshotAssertion integration. TUnit on .NET 10 SDK invokes via the
+        # test exe directly. The Microsoft.Testing.Platform --coverage flag enables
+        # Microsoft.CodeCoverage collection (transitively pulled via TUnit). --coverage-settings
+        # is required: without an explicit ModulePaths/Include in the settings file,
+        # Microsoft.CodeCoverage emits an empty 178-byte cobertura skeleton on Linux runners.
+        # The settings file uses the MTP flat Configuration/CodeCoverage schema. The = form for
+        # --coverage-output-format avoids a documented MTP space-form mis-parse.
         run: |
           dotnet run --project tests/SnapshotAssertions.TUnit.Tests/SnapshotAssertions.TUnit.Tests.csproj \
             --configuration Release --no-build \
@@ -67,17 +81,33 @@ jobs:
             --coverage-output coverage.cobertura.xml \
             --coverage-output-format=cobertura
 
-      - name: Locate coverage report
+      - name: Merge coverage reports
         id: coverage
+        # Both test projects write coverage.cobertura.xml to their own bin directory. Merge
+        # them via ReportGenerator into a single combined cobertura XML so the threshold check
+        # and Codecov upload see unified rates across the framework-agnostic-core and adapter
+        # test surfaces. Without the merge, the threshold check would only see one report and
+        # vastly under-count covered code.
         run: |
-          # The test exe writes coverage relative to the test bin directory; surface its path.
-          REPORT=$(find tests -name 'coverage.cobertura.xml' -print -quit)
-          if [ -z "$REPORT" ]; then
-            echo "::warning::No cobertura coverage report found; skipping upload"
-          else
-            echo "report=$REPORT" >> "$GITHUB_OUTPUT"
-            echo "Coverage report: $REPORT"
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          REPORTS=$(find tests -name 'coverage.cobertura.xml' | tr '\n' ';' | sed 's/;$//')
+          if [ -z "$REPORTS" ]; then
+            echo "::warning::No cobertura coverage reports found; skipping merge"
+            exit 0
           fi
+          echo "Source reports: $REPORTS"
+          mkdir -p ./coverage-merged
+          reportgenerator \
+            "-reports:$REPORTS" \
+            -targetdir:./coverage-merged \
+            "-reporttypes:Cobertura"
+          MERGED=./coverage-merged/Cobertura.xml
+          if [ ! -f "$MERGED" ]; then
+            echo "::error::ReportGenerator did not emit $MERGED"
+            exit 1
+          fi
+          echo "report=$MERGED" >> "$GITHUB_OUTPUT"
+          echo "Merged coverage report: $MERGED"
 
       # Codecov upload runs BEFORE the threshold check so the coverage trend is visible
       # in Codecov's UI even when the threshold gate fails the build. Without this ordering,

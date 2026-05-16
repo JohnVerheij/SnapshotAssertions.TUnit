@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.TUnit.Tests;
+namespace SnapshotAssertions.Tests;
 
 /// <summary>
 /// Pins the IO-orchestration behavior of <see cref="SnapshotEvaluator"/>: matched, mismatched,

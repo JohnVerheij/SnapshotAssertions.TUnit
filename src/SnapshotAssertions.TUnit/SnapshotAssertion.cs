@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Threading.Tasks;
 using TUnit.Assertions.Attributes;
 using TUnit.Assertions.Core;
-using TUnit.Core;
 
 namespace SnapshotAssertions.TUnit;
 
@@ -103,70 +102,24 @@ public sealed class SnapshotAssertion : Assertion<string>
     }
 
     /// <inheritdoc/>
-    protected override async Task<AssertionResult> CheckAsync(EvaluationMetadata<string> metadata)
+    protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<string> metadata)
     {
         if (metadata.Exception is not null)
         {
-            return AssertionResult.Failed(
-                $"threw {metadata.Exception.GetType().Name}", metadata.Exception);
+            return Task.FromResult(AssertionResult.Failed(
+                $"threw {metadata.Exception.GetType().Name}", metadata.Exception));
         }
 
         var content = metadata.Value;
         if (content is null)
-            return AssertionResult.Failed("actual content was null");
-
-        // Apply scrubbers (if any) before path resolution / evaluation. The scrubber state is
-        // local to this single MatchesSnapshot() evaluation; recurring volatile values get the
-        // same indexed token across the whole snapshot but state never crosses test boundaries.
-        if (_scrubbers is { Count: > 0 })
-        {
-            var state = new SnapshotScrubberState();
-            foreach (var scrubber in _scrubbers)
-            {
-                content = scrubber.Apply(content, state);
-            }
-        }
+            return Task.FromResult(AssertionResult.Failed("actual content was null"));
 
         // ResolvePaths intentionally lets InvalidOperationException (no test context) propagate
-        // to the test runner rather than downgrading it to AssertionResult.Failed. The misuse
-        // signal: "you called MatchesSnapshot() with no name or explicit path outside an
-        // active TUnit test method": is more useful as a raw exception that surfaces at the
-        // call site than as a generic failed assertion message. Likewise, IO failures
-        // (filesystem permissions, disk full, etc.) propagate from EvaluateAsync.
-        var paths = ResolvePaths();
-        var result = await SnapshotEvaluator.EvaluateAsync(content, paths, _options).ConfigureAwait(false);
-        return result.IsPass
-            ? AssertionResult.Passed
-            : AssertionResult.Failed(result.Describe());
+        // to the test runner rather than downgrading it to AssertionResult.Failed.
+        var paths = SnapshotAssertionImpl.ResolvePaths(_explicitPath, _explicitName);
+        return SnapshotAssertionImpl.EvaluateAsync(content, _scrubbers, _options, paths);
     }
 
     /// <inheritdoc/>
     protected override string GetExpectation() => "to match the snapshot baseline";
-
-    private SnapshotPaths ResolvePaths()
-    {
-        if (_explicitPath is not null)
-            return SnapshotFileResolver.ResolveByFile(_explicitPath);
-
-        var directory = SnapshotFileResolver.GetDefaultSnapshotsDirectory(AppContext.BaseDirectory);
-
-        if (_explicitName is not null)
-            return SnapshotFileResolver.ResolveByName(directory, _explicitName);
-
-        var testContext = TestContext.Current
-            ?? throw new InvalidOperationException(
-                "MatchesSnapshot() with no name or explicit path requires an active TUnit test context " +
-                "(TestContext.Current was null). Call from inside a [Test] method, pass a snapshot name " +
-                "via .WithName(\"...\") (or the MatchesSnapshot(name) shorthand), or pass an explicit file " +
-                "path via .AtPath(\"...\") (or MatchesSnapshotFile(path)).");
-
-        var details = testContext.Metadata.TestDetails;
-        var className = details.ClassType.Name;
-        var methodName = details.MethodName;
-        // Pass through the test-method arguments so parameterized tests get distinct
-        // snapshot files per argument set. SnapshotFileResolver.ResolveByTest computes a
-        // stable hash and appends it to the file name when arguments are present.
-        var args = details.TestMethodArguments;
-        return SnapshotFileResolver.ResolveByTest(directory, className, methodName, args);
-    }
 }

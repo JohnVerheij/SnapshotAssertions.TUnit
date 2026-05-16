@@ -620,6 +620,205 @@ For example, the two rows above produce two distinct files such as
 
 When a row's argument list is empty (no `[Arguments]` on the method, or `[Arguments()]` with no values), no hash is appended and the file name is `{TestClassName}.{TestMethodName}.expected.txt` as for non-parameterized tests.
 
+**Reach for the curated `Scrubbers.Common` chain when the default three patterns are not enough:**
+
+`Scrubbers.Default` covers `Guid` + `Iso8601Timestamp` + `UnixEpochMillis`. v0.4.0 adds `Scrubbers.Common`, a curated chain over five patterns: the three from `Default` plus `GuidN` (32-character `Guid.ToString("N")` format) and `ElapsedMs` (`42ms`, `42.5 ms`, etc.). Ordering is fixed at most-specific-first to avoid double-scrubbing.
+
+```csharp
+await Assert.That(actual)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.Common);
+```
+
+Each new scrubber in `Common` (`GuidN`, `ElapsedMs`) is also exposed as a standalone property; use the standalone form when you want one new pattern without the rest.
+
+**Smart-diff suggestions in failure messages (v0.4.0):**
+
+When `MatchesSnapshot()` fails, the failure message scans the rendered diff for known volatile patterns and recommends applicable built-in scrubbers. No configuration is required; the suggestions appear automatically between the diff and the accept-flow guidance:
+
+```text
+Snapshot did not match the baseline.
+  Expected: /tmp/x.expected.txt
+  Actual:   /tmp/x.actual.txt
+
+- "Created 2026-05-07T13:45:30Z with id a1b2c3d4-..."
++ "Created 2026-05-07T13:48:11Z with id f9e8d7c6-..."
+
+Suggestions: 4 differences match known volatile patterns.
+  - 2 matches for GUID. Consider .WithScrubber(Scrubbers.Guid)
+  - 2 matches for ISO 8601 timestamp. Consider .WithScrubber(Scrubbers.Iso8601Timestamp)
+  Or use the curated chain: .WithScrubber(Scrubbers.Common)
+
+To accept the change, rename the actual file over the expected file,
+or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
+```
+
+Wider diffs that match many patterns get a top-3-by-hit-count list plus a `... and N more pattern type(s) (N hits). Consider .WithScrubber(Scrubbers.Common)` rollup line, so the failure message stays scannable. Consumer-implemented custom scrubbers (subclasses of `SnapshotScrubber`) are not auto-detected by the suggestion engine; only the package's built-in patterns surface as recommendations.
+
+**Render a typed object via `SnapshotRenderer<T>` (v0.4.0):**
+
+For values that are not already strings, project them via a renderer. Two overloads cover the common shapes:
+
+```csharp
+// Inline projection via a delegate. Good for one-off canonicalization.
+await Assert.That(myProto)
+    .MatchesSnapshot(p => Formatter.Format(p))
+    .WithScrubber(Scrubbers.Common);
+
+// Reusable subclass for project-wide canonical renderers.
+internal sealed class MyProtoRenderer : SnapshotRenderer<MyProto>
+{
+    public override string Render(MyProto value) => Formatter.Format(value);
+}
+// ...
+await Assert.That(myProto).MatchesSnapshot(new MyProtoRenderer());
+```
+
+The renderer is invoked once per `CheckAsync` call; its output is fed through any chained scrubbers and then through the standard snapshot pipeline. If the renderer throws, the failure message includes the thrown exception name and message rather than crashing the test runner. If the renderer returns `null`, the assertion fails with `"renderer returned null content"`.
+
+**Compose sibling family packages via the delegate overload (v0.4.0):**
+
+A sibling family package (e.g. `LogAssertions.TUnit`) can publish snapshot renderers for its own types as static helper methods, without taking a reference on `SnapshotAssertions` or `SnapshotAssertions.TUnit`. Consumers compose at the test call site:
+
+```csharp
+// Inside LogAssertions.TUnit (no SnapshotAssertions reference required):
+namespace LogAssertions.SnapshotRenderers;
+
+public static class LogRecordRenderer
+{
+    public static string Render(LogRecord record) =>
+        $"[{record.LogLevel}] {record.Category}: {record.MessageTemplate}";
+}
+```
+
+```csharp
+// Consumer test code (depends on both packages independently):
+using LogAssertions.SnapshotRenderers;
+using SnapshotAssertions;
+using SnapshotAssertions.TUnit;
+
+await Assert.That(logRecord)
+    .MatchesSnapshot(LogRecordRenderer.Render)
+    .WithScrubber(Scrubbers.Common);
+```
+
+This pattern keeps the family packages decoupled: each ships independently, with its own release cadence; renderers compose at the consumer's call site without requiring a bridge package or a transitive dependency. Sibling packages that want a configurable / stateful renderer can subclass `SnapshotRenderer<T>` instead; that path adds a reference on the framework-agnostic `SnapshotAssertions` core (no TUnit dep).
+
+**Custom-scrubber cookbook (v0.4.0): subclass `SnapshotScrubber` for domain-specific volatile patterns:**
+
+The two new built-in scrubbers (`GuidN`, `ElapsedMs`) cover universally-common patterns. Domain-specific patterns (OpenTelemetry trace IDs, gRPC `RpcException` details, environment-specific paths, monotonic counters with project-specific prefixes) are not shipped as built-ins; consumers implement them by subclassing the already-public `SnapshotScrubber` base class (shipped in v0.2.0). The cookbook below provides four worked examples covering the common subclass shapes.
+
+*Example 1: `OtelTraceIdScrubber`* (context-anchored partial-match replacement). W3C Trace Context payloads are bare lowercase hex with no structural feature distinguishing them from other 32-char hex (canonical GUIDs in N-format, SHA-256 prefixes, etc.). Anchor on the explicit context emitters use in structured logs (`trace_id=`, `traceId=`, `traceparent=00-`), and scrub only the captured hex group; the context prefix is preserved literally in the output.
+
+```csharp
+internal sealed partial class OtelTraceIdScrubber : SnapshotScrubber
+{
+    private static readonly Regex Pattern = OtelTraceIdRegex();
+
+    public override string Apply(string input, SnapshotScrubberState state)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(state);
+        return Pattern.Replace(input, m =>
+        {
+            var key = m.Groups[1].Value.ToLowerInvariant();
+            var idx = state.GetOrAssignIndex("trace", key);
+            var prefix = m.Value[..(m.Groups[1].Index - m.Index)];
+            return prefix + string.Create(CultureInfo.InvariantCulture, $"<trace:{idx}>");
+        });
+    }
+
+    [GeneratedRegex(
+        @"\b(?:trace[_-]?id\s*[:=]\s*|traceparent=00-)([0-9a-f]{32})\b",
+        RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+    private static partial Regex OtelTraceIdRegex();
+}
+```
+
+*Example 2: `EphemeralPathScrubber`* (cross-OS pattern matching). Match Windows temp paths (`C:\Users\<user>\AppData\Local\Temp\...`), POSIX `/tmp/...` and `/var/tmp/...`, macOS `/var/folders/...`. Same indexed-token shape as the built-ins.
+
+```csharp
+internal sealed partial class EphemeralPathScrubber : SnapshotScrubber
+{
+    private static readonly Regex Pattern = EphemeralPathRegex();
+
+    public override string Apply(string input, SnapshotScrubberState state)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(state);
+        return Pattern.Replace(input, m =>
+        {
+            var idx = state.GetOrAssignIndex("temp-path", m.Value);
+            return string.Create(CultureInfo.InvariantCulture, $"<temp-path:{idx}>");
+        });
+    }
+
+    [GeneratedRegex(
+        @"(?:[A-Za-z]:\\Users\\[^\\]+\\AppData\\Local\\Temp\\[^\s""']+|/tmp/[^\s""']+|/var/tmp/[^\s""']+|/var/folders/[^\s""']+)",
+        RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+    private static partial Regex EphemeralPathRegex();
+}
+```
+
+*Example 3: `PortScrubber`* (simplest indexed-token reference). A 2-to-5-digit number preceded by `:`. The trailing `\b` prevents matching the prefix of a longer numeric token.
+
+```csharp
+internal sealed partial class PortScrubber : SnapshotScrubber
+{
+    private static readonly Regex Pattern = PortRegex();
+
+    public override string Apply(string input, SnapshotScrubberState state)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(state);
+        return Pattern.Replace(input, m =>
+        {
+            var idx = state.GetOrAssignIndex("port", m.Value);
+            return string.Create(CultureInfo.InvariantCulture, $"<port:{idx}>");
+        });
+    }
+
+    [GeneratedRegex(@":\d{2,5}\b", RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+    private static partial Regex PortRegex();
+}
+```
+
+*Example 4 (parameterised variant): `NumericTokenScrubber`* (constructor-captured prefix, dynamic kind name). Useful for monotonic counters like `CycleId=42`, `SampleId=7`, `OrderId=1001`. The prefix is captured in a constructor field so multiple instances with different prefixes do not share an index space.
+
+```csharp
+internal sealed class NumericTokenScrubber : SnapshotScrubber
+{
+    private readonly Regex _pattern;
+    private readonly string _kind;
+
+    public NumericTokenScrubber(string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        var escaped = Regex.Escape(prefix);
+        _pattern = new Regex(
+            $@"\b{escaped}[=:\s]+(\d+)\b",
+            RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+        _kind = prefix.ToLowerInvariant();
+    }
+
+    public override string Apply(string input, SnapshotScrubberState state)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(state);
+        return _pattern.Replace(input, m =>
+        {
+            var idx = state.GetOrAssignIndex(_kind, m.Groups[1].Value);
+            var prefix = m.Value[..(m.Groups[1].Index - m.Index)];
+            return prefix + string.Create(CultureInfo.InvariantCulture, $"<{_kind}:{idx}>");
+        });
+    }
+}
+```
+
+Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalisation; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
+
+Common subclass mechanics across all four examples: use `state.GetOrAssignIndex(kind, value)` for indexed-token state; apply `RegexOptions.NonBacktracking | RegexOptions.CultureInvariant`; word-boundary anchor with `\b` since lookarounds are not available in `NonBacktracking`; produce token strings as `<kind:N>`. To share an index space with a built-in scrubber (e.g. give your custom variant the same `"guid"` kind name as `Scrubbers.Guid`), reuse the kind name verbatim.
+
 ## Comparison with Verify
 
 | Capability | `SnapshotAssertions.TUnit` | Verify |

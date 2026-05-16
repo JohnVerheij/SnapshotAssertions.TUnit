@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
 
-namespace SnapshotAssertions.TUnit.Tests;
+namespace SnapshotAssertions.Tests;
 
 /// <summary>
 /// Pins the option-driven normalization logic in <see cref="SnapshotComparer"/>: line-ending

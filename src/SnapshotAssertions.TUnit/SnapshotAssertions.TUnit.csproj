@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>SnapshotAssertions.TUnit</PackageId>
     <ProductName>SnapshotAssertions.TUnit</ProductName>
-    <Version>0.3.0</Version>
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
+    <Version>0.4.0</Version>
+    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native text-snapshot assertions using [AssertionExtension]. Provides Assert.That(actual).MatchesSnapshot() / .MatchesSnapshotFile() with line-based diff display, accept-via-environment-variable workflow, and CI guard. AOT-compatible, trimmable, no reflection. Designed for API-surface verification and small text snapshots; coexists with Verify for object-graph cases.</Description>
@@ -79,6 +79,16 @@
     <!-- Codifies the no-reflection convention as a build-time error. See SnapshotAssertions.csproj
          comment for the full rationale; the file is shared across both src projects. -->
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)../../BannedSymbols.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The adapter's internal helpers (e.g. SnapshotAssertionImpl.ResolvePaths) are
+         exercised indirectly through MatchesSnapshot from the test project, but the
+         defensive throw-on-no-test-context path cannot be hit from inside a [Test] method
+         because TestContext.Current is always set there. Granting visibility to the test
+         assembly lets that one defensive branch be covered by a focused unit test running
+         on a flow-suppressed thread. -->
+    <InternalsVisibleTo Include="SnapshotAssertions.TUnit.Tests" />
   </ItemGroup>
 
   <ItemGroup>
