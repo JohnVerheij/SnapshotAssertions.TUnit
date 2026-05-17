@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`CONVENTIONS.md` updated to v0.7** (cumulative v0.5 -> v0.7): adds `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) and `SseAssertions.TUnit` (the sixth family package, Server-Sent Events wire-format assertions) to the family roster, formalises a per-package strict-scope policy with explicit scope statements for all six packages, and clarifies the core+adapter packaging rule (five of six packages are core+adapter; `JsonAssertions.TUnit` is the sole single-package member). The file is copied identically across all six repos.
-- **`README.md` family roster** expanded to six packages: `JsonAssertions.TUnit` and `SseAssertions.TUnit` added to the "Family compatibility", "Pair with", and the "shared across" line in the Contributing section.
+- Updated `CONVENTIONS.md` to v0.7 (cumulative from v0.5).
+- Added `JsonAssertions.TUnit` (the fifth family package, JSON path / value / shape assertions) and `SseAssertions.TUnit` (the sixth family package, Server-Sent Events wire-format assertions) to the `CONVENTIONS.md` family roster.
+- Added a per-package strict-scope policy section to `CONVENTIONS.md` with explicit scope statements for all six packages.
+- Added a core+adapter packaging rule section to `CONVENTIONS.md`: five of six family packages ship core+adapter; `JsonAssertions.TUnit` is the sole single-package member.
+- Synchronised `CONVENTIONS.md` across all six family repos (the file is copied identically).
+- Expanded the `README.md` Family roster to six packages, adding `JsonAssertions.TUnit` and `SseAssertions.TUnit` to the "Family compatibility" section, the "Pair with" section, and the "shared across" line in Contributing.
 
 ## [0.4.0] - 2026-05-16: Smart-diff suggestions, renderer pattern, `Scrubbers.Common`
 
