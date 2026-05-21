@@ -152,7 +152,7 @@
       "snapshotassertions.tunit": {
         "type": "Project",
         "dependencies": {
-          "SnapshotAssertions": "[0.3.0, )",
+          "SnapshotAssertions": "[0.4.0, )",
           "TUnit.Assertions": "[1.44.39, )",
           "TUnit.Core": "[1.44.39, )"
         }
