@@ -47,7 +47,7 @@ Three modes, in order of preference:
 
 CI never sets `SNAPSHOT_ACCEPT`. Mismatches always fail the build in pipelines.
 
-## Scrubbers (v0.2.0+)
+## Scrubbers
 
 For snapshots that contain volatile values (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, request IDs, etc.), chain `.WithScrubber(...)` calls to replace them with stable indexed tokens before comparison. Recurring values share an index; different kinds maintain independent counters.
 
@@ -79,13 +79,13 @@ The built-in indexed scrubbers emit `<kind:N>` tokens where N is assigned by fir
 
 [Full Scrubbers reference, custom-scrubber recipe, and design notes on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#scrubbers-volatile-value-handling)
 
-## Smart-diff suggestions in failure messages (v0.4.0+)
+## Smart-diff suggestions in failure messages
 
 On a snapshot mismatch, the failure message now scans the rendered diff for known volatile patterns and recommends applicable built-in scrubbers automatically. No configuration is required. Wider diffs that match many patterns get a top-3 list plus a `... and N more` rollup, so the failure message stays scannable.
 
 [Smart-diff suggestions reference on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
 
-## Renderer pattern for typed values (v0.4.0+)
+## Renderer pattern for typed values
 
 For values that are not already strings, project them via a renderer:
 
