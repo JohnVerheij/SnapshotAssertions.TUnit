@@ -58,7 +58,7 @@ jobs:
         # dpfa). config-file restricts scanning to code we own and ship - generated
         # code in obj/ and test code in tests/** are excluded so remaining findings
         # all reflect production-code issues we can act on.
-        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
@@ -68,6 +68,6 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
         with:
           category: /language:${{ matrix.language }}
