@@ -8,7 +8,8 @@ on:
       - '**.csproj'
       - '**.props'
       - '**.targets'
-      - '.github/workflows/codeql.yml'
+      - '.github/workflows/**'
+      - '.github/actions/**'
       - '.github/codeql/codeql-config.yml'
   pull_request:
     branches: [main]
@@ -17,13 +18,12 @@ on:
       - '**.csproj'
       - '**.props'
       - '**.targets'
-      - '.github/workflows/codeql.yml'
+      - '.github/workflows/**'
+      - '.github/actions/**'
       - '.github/codeql/codeql-config.yml'
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
   group: codeql-${{ github.ref }}
@@ -34,17 +34,30 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read           # checkout + build (job-level perms override workflow-level)
+      security-events: write   # upload CodeQL results to code scanning
+      actions: read            # read workflow run metadata during analysis
 
     strategy:
       fail-fast: false
       matrix:
-        language: [csharp]
+        # csharp is built (manual build-mode below); actions is the GitHub Actions
+        # workflow analysis pack, which is interpreted and needs no build (build-mode: none).
+        include:
+          - language: csharp
+            build-mode: manual
+          - language: actions
+            build-mode: none
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
+        if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5
         with:
           dotnet-version: |
@@ -61,10 +74,13 @@ jobs:
         uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           queries: security-extended
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build
+        # Only the csharp row needs a build; the actions row is analyzed build-free.
+        if: matrix.language == 'csharp'
         run: dotnet build --configuration Release
 
       - name: Perform CodeQL Analysis

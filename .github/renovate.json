@@ -3,7 +3,8 @@
   "extends": [
     "config:recommended",
     ":timezone(Europe/Amsterdam)",
-    ":semanticCommits"
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigestsToSemver"
   ],
   "schedule": ["before 4am"],
   "labels": ["dependencies"],

@@ -7,10 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
 permissions:
-  contents: write       # for GitHub Release creation
-  id-token: write       # for NuGet Trusted Publishing OIDC + Sigstore keyless signing
-  packages: write       # not strictly required for nuget.org but kept for symmetry
-  attestations: write   # for SLSA build-provenance + SBOM attestations
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -21,6 +18,11 @@ jobs:
     name: Build, pack & publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write       # GitHub Release creation (job-level perms override workflow-level)
+      id-token: write       # NuGet Trusted Publishing OIDC + Sigstore keyless signing
+      packages: write       # kept for symmetry; not strictly required for nuget.org
+      attestations: write   # SLSA build-provenance + SBOM attestations
     environment:
       name: nuget
       url: https://www.nuget.org/packages/SnapshotAssertions/
@@ -30,6 +32,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5
@@ -191,6 +194,7 @@ jobs:
             --skip-duplicate
 
       - name: Create GitHub Release
+        # zizmor: ignore[superfluous-actions] SHA-pinned; multi-file glob upload + generate_release_notes are clumsy to reproduce with gh release create
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           name: ${{ github.ref_name }}
