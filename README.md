@@ -74,7 +74,7 @@ For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → com
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.45.29 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
+**Requirements:** TUnit 1.47.0 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
 ## Package layout
 
