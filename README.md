@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/ci.yml/badge.svg)](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/codeql.yml/badge.svg)](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/JohnVerheij/SnapshotAssertions.TUnit/badge)](https://scorecard.dev/viewer/?uri=github.com/JohnVerheij/SnapshotAssertions.TUnit)
 [![codecov](https://codecov.io/gh/JohnVerheij/SnapshotAssertions.TUnit/branch/main/graph/badge.svg)](https://codecov.io/gh/JohnVerheij/SnapshotAssertions.TUnit)
 [![NuGet](https://img.shields.io/nuget/v/SnapshotAssertions.TUnit.svg)](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)
 [![Downloads](https://img.shields.io/nuget/dt/SnapshotAssertions.TUnit.svg)](https://www.nuget.org/packages/SnapshotAssertions.TUnit/)
