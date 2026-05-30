@@ -179,7 +179,7 @@ jobs:
       # secret is stored in this repository; the trust relationship is configured
       # on nuget.org under Account -> Trusted Publishing.
       - name: NuGet login (Trusted Publishing)
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         id: nuget-login
         with:
           user: JohnVerheij
