@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>SnapshotAssertions</PackageId>
     <ProductName>SnapshotAssertions</ProductName>
-    <Version>0.4.0</Version>
-    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
+    <Version>0.5.0</Version>
+    <PackageValidationBaselineVersion>0.4.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for text-snapshot assertions. Provides string-against-file comparison with line-ending / BOM / whitespace options, TestContext-aware default file naming, environment-variable-driven accept-mode workflow with CI guard, and line-based diff rendering. Test-framework-specific entry points live in adapter packages (SnapshotAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>

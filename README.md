@@ -241,6 +241,13 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 - `SnapshotOptions.NormalizedLineEndings`: convenience preset for cross-platform tests
   where LF/CRLF differences are not meaningful.
 
+Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
+
+```csharp
+await Assert.That(body).MatchesSnapshot(SnapshotOptions.Default
+    .WithNormalizer(text => Canonicalize(text)));
+```
+
 The four configurable properties:
 
 ### `SnapshotLineEndingMode`

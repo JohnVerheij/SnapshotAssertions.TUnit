@@ -92,10 +92,12 @@ namespace SnapshotAssertions
         public SnapshotOptions() { }
         public SnapshotAssertions.SnapshotBomHandling BomHandling { get; init; }
         public SnapshotAssertions.SnapshotLineEndingMode LineEndingMode { get; init; }
+        public System.Func<string, string>? Normalizer { get; init; }
         public SnapshotAssertions.SnapshotTrailingNewline TrailingNewline { get; init; }
         public SnapshotAssertions.SnapshotTrailingWhitespace TrailingWhitespace { get; init; }
         public static SnapshotAssertions.SnapshotOptions Default { get; }
         public static SnapshotAssertions.SnapshotOptions NormalizedLineEndings { get; }
+        public SnapshotAssertions.SnapshotOptions WithNormalizer(System.Func<string, string> normalizer) { }
     }
     public readonly struct SnapshotPaths : System.IEquatable<SnapshotAssertions.SnapshotPaths>
     {

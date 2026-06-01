@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-01: SnapshotOptions.WithNormalizer
+
+Feature release. Adds `SnapshotOptions.WithNormalizer(Func<string, string>)`, a caller-supplied transform applied to both the actual content and the expected baseline before any built-in normalization. It generalizes the built-in line-ending normalizer into an arbitrary pre-comparison transform: canonicalize JSON or XML, sort nondeterministic collections, mask volatile fields, or reformat numbers before the snapshot compares. Composing two of these (a canonicalizer in a sibling package plus this normalizer here) is how the family does JSON snapshots without either package depending on the other. Also folds in the accumulated CI hardening, the Renovate migration, and the CONVENTIONS v0.7 sync from the unreleased line.
+
+### Added
+
+- **`SnapshotOptions.WithNormalizer(Func<string, string> normalizer)`** returns a copy of the options with a transform applied to both sides before BOM, line-ending, trailing-whitespace, and trailing-newline handling. Chaining composes in registration order (the first registered runs first). The transform sees the raw rendered text, so it is the natural seam for canonicalizing content whose textual form is noisy but semantically irrelevant. The backing **`SnapshotOptions.Normalizer`** property (a `Func<string, string>?`, default `null`) is also public for direct construction. A normalizer that returns `null` fails with an `InvalidOperationException` rather than a downstream `NullReferenceException`.
+
 ### Changed
 
 - Removed `paths-ignore` from `.github/workflows/ci.yml` so the `Build, test & pack` required check always reports a status. Without the fix, docs-only PRs stuck in `Expected - Waiting for status to be reported` and could not satisfy branch protection.
@@ -243,7 +251,8 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.2.0

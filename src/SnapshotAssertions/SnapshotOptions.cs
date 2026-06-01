@@ -1,3 +1,5 @@
+using System;
+
 namespace SnapshotAssertions;
 
 /// <summary>
@@ -57,4 +59,34 @@ public sealed record SnapshotOptions
     /// <see cref="SnapshotTrailingNewline.Required"/>: the baseline must end with a newline
     /// or the comparison fails.</summary>
     public SnapshotTrailingNewline TrailingNewline { get; init; } = SnapshotTrailingNewline.Required;
+
+    /// <summary>
+    /// An optional caller-supplied transform applied to both the actual content and the expected
+    /// baseline <em>before</em> any built-in normalization (BOM, line endings, trailing whitespace,
+    /// trailing newline). Defaults to <see langword="null"/> (no transform). Use it to canonicalize
+    /// content whose textual form is noisy but semantically irrelevant: JSON or XML reformatting,
+    /// nondeterministic-collection sorting, masking volatile fields, decimal formatting. Prefer
+    /// <see cref="WithNormalizer(Func{string, string})"/> to set it, which composes with any
+    /// normalizer already configured.
+    /// </summary>
+    public Func<string, string>? Normalizer { get; init; }
+
+    /// <summary>
+    /// Returns a copy of these options with <paramref name="normalizer"/> applied before
+    /// comparison. If a normalizer is already configured, the two compose: the existing one runs
+    /// first, then <paramref name="normalizer"/>. The transform runs ahead of all built-in
+    /// normalization, so the supplied delegate sees the raw rendered text.
+    /// </summary>
+    /// <param name="normalizer">A pure <see cref="string"/>-to-<see cref="string"/> transform.</param>
+    /// <returns>A new <see cref="SnapshotOptions"/> with the composed normalizer.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="normalizer"/> is <see langword="null"/>.</exception>
+    public SnapshotOptions WithNormalizer(Func<string, string> normalizer)
+    {
+        ArgumentNullException.ThrowIfNull(normalizer);
+        var existing = Normalizer;
+        Func<string, string> composed = existing is null
+            ? normalizer
+            : value => normalizer(existing(value));
+        return this with { Normalizer = composed };
+    }
 }

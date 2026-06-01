@@ -49,7 +49,15 @@ public static class SnapshotComparer
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(options);
 
-        var work = StripBomIfRequested(content, options);
+        var work = content;
+        if (options.Normalizer is not null)
+        {
+            work = options.Normalizer(work)
+                ?? throw new InvalidOperationException(
+                    "The configured SnapshotOptions.Normalizer returned null; a normalizer must return a string.");
+        }
+
+        work = StripBomIfRequested(work, options);
 
         if (NeedsLineByLineNormalization(options))
             work = NormalizeLineByLine(work, options);
