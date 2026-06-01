@@ -1128,7 +1128,7 @@ The 0.x series may include breaking changes on minor-version bumps. Concretely:
   cosmetic: both produce the same equality outcome. Future versions may add a stricter
   check for `Forbidden` that fails when either side has a trailing newline.
 
-`PackageValidationBaselineVersion` tracks the previous shipped version (pinned to 0.1.0 in 0.2.0; bumped to 0.2.0 in 0.3.0); once pinned, any breaking change to the listed surface fails the package-validation build.
+`PackageValidationBaselineVersion` tracks the previous shipped version; once pinned, any breaking change to the listed surface fails the package-validation build.
 
 ## Limitations and future work
 
