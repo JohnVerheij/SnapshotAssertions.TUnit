@@ -2,8 +2,21 @@
 
 Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
-`JsonAssertions.TUnit`, and `SseAssertions.TUnit`). The same file is copied identically
+`JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`). The same file is copied identically
 into each repo.
+
+**Document version:** v0.8 (2026-06-01). Changes from v0.7:
+
+- **Family roster expanded to seven packages.** `GrpcAssertions.TUnit` joins as the
+  seventh member, asserting on gRPC call outcomes (`RpcException` presence, `StatusCode`,
+  and `Status.Detail`) as a strict-scope-distinct transport domain from `JsonAssertions.TUnit`
+  and `SseAssertions.TUnit`. The cap revision 6 → 7 was justified by strict-scope analysis on
+  a known-distinct domain (per the per-package scope policy below), not by adoption-growth
+  reasoning.
+- **Dependency policy added.** `GrpcAssertions.TUnit` is the first family package to carry a
+  disclosed external runtime dependency, the permissive Apache-2.0 `Grpc.Core.Api`, intrinsic
+  because the assertions are typed against the consumer's real `RpcException` / `StatusCode` /
+  `Status`. The new "Dependency policy" section below states the bar for any such dependency.
 
 **Document version:** v0.7 (2026-05-17). Changes from v0.6:
 
@@ -232,13 +245,25 @@ test-projects-only blockquote.
 | `MathAssertions.TUnit` | Approximate-numeric and geometric tolerance: `IsApproximatelyEqualTo(value, tolerance)`, pose / vector / matrix tolerance. |
 | `JsonAssertions.TUnit` | JSON content assertions over `System.Text.Json`: path / value / shape on `JsonDocument`, HTTP-response JSON, and `JsonSerializerContext`-registered types. |
 | `SseAssertions.TUnit` | Server-Sent Events wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation. |
+| `GrpcAssertions.TUnit` | gRPC call outcomes: `RpcException` presence, `StatusCode`, and `Status.Detail`. Transport-level status, not Protobuf message structure. |
 
 The policy goal is "high-quality niche per package", not exhaustive
 ecosystem coverage. Domains that fall outside the per-package scope
 statements are out of family scope; they are not folded into an existing
 package. The roster cap is reviewed before each revision and currently
-sits at six; revisions require a strict-scope-distinct domain (per this
+sits at seven; revisions require a strict-scope-distinct domain (per this
 section) and are not driven by adoption-growth reasoning.
+
+## Dependency policy
+
+Family packages depend by default only on the .NET BCL, TUnit (adapter packages), and their
+own core package. An external runtime dependency is allowed only when it is **intrinsic** to
+the asserted domain (the public surface is typed against the dependency's types, so a
+home-grown substitute would not compile against real consumer values), carries a **permissive,
+MIT-compatible license**, and is **disclosed** in the package README and `SECURITY.md`.
+`GrpcAssertions.TUnit` is the first and only package to take one: the Apache-2.0
+`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other six remain
+BCL-and-TUnit-only.
 
 ## Core+adapter packaging rule
 
@@ -253,12 +278,13 @@ package's README:
 | `MathAssertions.TUnit` | core (`MathAssertions`) + adapter (`MathAssertions.TUnit`) |
 | `JsonAssertions.TUnit` | single-package (only `JsonAssertions.TUnit`) |
 | `SseAssertions.TUnit` | core (`SseAssertions`) + adapter (`SseAssertions.TUnit`) |
+| `GrpcAssertions.TUnit` | core (`GrpcAssertions`) + adapter (`GrpcAssertions.TUnit`) |
 
 **Core+adapter** ships the framework-agnostic primitives (parsers,
 comparison enums, failure-message factories, deterministic renderers) in
 a sibling `<Package>` core nupkg, and the TUnit-coupled assertion
-methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Five
-of six packages take this shape because the core primitives have value
+methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Six
+of seven packages take this shape because the core primitives have value
 outside the TUnit adapter (consumer-level composition, sibling-test
 reuse, framework-agnostic test reuse).
 
