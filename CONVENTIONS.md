@@ -5,7 +5,7 @@ Rules for how code is written across the assertion family (`LogAssertions.TUnit`
 `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`). The same file is copied identically
 into each repo.
 
-**Document version:** v0.8 (2026-06-01). Changes from v0.7:
+**Document version:** v0.8 (2026-06-02). Changes from v0.7:
 
 - **Family roster expanded to seven packages.** `GrpcAssertions.TUnit` joins as the
   seventh member, asserting on gRPC call outcomes (`RpcException` presence, `StatusCode`,
