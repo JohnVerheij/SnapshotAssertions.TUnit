@@ -203,6 +203,7 @@ No sibling-package-name prefix may appear in another sibling's public API.
 - `Time...` typenames and member names belong to `TimeAssertions` only
 - `Json...` typenames and member names belong to `JsonAssertions` only
 - `Sse...` typenames and member names belong to `SseAssertions` only
+- `Grpc...` typenames and member names belong to `GrpcAssertions` only
 
 Applies to typenames AND method names AND extension method names in the
 package's PublicAPI surface. The family's verb-naming convention is what's
@@ -224,8 +225,8 @@ Composition between packages happens via standard BCL types and delegates
 appearing in another package's surface.
 
 Pack-time CI validation enforces this: the package's PublicAPI snapshot
-must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, or
-`Sse*` as a leading prefix on typenames, method names, or extension
+must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`,
+or `Grpc*` as a leading prefix on typenames, method names, or extension
 method names exposed publicly (with the strict whitelist above).
 
 ## Per-package strict-scope policy
