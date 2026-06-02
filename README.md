@@ -241,6 +241,13 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 - `SnapshotOptions.NormalizedLineEndings`: convenience preset for cross-platform tests
   where LF/CRLF differences are not meaningful.
 
+Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
+
+```csharp
+await Assert.That(body).MatchesSnapshot(SnapshotOptions.Default
+    .WithNormalizer(text => Canonicalize(text)));
+```
+
 The four configurable properties:
 
 ### `SnapshotLineEndingMode`
@@ -1121,7 +1128,7 @@ The 0.x series may include breaking changes on minor-version bumps. Concretely:
   cosmetic: both produce the same equality outcome. Future versions may add a stricter
   check for `Forbidden` that fails when either side has a trailing newline.
 
-`PackageValidationBaselineVersion` tracks the previous shipped version (pinned to 0.1.0 in 0.2.0; bumped to 0.2.0 in 0.3.0); once pinned, any breaking change to the listed surface fails the package-validation build.
+`PackageValidationBaselineVersion` tracks the previous shipped version; once pinned, any breaking change to the listed surface fails the package-validation build.
 
 ## Limitations and future work
 
@@ -1148,7 +1155,7 @@ Out of scope (intentionally: use Verify instead):
 
 ## Family compatibility
 
-The six assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, and `SseAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The seven assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
@@ -1157,6 +1164,7 @@ For per-package release notes:
 - [MathAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/MathAssertions.TUnit/blob/main/CHANGELOG.md)
 - [JsonAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/JsonAssertions.TUnit/blob/main/CHANGELOG.md)
 - [SseAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SseAssertions.TUnit/blob/main/CHANGELOG.md)
+- [GrpcAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/GrpcAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 
@@ -1178,6 +1186,9 @@ For per-package release notes:
 - **[`SseAssertions.TUnit`](https://www.nuget.org/packages/SseAssertions.TUnit/)**:
   Server-Sent Events (SSE) wire-format assertions: event-count, field shape (`event:`,
   `data:`, `id:`, `retry:`), and stream content validation.
+- **[`GrpcAssertions.TUnit`](https://www.nuget.org/packages/GrpcAssertions.TUnit/)**: fluent
+  gRPC outcome assertions (`ThrowsGrpcException` with `StatusCode` shorthands and detail
+  refinements) plus the `GrpcCallBuilder` test-double helper.
 
 ## Contributing
 

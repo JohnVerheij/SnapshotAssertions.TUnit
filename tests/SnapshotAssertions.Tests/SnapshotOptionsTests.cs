@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
@@ -42,5 +43,44 @@ internal sealed class SnapshotOptionsTests
         await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Optional);
         await Assert.That(options.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
         await Assert.That(options.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
+    }
+
+    /// <summary>The default options carry no custom normalizer.</summary>
+    [Test]
+    public async Task DefaultOptions_NormalizerIsNull(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(SnapshotOptions.Default.Normalizer).IsNull();
+    }
+
+    /// <summary>A null normalizer is rejected.</summary>
+    [Test]
+    public async Task WithNormalizer_Null_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(() => SnapshotOptions.Default.WithNormalizer(null!)).Throws<ArgumentNullException>();
+    }
+
+    /// <summary>A single normalizer is stored and applied.</summary>
+    [Test]
+    public async Task WithNormalizer_StoresTheTransform(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default.WithNormalizer(value => value.Trim());
+
+        await Assert.That(options.Normalizer).IsNotNull();
+        await Assert.That(options.Normalizer!("  x  ")).IsEqualTo("x");
+    }
+
+    /// <summary>Chained normalizers compose in registration order: the first registered runs first.</summary>
+    [Test]
+    public async Task WithNormalizer_Composes_InRegistrationOrder(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default
+            .WithNormalizer(value => value + "1")
+            .WithNormalizer(value => value + "2");
+
+        await Assert.That(options.Normalizer!("x")).IsEqualTo("x12");
     }
 }

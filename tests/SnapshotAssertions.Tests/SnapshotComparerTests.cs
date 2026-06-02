@@ -23,6 +23,42 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("foo", "foo", SnapshotOptions.Default)).IsTrue();
     }
 
+    /// <summary>A custom normalizer is applied to the content before any built-in normalization.</summary>
+    [Test]
+    public async Task Normalize_AppliesCustomNormalizer(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default.WithNormalizer(value => value.Trim());
+        await Assert.That(SnapshotComparer.Normalize("  hello  ", options)).IsEqualTo("hello");
+    }
+
+    /// <summary>Two strings that differ only in a way the normalizer erases compare equal: here a
+    /// normalizer that sorts comma-separated tokens makes element order irrelevant.</summary>
+    [Test]
+    public async Task AreEqual_WithNormalizer_TreatsCanonicallyEqualAsEqual(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        static string SortTokens(string value)
+        {
+            var parts = value.Split(',');
+            Array.Sort(parts, StringComparer.Ordinal);
+            return string.Join(",", parts);
+        }
+
+        var options = SnapshotOptions.Default.WithNormalizer(SortTokens);
+        await Assert.That(SnapshotComparer.AreEqual("c,a,b", "a,b,c", options)).IsTrue();
+    }
+
+    /// <summary>A normalizer that returns null is a contract violation and fails loudly rather
+    /// than producing a confusing downstream <see cref="System.NullReferenceException"/>.</summary>
+    [Test]
+    public async Task Normalize_NormalizerReturnsNull_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default.WithNormalizer(_ => null!);
+        await Assert.That(() => SnapshotComparer.Normalize("x", options)).Throws<InvalidOperationException>();
+    }
+
     /// <summary>Content ending with a bare CR (no LF) is detected as having a trailing newline.
     /// Pins the third short-circuit branch in the <c>content[^1] == '\r'</c> check inside
     /// <c>NormalizeLineByLine</c>, which the standard \n / \r\n test inputs do not exercise.</summary>
