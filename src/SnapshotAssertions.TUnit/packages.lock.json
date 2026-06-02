@@ -4,9 +4,9 @@
     "net10.0": {
       "DotNetProjectFile.Analyzers": {
         "type": "Direct",
-        "requested": "[1.14.0, )",
-        "resolved": "1.14.0",
-        "contentHash": "ZQh99+wAb+tFTwMu0d/gL44W3i4Mx7+Rilz1VbFrowXwvSKtX6HwMZAFobVeQ5opmUdQ9fnW7K4e6QoAcSUdLA=="
+        "requested": "[1.14.1, )",
+        "resolved": "1.14.1",
+        "contentHash": "lGfhtsa3HBWDNnt1PhvBqqtQEQQrgi4WvB7uKbbq9X069RMqzhWe+7h7TCp7vzAt6VMAE528SKRACOkMbZtc2A=="
       },
       "Meziantou.Analyzer": {
         "type": "Direct",
