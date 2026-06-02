@@ -39,6 +39,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
   - [The `Scrubbers.Default` preset](#the-scrubbersdefault-preset)
   - [Indexed-token format and recurring-value handling](#indexed-token-format-and-recurring-value-handling)
   - [`Scrubbers.Pattern` for custom regex matches](#scrubberspattern-for-custom-regex-matches)
+    - [`Scrubbers.IndexedPattern` when correlation matters](#scrubbersindexedpattern-when-correlation-matters)
   - [Composing multiple scrubbers](#composing-multiple-scrubbers)
   - [Custom scrubbers](#custom-scrubbers)
 - [Failure diagnostics](#failure-diagnostics)
@@ -46,6 +47,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
   - [No baseline](#no-baseline)
 - [Accept-changes workflow](#accept-changes-workflow)
 - [Cookbook: common patterns](#cookbook--common-patterns)
+  - [Snapshotting serialized/binary formats via a canonical renderer](#snapshotting-serializedbinary-formats-via-a-canonical-renderer)
 - [Comparison with Verify](#comparison-with-verify)
   - [Migrating from Verify.TUnit](#migrating-from-verifytunit)
 - [Troubleshooting](#troubleshooting)
@@ -396,6 +398,22 @@ await Assert.That(httpLog)
 ```
 
 Note that regex backreferences (`$1`, `${name}`) in the replacement token are **NOT** interpreted: the literal characters are emitted. This keeps the API predictable; if you need backreferences, the right tool is a custom scrubber (see [Custom scrubbers](#custom-scrubbers)).
+
+#### `Scrubbers.IndexedPattern` when correlation matters
+
+`Scrubbers.Pattern` is flat: every match becomes the same literal token, so a snapshot cannot show that two occurrences were the same value or two distinct values. The built-in scrubbers do not have this limitation (a recurring GUID renders as `<guid:0>` everywhere, a different GUID as `<guid:1>`), but until now custom regex matches did. `Scrubbers.IndexedPattern(Regex pattern, string kind)` closes that asymmetry: it reuses the same indexed-token machinery as the built-ins, so recurring identical matched values share one `<kind:N>` index while distinct values get incrementing indices.
+
+```csharp
+await Assert.That(text)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.IndexedPattern(TicketIdPattern, "ticket"));
+
+// Input:    open ticket-42; link ticket-42; new ticket-99
+// Flat Pattern:           open <ticket>; link <ticket>; new <ticket>      (correlation lost)
+// Indexed IndexedPattern: open <ticket:0>; link <ticket:0>; new <ticket:1> (correlation kept)
+```
+
+Correlation is ordinal on the matched value (differing casing is a distinct value). A `string`-overload sibling, `Scrubbers.IndexedPattern(string pattern, string kind)`, compiles the pattern with `NonBacktracking | CultureInvariant` exactly like `Scrubbers.Pattern(string, string)`. Passing a built-in `kind` (e.g. `"guid"`) shares that built-in's index counter. Reach for `IndexedPattern` when a volatile value falls outside the built-in kinds but same-value correlation across the snapshot still matters; reach for `Pattern` when every match should collapse to a single literal token.
 
 ### Composing multiple scrubbers
 
@@ -904,6 +922,37 @@ internal sealed class NumericTokenScrubber : SnapshotScrubber
 Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalisation; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
 
 Common subclass mechanics across all four examples: use `state.GetOrAssignIndex(kind, value)` for indexed-token state; apply `RegexOptions.NonBacktracking | RegexOptions.CultureInvariant`; word-boundary anchor with `\b` since lookarounds are not available in `NonBacktracking`; produce token strings as `<kind:N>`. To share an index space with a built-in scrubber (e.g. give your custom variant the same `"guid"` kind name as `Scrubbers.Guid`), reuse the kind name verbatim.
+
+### Snapshotting serialized/binary formats via a canonical renderer
+
+A serialized payload (protobuf, XML, MessagePack, or any binary wire format) is not a string, and snapshotting its raw bytes would only ever produce an opaque byte-diff. The package stays string-centric on purpose; it ships no `byte[]` / `.bin` snapshot support, because a byte-diff is exactly the failure mode the renderer-to-text path removes. Instead, decode the payload and render the **decoded wire bytes** canonically through the existing [renderer pattern](#cookbook--common-patterns), one field per line.
+
+The distinction that matters: render the wire bytes, not the logical `ToString()` or a JSON re-encoding. Two different encodings of the same logical object can share one `ToString()` / JSON projection, so a snapshot over that projection is a content test (it pins what the object means), not a wire test (it pins what went on the wire). When the point of the test is the serialized form, project the fields as they were decoded from the bytes.
+
+```csharp
+// Generic shape: decode the wire bytes, then render one field per line in a fixed order.
+// 'Envelope' here stands in for a protobuf message, an XDocument, a MessagePack map, etc.
+internal sealed class WireEnvelopeRenderer : SnapshotRenderer<Envelope>
+{
+    public static readonly WireEnvelopeRenderer Instance = new();
+
+    public override string Render(Envelope e) =>
+        $"type: {e.TypeName}\n" +
+        $"id: {e.Id}\n" +
+        $"flags: {e.Flags:X}\n" +
+        $"payload-len: {e.Payload.Length}\n" +
+        $"payload-sha256: {Convert.ToHexString(SHA256.HashData(e.Payload))}";
+}
+
+// Decode the bytes first, then snapshot the canonical text projection.
+var envelope = Envelope.Parser.ParseFrom(wireBytes);
+
+await Assert.That(envelope)
+    .MatchesSnapshot(WireEnvelopeRenderer.Instance)
+    .WithScrubber(Scrubbers.IndexedPattern(CorrelationIdPattern, "corr"));
+```
+
+The recipe is format-agnostic: the only per-format work is the decode step (`Parser.ParseFrom`, `XDocument.Parse`, `MessagePackSerializer.Deserialize`, ...) and the field layout. Opaque blobs inside the payload (nested bytes, hashes) render as a fixed-length digest line so a single-byte change still localizes to one line of the diff rather than smearing across a base64 wall. Volatile fields (correlation IDs, timestamps) scrub through the same `WithScrubber(...)` chain as any other snapshot, and `Scrubbers.IndexedPattern` keeps recurring wire IDs correlated across the rendered fields.
 
 ## Comparison with Verify
 
