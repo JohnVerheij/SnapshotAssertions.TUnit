@@ -97,6 +97,69 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(content).IsEqualTo("first\n");
     }
 
+    /// <summary>No baseline + accept-mode: the written expected baseline is the normalizer's
+    /// output, not the raw subject, so an accepted first-run baseline is already canonical.</summary>
+    [Test]
+    public async Task AcceptMode_BootstrapsMissingBaseline_WritesNormalizedForm(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(
+            Path.Combine(dir, "normalized.expected.txt"),
+            Path.Combine(dir, "normalized.actual.txt"));
+
+        // A normalizer that masks a volatile token. A raw write would persist the volatile
+        // input verbatim; the normalized write must persist the masked output instead.
+        var options = SnapshotOptions.Default.WithNormalizer(
+            text => text.Replace("id=42", "id=<scrubbed>", StringComparison.Ordinal));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("id=42\n", paths, options,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        var written = await File.ReadAllTextAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(written).IsEqualTo("id=<scrubbed>\n");
+        await Assert.That(written).DoesNotContain("id=42");
+    }
+
+    /// <summary>No baseline (non-accept): the written .actual candidate a consumer renames to
+    /// accept is the normalized form, so renaming it commits canonical content.</summary>
+    [Test]
+    public async Task NoBaseline_WritesNormalizedActualCandidate(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(
+            Path.Combine(dir, "candidate.expected.txt"),
+            Path.Combine(dir, "candidate.actual.txt"));
+
+        var options = SnapshotOptions.Default.WithNormalizer(
+            text => text.Replace("VOLATILE", "STABLE", StringComparison.Ordinal));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("value=VOLATILE\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.NoBaseline);
+        var candidate = await File.ReadAllTextAsync(paths.ActualFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(candidate).IsEqualTo("value=STABLE\n");
+    }
+
+    /// <summary>Accept-mode over an existing mismatching baseline writes the normalized subject,
+    /// keeping the persisted baseline consistent with what the next comparison reads back.</summary>
+    [Test]
+    public async Task AcceptMode_OverwriteMismatch_WritesNormalizedForm(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "id=99\n", expectedContent: "old\n", cancellationToken).ConfigureAwait(false);
+
+        var options = SnapshotOptions.Default.WithNormalizer(
+            text => text.Replace("id=99", "id=<scrubbed>", StringComparison.Ordinal));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("id=99\n", paths, options,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        var written = await File.ReadAllTextAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(written).IsEqualTo("id=<scrubbed>\n");
+    }
+
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(
         string actualContent,
         string expectedContent,

@@ -210,4 +210,69 @@ public static class SnapshotFileResolver
         ArgumentNullException.ThrowIfNull(baseDirectory);
         return Path.GetFullPath(Path.Combine(baseDirectory, DefaultSnapshotsFolder));
     }
+
+    /// <summary>
+    /// Resolves the <em>source-tree</em> snapshots directory: the committable
+    /// <c>Snapshots/</c> folder that lives next to the test project file, rather than the
+    /// runtime copy under <c>bin/</c>. Used by accept-mode so that an accepted baseline is
+    /// written where it is committed and read from, not into the build output where it is
+    /// discarded on the next clean.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The read path resolves baselines from <c>{AppContext.BaseDirectory}/Snapshots</c>: the
+    /// build copies <c>Snapshots/**/*.expected.txt</c> from the project directory into
+    /// <c>bin/</c> via the package's include glob. The accept write target is resolved by
+    /// walking up from <paramref name="startDirectory"/> (typically
+    /// <see cref="AppContext.BaseDirectory"/>) to the nearest ancestor that contains a
+    /// <c>*.csproj</c> file, then appending <see cref="DefaultSnapshotsFolder"/>. That ancestor
+    /// is the directory the build's include glob is relative to, so the accept write lands in
+    /// the exact folder the next build copies back into <c>bin/</c>.
+    /// </para>
+    /// <para>
+    /// When no ancestor project file can be found (for example, a single-file publish where the
+    /// source tree is not present), the method returns <see langword="null"/>: the caller falls
+    /// back to the runtime directory so accept-mode still produces a file, even if it is not in
+    /// the source tree.
+    /// </para>
+    /// </remarks>
+    /// <param name="startDirectory">The directory to start the upward search from (typically
+    /// the test binary's <c>AppContext.BaseDirectory</c>).</param>
+    /// <returns>The absolute path to the source-tree snapshots directory, or
+    /// <see langword="null"/> if no ancestor project directory could be located.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="startDirectory"/> is <see langword="null"/>.</exception>
+    public static string? TryResolveSourceSnapshotsDirectory(string startDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(startDirectory);
+
+        var projectDirectory = FindAncestorProjectDirectory(startDirectory);
+        return projectDirectory is null
+            ? null
+            : Path.GetFullPath(Path.Combine(projectDirectory, DefaultSnapshotsFolder));
+    }
+
+    /// <summary>
+    /// Walks up from <paramref name="startDirectory"/> and returns the first ancestor directory
+    /// (inclusive) that contains at least one <c>*.csproj</c> file, or <see langword="null"/>
+    /// if the filesystem root is reached without finding one.
+    /// </summary>
+    /// <param name="startDirectory">The directory to begin the search from.</param>
+    /// <returns>The nearest ancestor project directory, or <see langword="null"/>.</returns>
+    private static string? FindAncestorProjectDirectory(string startDirectory)
+    {
+        var current = new DirectoryInfo(Path.GetFullPath(startDirectory));
+        while (current is not null)
+        {
+            // EnumerateFiles is lazy: it stops at the first match instead of materializing the
+            // whole listing, so the common case (a project file in the first ancestor that has
+            // one) touches the directory once and returns immediately.
+            using var matches = current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).GetEnumerator();
+            if (matches.MoveNext())
+                return current.FullName;
+
+            current = current.Parent;
+        }
+
+        return null;
+    }
 }

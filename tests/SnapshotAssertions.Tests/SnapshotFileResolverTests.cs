@@ -125,4 +125,66 @@ internal sealed class SnapshotFileResolverTests
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", string.Empty));
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", "   "));
     }
+
+    /// <summary>TryResolveSourceSnapshotsDirectory walks up from a bin-like runtime directory to
+    /// the ancestor holding the project file, then targets that project's <c>Snapshots</c>
+    /// folder: the same directory the build's include glob is relative to (where an accepted
+    /// baseline must land to be committed and read back).</summary>
+    [Test]
+    public async Task TryResolveSourceSnapshotsDirectory_FindsProjectAncestorSnapshots(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = CreateTempDirectory();
+        try
+        {
+            // Lay out <root>/Proj/MyProj.csproj and a runtime-style <root>/Proj/bin/Release/net10.0.
+            var projectDir = Path.Combine(root, "Proj");
+            Directory.CreateDirectory(projectDir);
+            await File.WriteAllTextAsync(Path.Combine(projectDir, "MyProj.csproj"), "<Project/>", cancellationToken).ConfigureAwait(false);
+            var binDir = Path.Combine(projectDir, "bin", "Release", "net10.0");
+            Directory.CreateDirectory(binDir);
+
+            var resolved = SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(binDir);
+
+            await Assert.That(resolved).IsEqualTo(Path.GetFullPath(Path.Combine(projectDir, "Snapshots")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>TryResolveSourceSnapshotsDirectory returns null when no ancestor project file
+    /// exists, so accept-mode can fall back to the runtime directory rather than fabricating a
+    /// bogus source path.</summary>
+    [Test]
+    public async Task TryResolveSourceSnapshotsDirectory_NoProjectAncestor_ReturnsNull(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = CreateTempDirectory();
+        try
+        {
+            // A deep directory tree with no *.csproj anywhere above the start directory.
+            var deep = Path.Combine(root, "a", "b", "c");
+            Directory.CreateDirectory(deep);
+
+            var resolved = SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(deep);
+
+            await Assert.That(resolved).IsNull();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string CreateTempDirectory()
+    {
+        // A unique temp root with no *.csproj anywhere above it (system temp dirs never carry
+        // one), so the no-ancestor test sees a clean null and the found-ancestor test only sees
+        // the project file this test plants.
+        var dir = Path.Combine(Path.GetTempPath(), "snapshot-source-resolver-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
 }
