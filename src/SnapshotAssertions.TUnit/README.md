@@ -69,13 +69,18 @@ await Assert.That(httpLog)
     .MatchesSnapshot()
     .WithScrubber(Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
 
+// Custom regex with correlation kept (v0.5.0+): recurring values share <kind:N>
+await Assert.That(text)
+    .MatchesSnapshot()
+    .WithScrubber(Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket"));
+
 // Assemble a reusable bundle once; pass as a single scrubber (v0.3.0+)
 private static readonly SnapshotScrubber FixturesScrubber = Scrubbers.Combine(
     Scrubbers.Common,
     Scrubbers.Pattern(@"\brequest-id=[a-f0-9-]+", "request-id=<scrubbed>"));
 ```
 
-The built-in indexed scrubbers emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing). `Scrubbers.Combine(...)` (v0.3.0+) wraps an array of scrubbers into a single composite so a reused bundle does not have to be re-chained on every assertion. `Scrubbers.Common` (v0.4.0+) is the extended curated chain: `Guid` + `GuidN` + `Iso8601Timestamp` + `UnixEpochMillis` + `ElapsedMs`. Reach for `Common` first; fall back to `Default` for the v0.3.0-and-earlier three-pattern chain only when an existing baseline depends on it.
+The built-in indexed scrubbers emit `<kind:N>` tokens where N is assigned by first-occurrence order per kind. The same value at every site keeps the same N. `Scrubbers.Pattern(...)` overloads emit a literal token (no indexing); `Scrubbers.IndexedPattern(...)` (v0.5.0+) is the indexed counterpart for custom regex, so recurring matched values keep a shared `<kind:N>` index. `Scrubbers.Combine(...)` (v0.3.0+) wraps an array of scrubbers into a single composite so a reused bundle does not have to be re-chained on every assertion. `Scrubbers.Common` (v0.4.0+) is the extended curated chain: `Guid` + `GuidN` + `Iso8601Timestamp` + `UnixEpochMillis` + `ElapsedMs`. Reach for `Common` first; fall back to `Default` for the v0.3.0-and-earlier three-pattern chain only when an existing baseline depends on it.
 
 [Full Scrubbers reference, custom-scrubber recipe, and design notes on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#scrubbers-volatile-value-handling)
 

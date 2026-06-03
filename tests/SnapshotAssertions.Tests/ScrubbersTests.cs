@@ -599,4 +599,156 @@ internal sealed class ScrubbersTests
         ct.ThrowIfCancellationRequested();
         await Assert.That(() => Scrubbers.Common.Apply("input", null!)).Throws<ArgumentNullException>();
     }
+
+    // ----- IndexedPattern factory (v0.6.0) -----
+
+    [Test]
+    public async Task IndexedPattern_StringOverload_SingleOccurrence_ReplacedWithIndexZero(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        var output = scrubber.Apply("ref ticket-42 done", state);
+        await Assert.That(output).IsEqualTo("ref <ticket:0> done");
+    }
+
+    [Test]
+    public async Task IndexedPattern_RecurringValue_SharesSameIndex(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Key contract: recurring identical matched values correlate to the same index, unlike
+        // the flat Scrubbers.Pattern which collapses every match to one literal token.
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        var output = scrubber.Apply("a=ticket-42 b=ticket-42 c=ticket-99", state);
+        await Assert.That(output).IsEqualTo("a=<ticket:0> b=<ticket:0> c=<ticket:1>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_DifferentValues_GetDifferentIndices(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        var output = scrubber.Apply("ticket-1 ticket-2 ticket-3", state);
+        await Assert.That(output).IsEqualTo("<ticket:0> <ticket:1> <ticket:2>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_FlatVsIndexed_DistinguishesFromPattern(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Same input, two scrubbers: Pattern is flat (correlation lost), IndexedPattern keeps it.
+        var input = "x=ticket-7 y=ticket-7 z=ticket-8";
+        var flat = Scrubbers.Pattern(@"\bticket-\d+\b", "<ticket>").Apply(input, new SnapshotScrubberState());
+        var indexed = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket").Apply(input, new SnapshotScrubberState());
+        await Assert.That(flat).IsEqualTo("x=<ticket> y=<ticket> z=<ticket>");
+        await Assert.That(indexed).IsEqualTo("x=<ticket:0> y=<ticket:0> z=<ticket:1>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_RegexOverload_ReplacesWithIndexedToken(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var rx = new Regex(@"\border-\d+\b", RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+        var scrubber = Scrubbers.IndexedPattern(rx, "order");
+        var output = scrubber.Apply("order-5 order-5 order-6", state);
+        await Assert.That(output).IsEqualTo("<order:0> <order:0> <order:1>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_CaseSensitiveCorrelation_DistinctCasingGetsDistinctIndex(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Correlation is ordinal on the matched value: differing casing is a distinct value.
+        var scrubber = Scrubbers.IndexedPattern(@"\bTKT-[A-Za-z]+\b", "tkt");
+        var output = scrubber.Apply("TKT-abc TKT-ABC TKT-abc", state);
+        await Assert.That(output).IsEqualTo("<tkt:0> <tkt:1> <tkt:0>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_SharedKindWithBuiltin_UnifiedIndexCounter(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Passing the "guid" kind shares the built-in GuidScrubber's index counter: the custom
+        // pattern's match continues the same per-kind sequence rather than starting fresh.
+        var input = "g=11111111-2222-3333-4444-555555555555 short=ABC123";
+        var afterGuid = Scrubbers.Guid.Apply(input, state);
+        var output = Scrubbers.IndexedPattern(@"\bABC123\b", "guid").Apply(afterGuid, state);
+        await Assert.That(output).IsEqualTo("g=<guid:0> short=<guid:1>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_NoMatches_PassesThroughUnchanged(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        var input = "nothing to scrub here";
+        var output = scrubber.Apply(input, state);
+        await Assert.That(output).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task IndexedPattern_ComposesWithCombineSharingState(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        // Two independent IndexedPattern scrubbers with different kinds keep independent counters
+        // while sharing the same state through Combine.
+        var scrubber = Scrubbers.Combine(
+            Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket"),
+            Scrubbers.IndexedPattern(@"\bnode-\d+\b", "node"));
+        var output = scrubber.Apply("ticket-1 node-9 ticket-1 node-8", state);
+        await Assert.That(output).IsEqualTo("<ticket:0> <node:0> <ticket:0> <node:1>");
+    }
+
+    [Test]
+    public async Task IndexedPattern_StringOverload_NullPattern_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.IndexedPattern((string)null!, "ticket")).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task IndexedPattern_StringOverload_NullKind_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.IndexedPattern(@"\bticket-\d+\b", null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task IndexedPattern_RegexOverload_NullPattern_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.IndexedPattern((Regex)null!, "ticket")).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task IndexedPattern_RegexOverload_NullKind_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var rx = new Regex(@"\bticket-\d+\b", RegexOptions.NonBacktracking);
+        await Assert.That(() => Scrubbers.IndexedPattern(rx, null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task IndexedPattern_NullInput_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        await Assert.That(() => scrubber.Apply(null!, state)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task IndexedPattern_NullState_ThrowsArgumentNull(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var scrubber = Scrubbers.IndexedPattern(@"\bticket-\d+\b", "ticket");
+        await Assert.That(() => scrubber.Apply("ticket-1", null!)).Throws<ArgumentNullException>();
+    }
 }

@@ -20,6 +20,13 @@ namespace SnapshotAssertions;
 /// <see cref="Regex"/>; the <see cref="Pattern(string, string)"/> overload compiles a
 /// <see cref="RegexOptions.NonBacktracking"/> pattern internally. Both replace every match with
 /// the literal token; no indexing is applied.</para>
+/// <para>The <see cref="IndexedPattern(Regex, string)"/> overload is the indexed counterpart to
+/// <see cref="Pattern(Regex, string)"/>: it reuses the same <see cref="SnapshotScrubberState"/>
+/// indexed-token machinery the built-in scrubbers use, so recurring identical matched values
+/// share one index (<c>&lt;kind:0&gt;</c>) while distinct values get incrementing indices. Use
+/// it for a volatile value outside the built-in kinds when same-value correlation across the
+/// snapshot matters; use <see cref="Pattern(Regex, string)"/> when every match should collapse
+/// to a single literal token.</para>
 /// </remarks>
 public static partial class Scrubbers
 {
@@ -144,6 +151,46 @@ public static partial class Scrubbers
         ArgumentNullException.ThrowIfNull(token);
         var compiled = new Regex(pattern, RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
         return new PatternScrubber(compiled, token);
+    }
+
+    /// <summary>Replaces every match of <paramref name="pattern"/> with an indexed token
+    /// <c>&lt;kind:N&gt;</c> (where <c>kind</c> is <paramref name="kind"/>), reusing the same
+    /// <see cref="SnapshotScrubberState"/> indexed-token machinery as the built-in scrubbers.
+    /// Recurring identical matched values share the same index N; distinct values get incrementing
+    /// indices in first-occurrence order. This is the indexed (correlated) counterpart to
+    /// <see cref="Pattern(Regex, string)"/>, which is flat (every match collapses to one literal
+    /// token, losing correlation).</summary>
+    /// <param name="pattern">The regex to match against. The entire match value is the correlation
+    /// key; equality is ordinal (no case folding). Use a capture-narrowing pattern when only part
+    /// of the match should drive correlation.</param>
+    /// <param name="kind">The kind namespace used in the emitted <c>&lt;kind:N&gt;</c> token and as
+    /// the index-counter namespace on the shared state. Passing the same <paramref name="kind"/> as
+    /// a built-in scrubber (e.g. <c>"guid"</c>) shares that built-in's index counter.</param>
+    /// <returns>An indexed-pattern scrubber.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    public static SnapshotScrubber IndexedPattern(Regex pattern, string kind)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ArgumentNullException.ThrowIfNull(kind);
+        return new IndexedPatternScrubber(pattern, kind);
+    }
+
+    /// <summary>Compiles <paramref name="pattern"/> with <see cref="RegexOptions.NonBacktracking"/>
+    /// (ReDoS-resistant) and replaces every match with an indexed token <c>&lt;kind:N&gt;</c>.
+    /// Recurring identical matched values share the same index N. This is the indexed (correlated)
+    /// counterpart to <see cref="Pattern(string, string)"/>.</summary>
+    /// <param name="pattern">The regex pattern source.</param>
+    /// <param name="kind">The kind namespace used in the emitted <c>&lt;kind:N&gt;</c> token and as
+    /// the index-counter namespace on the shared state.</param>
+    /// <returns>An indexed-pattern scrubber.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="pattern"/> is not a valid regex.</exception>
+    public static SnapshotScrubber IndexedPattern(string pattern, string kind)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ArgumentNullException.ThrowIfNull(kind);
+        var compiled = new Regex(pattern, RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+        return new IndexedPatternScrubber(compiled, kind);
     }
 
     private sealed partial class GuidScrubber : SnapshotScrubber
@@ -303,6 +350,31 @@ public static partial class Scrubbers
             ArgumentNullException.ThrowIfNull(state);
             // Use the Replace overload that takes a literal token (no $-substitution surprises).
             return _pattern.Replace(input, _ => _token);
+        }
+    }
+
+    private sealed class IndexedPatternScrubber : SnapshotScrubber
+    {
+        private readonly Regex _pattern;
+        private readonly string _kind;
+
+        public IndexedPatternScrubber(Regex pattern, string kind)
+        {
+            _pattern = pattern;
+            _kind = kind;
+        }
+
+        public override string Apply(string input, SnapshotScrubberState state)
+        {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentNullException.ThrowIfNull(state);
+            // Reuse the same indexed-token machinery as the built-in scrubbers: the matched value
+            // is the correlation key, so recurring identical values share one index per kind.
+            return _pattern.Replace(input, m =>
+            {
+                var idx = state.GetOrAssignIndex(_kind, m.Value);
+                return string.Create(CultureInfo.InvariantCulture, $"<{_kind}:{idx}>");
+            });
         }
     }
 
