@@ -46,7 +46,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
   - [Mismatched baseline](#mismatched-baseline)
   - [No baseline](#no-baseline)
 - [Accept-changes workflow](#accept-changes-workflow)
-- [Cookbook: common patterns](#cookbook--common-patterns)
+- [Cookbook: common patterns](#cookbook-common-patterns)
   - [Snapshotting serialized/binary formats via a canonical renderer](#snapshotting-serializedbinary-formats-via-a-canonical-renderer)
 - [Comparison with Verify](#comparison-with-verify)
   - [Migrating from Verify.TUnit](#migrating-from-verifytunit)
@@ -925,7 +925,7 @@ Common subclass mechanics across all four examples: use `state.GetOrAssignIndex(
 
 ### Snapshotting serialized/binary formats via a canonical renderer
 
-A serialized payload (protobuf, XML, MessagePack, or any binary wire format) is not a string, and snapshotting its raw bytes would only ever produce an opaque byte-diff. The package stays string-centric on purpose; it ships no `byte[]` / `.bin` snapshot support, because a byte-diff is exactly the failure mode the renderer-to-text path removes. Instead, decode the payload and render the **decoded wire bytes** canonically through the existing [renderer pattern](#cookbook--common-patterns), one field per line.
+A serialized payload (protobuf, XML, MessagePack, or any binary wire format) is not a string, and snapshotting its raw bytes would only ever produce an opaque byte-diff. The package stays string-centric on purpose; it ships no `byte[]` / `.bin` snapshot support, because a byte-diff is exactly the failure mode the renderer-to-text path removes. Instead, decode the payload and render the **decoded wire bytes** canonically through the existing [renderer pattern](#cookbook-common-patterns), one field per line.
 
 The distinction that matters: render the wire bytes, not the logical `ToString()` or a JSON re-encoding. Two different encodings of the same logical object can share one `ToString()` / JSON projection, so a snapshot over that projection is a content test (it pins what the object means), not a wire test (it pins what went on the wire). When the point of the test is the serialized form, project the fields as they were decoded from the bytes.
 
