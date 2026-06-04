@@ -1,87 +1,9 @@
 # Code conventions
 
-Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
+Rules for how code is written across the eight assertion-family packages (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
 `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and
-`TracingAssertions.TUnit`). The same file is copied identically
-into each repo.
-
-**Document version:** v0.9 (2026-06-04). Changes from v0.8:
-
-- **Family roster expanded to eight packages.** `TracingAssertions.TUnit` joins as the
-  eighth member, asserting on OpenTelemetry distributed-tracing spans
-  (`System.Diagnostics.Activity`: operation name, tags, status, and parent/child and
-  same-trace relationships) as a strict-scope-distinct observability domain from the other
-  members. The cap revision 7 → 8 was justified by strict-scope analysis on a known-distinct
-  domain (per the per-package scope policy below), not by adoption-growth reasoning. The
-  package captures spans via a raw `ActivityListener` with no OpenTelemetry SDK dependency, so
-  it stays BCL-and-TUnit-only.
-- **`CancellationToken` parameter convention tightened.** A `CancellationToken` is always the
-  last parameter and always named `cancellationToken` (the BCL convention; `ct` is retired).
-  Only the token may carry a default in any one overload; any other optional parameter is
-  expressed as a separate, shorter overload rather than a second default, so a positional
-  `(…, cancellationToken)` call always binds with no named argument and no overload ambiguity.
-  **Generator limit:** where TUnit's `[GenerateAssertion]` source generator would emit two
-  same-`(receiver, CancellationToken)` overloads on different receiver types (a CS0111
-  duplicate, because C# ignores generic constraints when comparing signatures), the
-  overload-pair is not applied; the leading-optional-then-token shape stays and a named
-  `cancellationToken:` argument is accepted there. See the updated "Async pattern" section.
-
-**Document version:** v0.8 (2026-06-02). Changes from v0.7:
-
-- **Family roster expanded to seven packages.** `GrpcAssertions.TUnit` joins as the
-  seventh member, asserting on gRPC call outcomes (`RpcException` presence, `StatusCode`,
-  and `Status.Detail`) as a strict-scope-distinct transport domain from `JsonAssertions.TUnit`
-  and `SseAssertions.TUnit`. The cap revision 6 → 7 was justified by strict-scope analysis on
-  a known-distinct domain (per the per-package scope policy below), not by adoption-growth
-  reasoning.
-- **Dependency policy added.** `GrpcAssertions.TUnit` is the first family package to carry a
-  disclosed external runtime dependency, the permissive Apache-2.0 `Grpc.Core.Api`, intrinsic
-  because the assertions are typed against the consumer's real `RpcException` / `StatusCode` /
-  `Status`. The new "Dependency policy" section below states the bar for any such dependency.
-
-**Document version:** v0.7 (2026-05-17). Changes from v0.6:
-
-- **Family roster expanded to six packages.** `SseAssertions.TUnit` joins as the sixth
-  member, handling Server-Sent Events (SSE) as a strict-scope-distinct domain from
-  `JsonAssertions.TUnit`. The cap revision 5 → 6 was justified by strict-scope analysis on
-  a known-distinct domain (per the per-package scope policy below), not by adoption-growth
-  reasoning. The cap is reviewed before each revision; the goal is "high-quality niche",
-  not exhaustive ecosystem coverage.
-- **Per-package strict-scope policy formalised.** Each package has an explicit scope
-  statement that bounds what domain it asserts on; the policy keeps the family decoupled
-  by domain and prevents scope creep between packages. See the new "Per-package strict-scope
-  policy" section below.
-- **Core+adapter packaging rule clarified.** Each family package chooses single-package or
-  core+adapter at v0.0.1; the choice is per-package and is documented in each package's
-  README. See the new "Core+adapter packaging rule" section below.
-
-**Document version:** v0.6 (2026-05-16). Changes from v0.5: added the **Cross-package
-references rule** and the **Naming invariant** as family-wide architectural invariants.
-Both are pack-time-enforced via NuGet dependency list scan + PublicAPI prefix scan;
-`JsonAssertions.TUnit` v0.3.0 is the first package to ship the enforcement infrastructure;
-the 4 sibling repos adopt the same `CONVENTIONS.md` v0.6 immediately after v0.3.0 merges.
-
-**Document version:** v0.5 (2026-05-15). Changes from v0.4: added the **CHANGELOG conventions**
-section (Keep a Changelog 1.1.0 standard headers, user-facing-only content, header order,
-stylistic rules) and the **`PackageReleaseNotes` auto-extract** convention that ties the
-per-version CHANGELOG section to nuget.org's Release Notes tab via a shared
-`Directory.Build.targets` build extension.
-
-**Document version:** v0.4 (2026-05-14). Changes from v0.3: added `JsonAssertions.TUnit` to
-the family roster (the fifth package; JSON path / value / shape assertions over
-`System.Text.Json`).
-
-**Document version:** v0.3 (2026-05-12). Changes from v0.2: added the `SnapshotAssertions.Render`
-namespace reservation for sibling-package text renderers so consumers discover renderer
-entry points via a single `using SnapshotAssertions.Render;`.
-
-**Document version:** v0.2 (2026-05-07). Changes from v0.1: codified the family rule against
-promoting Verify; added polling-loop default-schedule agreement; added `ToSnapshotString()`
-format-version header rule; added test-projects-only scope blockquote as a binding
-cross-repo convention; codified TFM policy (LTS-anchored; multi-target during STS support
-windows); expanded the `CancellationToken` plumbing rule with provider-driven polling-sleep
-semantics.
+`TracingAssertions.TUnit`). The same file is copied into each repo.
 
 ## Naming patterns
 
@@ -111,10 +33,10 @@ as its **last** parameter (additive overload where the existing API didn't); def
 keeps existing call-sites unaffected. The parameter is always named `cancellationToken` (never `ct`).
 Only the `CancellationToken` may carry a default in a given overload: any other optional parameter is
 expressed as a separate, shorter overload (each token-last), never as a second default that overlaps a
-shorter overload, so a positional `(…, cancellationToken)` call binds with no named argument and no
+shorter overload, so a positional `(..., cancellationToken)` call binds with no named argument and no
 CS0121 ambiguity. **Generator limit:** where TUnit's source generator would emit two
 `(receiver, CancellationToken)` overloads on different receiver types (a CS0111 duplicate, since C#
-ignores generic constraints when comparing signatures), the overload-pair is not applied — the
+ignores generic constraints when comparing signatures), the overload-pair is not applied - the
 leading-optional-then-token shape stays and a named `cancellationToken:` argument is accepted there.
 
 For polling, looping, or internal-timeout APIs, the additional rules are:
@@ -213,9 +135,9 @@ end-to-end. Concretely:
 |---|---|
 | `src/<Family>.csproj` (core production) | NO |
 | `src/<Family>.TUnit.csproj` (adapter production) | NO |
-| `tests/<Family>.Tests/` (framework-agnostic core tests) | YES — sibling CORE packages only; sibling adapters NOT allowed (would defeat the framework-agnostic positioning) |
-| `tests/<Family>.TUnit.Tests/` (adapter tests) | YES — any sibling package (core or adapter) |
-| `tests/<Family>.AotConsumer/` (AOT smoke test) | YES — any sibling package |
+| `tests/<Family>.Tests/` (framework-agnostic core tests) | YES - sibling CORE packages only; sibling adapters NOT allowed (would defeat the framework-agnostic positioning) |
+| `tests/<Family>.TUnit.Tests/` (adapter tests) | YES - any sibling package (core or adapter) |
+| `tests/<Family>.AotConsumer/` (AOT smoke test) | YES - any sibling package |
 
 Pack-time CI validation enforces the production-side rule: the NuGet package's
 dependency list (verified at pack time + on nuget.org) must NOT contain any
@@ -236,8 +158,8 @@ No sibling-package-name prefix may appear in another sibling's public API.
 - `Tracing...` typenames and member names belong to `TracingAssertions` only
 
 Applies to typenames AND method names AND extension method names in the
-package's PublicAPI surface. The family's verb-naming convention is what's
-being protected — extension methods are still public API and follow the
+package's public API surface. The family's verb-naming convention is what's
+being protected - extension methods are still public API and follow the
 same rule.
 
 Bounded exceptions (strict whitelist):
@@ -247,14 +169,13 @@ Bounded exceptions (strict whitelist):
   its leading prefix is `Json*` AND it's BCL-shipped, not family-branded)
 - Internal types within a package may use any name if not exposed publicly
 - Additional exceptions require explicit `CONVENTIONS.md` entry with
-  justification. Initial v0.6 whitelist: empty. Each future exception is
-  considered case-by-case and added explicitly.
+  justification. The whitelist is currently empty; each exception is considered case-by-case and added explicitly.
 
 Composition between packages happens via standard BCL types and delegates
 (`Func<T, string>`, `IDisposable`, etc.), never via sibling-branded types
 appearing in another package's surface.
 
-Pack-time CI validation enforces this: the package's PublicAPI snapshot
+Pack-time CI validation enforces this: the package's public API snapshot
 must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`, `Grpc*`,
 or `Tracing*` as a leading prefix on typenames, method names, or extension
 method names exposed publicly (with the strict whitelist above).
@@ -322,10 +243,7 @@ outside the TUnit adapter (consumer-level composition, sibling-test
 reuse, framework-agnostic test reuse).
 
 **Single-package** ships only `<Package>.TUnit` with no separate core.
-`JsonAssertions.TUnit` is the sole single-package member: the
-JSON-comparison primitives are thin enough that splitting would produce
-a near-empty core, and `System.Text.Json` already provides the
-deterministic primitives.
+`JsonAssertions.TUnit` is the sole single-package member: the bare `JsonAssertions` ID was already taken on nuget.org (by an unrelated package), so a separate core could not use the matching name. A split would also have produced a near-empty core, since `System.Text.Json` already provides the deterministic primitives.
 
 The choice is per-package and is reviewed at v0.0.1; once shipped, the
 shape is fixed. A single-package member adding a separate core later
@@ -407,13 +325,13 @@ The rules below codify what that means in practice across the family.
    `Fixed`, `Security`. No `Notes` / `Documentation` / `Tests` / `Quality` sections; doc
    changes that affect consumers go under `Changed`, and test / coverage changes do not
    belong in the CHANGELOG at all (rule 1).
-3. **Standard header order within each version section.** `Added` → `Changed` → `Deprecated`
-   → `Removed` → `Fixed` → `Security`. Within a header, list entries by significance, not
+3. **Standard header order within each version section.** `Added` -> `Changed` -> `Deprecated`
+   -> `Removed` -> `Fixed` -> `Security`. Within a header, list entries by significance, not
    alphabetically.
 
 **Stylistic rules:**
 
-4. Past-tense active voice, one change per bullet: "Added X", "Fixed Y", "Changed Z" — not
+4. Past-tense active voice, one change per bullet: "Added X", "Fixed Y", "Changed Z" - not
    "X has been added" or "Will be removed in 2.0".
 5. Lead each bullet with the affected API in `code` formatting: ``HasJsonProperty`` now
    returns ``AssertionResult`` instead of ``bool``. ...

@@ -276,10 +276,11 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.6.0
-[0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.5.0
-[0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.4.0
-[0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
-[0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.2.0
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.1.0
