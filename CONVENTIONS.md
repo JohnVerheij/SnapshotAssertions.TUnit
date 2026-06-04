@@ -2,8 +2,30 @@
 
 Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
-`JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`). The same file is copied identically
+`JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and
+`TracingAssertions.TUnit`). The same file is copied identically
 into each repo.
+
+**Document version:** v0.9 (2026-06-04). Changes from v0.8:
+
+- **Family roster expanded to eight packages.** `TracingAssertions.TUnit` joins as the
+  eighth member, asserting on OpenTelemetry distributed-tracing spans
+  (`System.Diagnostics.Activity`: operation name, tags, status, and parent/child and
+  same-trace relationships) as a strict-scope-distinct observability domain from the other
+  members. The cap revision 7 → 8 was justified by strict-scope analysis on a known-distinct
+  domain (per the per-package scope policy below), not by adoption-growth reasoning. The
+  package captures spans via a raw `ActivityListener` with no OpenTelemetry SDK dependency, so
+  it stays BCL-and-TUnit-only.
+- **`CancellationToken` parameter convention tightened.** A `CancellationToken` is always the
+  last parameter and always named `cancellationToken` (the BCL convention; `ct` is retired).
+  Only the token may carry a default in any one overload; any other optional parameter is
+  expressed as a separate, shorter overload rather than a second default, so a positional
+  `(…, cancellationToken)` call always binds with no named argument and no overload ambiguity.
+  **Generator limit:** where TUnit's `[GenerateAssertion]` source generator would emit two
+  same-`(receiver, CancellationToken)` overloads on different receiver types (a CS0111
+  duplicate, because C# ignores generic constraints when comparing signatures), the
+  overload-pair is not applied; the leading-optional-then-token shape stays and a named
+  `cancellationToken:` argument is accepted there. See the updated "Async pattern" section.
 
 **Document version:** v0.8 (2026-06-02). Changes from v0.7:
 
@@ -84,15 +106,22 @@ enforces this via MA0006 / MA0001.
 ## Async pattern + `CancellationToken` plumbing
 
 Every assertion chain is `await`-able end-to-end. No `.Result`, no `.GetAwaiter().GetResult()`,
-no sync-over-async. Every async public API accepts `CancellationToken ct = default` (additive
-overload where the existing API didn't); defaulting to `default` keeps existing call-sites
-unaffected.
+no sync-over-async. Every async public API accepts `CancellationToken cancellationToken = default`
+as its **last** parameter (additive overload where the existing API didn't); defaulting to `default`
+keeps existing call-sites unaffected. The parameter is always named `cancellationToken` (never `ct`).
+Only the `CancellationToken` may carry a default in a given overload: any other optional parameter is
+expressed as a separate, shorter overload (each token-last), never as a second default that overlaps a
+shorter overload, so a positional `(…, cancellationToken)` call binds with no named argument and no
+CS0121 ambiguity. **Generator limit:** where TUnit's source generator would emit two
+`(receiver, CancellationToken)` overloads on different receiver types (a CS0111 duplicate, since C#
+ignores generic constraints when comparing signatures), the overload-pair is not applied — the
+leading-optional-then-token shape stays and a named `cancellationToken:` argument is accepted there.
 
 For polling, looping, or internal-timeout APIs, the additional rules are:
 
-- Call `ct.ThrowIfCancellationRequested()` at the top of every poll iteration. Don't wait
+- Call `cancellationToken.ThrowIfCancellationRequested()` at the top of every poll iteration. Don't wait
   for the next sleep to surface cancellation.
-- For sleep / delay between iterations, use `Task.Delay(interval, ct)` for cancellation
+- For sleep / delay between iterations, use `Task.Delay(interval, cancellationToken)` for cancellation
   cleanup. When a `TimeProvider?` is supplied non-null on the API, see the polling-loop
   default-schedule section below for the provider-driven variant.
 - For internal-timeout APIs (e.g. `WithinHardTimeBudget(TimeSpan)`), create the internal
@@ -124,12 +153,12 @@ one step per failed poll. Resets to 100ms on a true poll. Both axes pinned (mult
 trigger) so two independent implementations cannot drift in cadence.
 
 **Provider-driven polling sleep.** When the supplied `TimeProvider?` parameter is non-null,
-the polling sleep MUST use `Task.Delay(interval, timeProvider, ct)` (the static `Task.Delay`
+the polling sleep MUST use `Task.Delay(interval, timeProvider, cancellationToken)` (the static `Task.Delay`
 overload accepting a `TimeProvider`, available .NET 8+) rather than `Task.Delay(interval,
-ct)`. This is required for `FakeTimeProvider` to drive the polling loop deterministically: a
+cancellationToken)`. This is required for `FakeTimeProvider` to drive the polling loop deterministically: a
 wall-clock `Task.Delay` ignores `Advance(...)` and the loop never re-evaluates the predicate
 when the consumer expected fake-time progression to do so. When `TimeProvider?` is null,
-falls back to `Task.Delay(interval, ct)`. If `Task.Delay(TimeSpan, TimeProvider,
+falls back to `Task.Delay(interval, cancellationToken)`. If `Task.Delay(TimeSpan, TimeProvider,
 CancellationToken)` doesn't satisfy the polling shape for some future requirement, fall back
 to a timer-built wait via `timeProvider.CreateTimer(...)` plus a `TaskCompletionSource`. Same
 rule applies to `EveryWindow`, `WithinHardTimeBudget`, and any future polling/timer-driven
@@ -204,6 +233,7 @@ No sibling-package-name prefix may appear in another sibling's public API.
 - `Json...` typenames and member names belong to `JsonAssertions` only
 - `Sse...` typenames and member names belong to `SseAssertions` only
 - `Grpc...` typenames and member names belong to `GrpcAssertions` only
+- `Tracing...` typenames and member names belong to `TracingAssertions` only
 
 Applies to typenames AND method names AND extension method names in the
 package's PublicAPI surface. The family's verb-naming convention is what's
@@ -225,8 +255,8 @@ Composition between packages happens via standard BCL types and delegates
 appearing in another package's surface.
 
 Pack-time CI validation enforces this: the package's PublicAPI snapshot
-must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`,
-or `Grpc*` as a leading prefix on typenames, method names, or extension
+must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`, `Grpc*`,
+or `Tracing*` as a leading prefix on typenames, method names, or extension
 method names exposed publicly (with the strict whitelist above).
 
 ## Per-package strict-scope policy
@@ -247,12 +277,13 @@ test-projects-only blockquote.
 | `JsonAssertions.TUnit` | JSON content assertions over `System.Text.Json`: path / value / shape on `JsonDocument`, HTTP-response JSON, and `JsonSerializerContext`-registered types. |
 | `SseAssertions.TUnit` | Server-Sent Events wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation. |
 | `GrpcAssertions.TUnit` | gRPC call outcomes: `RpcException` presence, `StatusCode`, and `Status.Detail`. Transport-level status, not Protobuf message structure. |
+| `TracingAssertions.TUnit` | OpenTelemetry distributed-tracing spans (`System.Diagnostics.Activity`): operation name, tags, status, and parent/child and same-trace relationships. Captured via a raw `ActivityListener`, no OpenTelemetry SDK. |
 
 The policy goal is "high-quality niche per package", not exhaustive
 ecosystem coverage. Domains that fall outside the per-package scope
 statements are out of family scope; they are not folded into an existing
 package. The roster cap is reviewed before each revision and currently
-sits at seven; revisions require a strict-scope-distinct domain (per this
+sits at eight; revisions require a strict-scope-distinct domain (per this
 section) and are not driven by adoption-growth reasoning.
 
 ## Dependency policy
@@ -263,7 +294,7 @@ the asserted domain (the public surface is typed against the dependency's types,
 home-grown substitute would not compile against real consumer values), carries a **permissive,
 MIT-compatible license**, and is **disclosed** in the package README and `SECURITY.md`.
 `GrpcAssertions.TUnit` is the first and only package to take one: the Apache-2.0
-`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other six remain
+`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other seven remain
 BCL-and-TUnit-only.
 
 ## Core+adapter packaging rule
@@ -280,12 +311,13 @@ package's README:
 | `JsonAssertions.TUnit` | single-package (only `JsonAssertions.TUnit`) |
 | `SseAssertions.TUnit` | core (`SseAssertions`) + adapter (`SseAssertions.TUnit`) |
 | `GrpcAssertions.TUnit` | core (`GrpcAssertions`) + adapter (`GrpcAssertions.TUnit`) |
+| `TracingAssertions.TUnit` | core (`TracingAssertions`) + adapter (`TracingAssertions.TUnit`) |
 
 **Core+adapter** ships the framework-agnostic primitives (parsers,
 comparison enums, failure-message factories, deterministic renderers) in
 a sibling `<Package>` core nupkg, and the TUnit-coupled assertion
-methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Six
-of seven packages take this shape because the core primitives have value
+methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Seven
+of eight packages take this shape because the core primitives have value
 outside the TUnit adapter (consumer-level composition, sibling-test
 reuse, framework-agnostic test reuse).
 
