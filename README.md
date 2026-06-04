@@ -145,7 +145,7 @@ csproj (see "Project setup" below).
 
 ```text
 Snapshots/PublicApiTests.SnapshotAssertionsPublicApiHasNotChanged.expected.txt
-Snapshots/HostEndpointsTests.PredictReturnsBadRequest.expected.txt
+Snapshots/HostEndpointsTests.GetForecastReturnsBadRequest.expected.txt
 ```
 
 **Custom name:** pass an explicit name when one test produces multiple snapshots:
