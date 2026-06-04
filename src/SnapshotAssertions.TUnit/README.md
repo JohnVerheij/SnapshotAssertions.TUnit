@@ -127,7 +127,7 @@ public async Task Response_per_route_matches(string route, int statusCode)
 }
 ```
 
-Baselines land at `Snapshots/{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`. The hash is `InvariantCulture`-stable so the same arguments produce the same file across developer machines and CI. [Full details on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook--common-patterns)
+Baselines land at `Snapshots/{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`. The hash is `InvariantCulture`-stable so the same arguments produce the same file across developer machines and CI. [Full details on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
 
 ## Why not Verify
 
@@ -145,6 +145,9 @@ Part of an assertion family for TUnit:
 - [LogAssertions.TUnit](https://github.com/JohnVerheij/LogAssertions.TUnit)
 - [TimeAssertions.TUnit](https://github.com/JohnVerheij/TimeAssertions.TUnit)
 - [MathAssertions.TUnit](https://github.com/JohnVerheij/MathAssertions.TUnit)
+- [JsonAssertions.TUnit](https://github.com/JohnVerheij/JsonAssertions.TUnit)
+- [SseAssertions.TUnit](https://github.com/JohnVerheij/SseAssertions.TUnit)
+- [GrpcAssertions.TUnit](https://github.com/JohnVerheij/GrpcAssertions.TUnit)
 
 ## License
 

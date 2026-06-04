@@ -48,14 +48,28 @@ internal static class SnapshotAssertionImpl
     /// Resolves the expected / actual file paths for a snapshot. Honours an explicit file
     /// path or explicit name; otherwise derives the name from the active TUnit test context.
     /// </summary>
+    /// <remarks>
+    /// When accept-mode is active (<see cref="SnapshotAcceptMode.IsActive()"/>), name- and
+    /// test-context-derived snapshots resolve against the source-tree <c>Snapshots/</c> folder
+    /// rather than the runtime copy under <c>bin/</c>, so that the accepted baseline is written
+    /// where it is committed and read from. An explicit <c>.AtPath(...)</c> already points at a
+    /// caller-chosen file and is never redirected.
+    /// </remarks>
+    /// <param name="explicitPath">An explicit baseline file path (from <c>.AtPath(...)</c>), or
+    /// <see langword="null"/>.</param>
+    /// <param name="explicitName">An explicit snapshot name (from <c>.WithName(...)</c>), or
+    /// <see langword="null"/>.</param>
+    /// <param name="acceptModeOverride">Optional override for accept-mode detection. When
+    /// <see langword="null"/> (the default), the live environment is consulted. Tests pass an
+    /// explicit value to keep their behavior independent of the host environment.</param>
     /// <exception cref="InvalidOperationException">No explicit name or path was supplied and
     /// no active TUnit test context is available.</exception>
-    public static SnapshotPaths ResolvePaths(string? explicitPath, string? explicitName)
+    public static SnapshotPaths ResolvePaths(string? explicitPath, string? explicitName, bool? acceptModeOverride = null)
     {
         if (explicitPath is not null)
             return SnapshotFileResolver.ResolveByFile(explicitPath);
 
-        var directory = SnapshotFileResolver.GetDefaultSnapshotsDirectory(AppContext.BaseDirectory);
+        var directory = ResolveSnapshotsDirectory(acceptModeOverride, AppContext.BaseDirectory);
 
         if (explicitName is not null)
             return SnapshotFileResolver.ResolveByName(directory, explicitName);
@@ -72,5 +86,30 @@ internal static class SnapshotAssertionImpl
         var methodName = details.MethodName;
         var args = details.TestMethodArguments;
         return SnapshotFileResolver.ResolveByTest(directory, className, methodName, args);
+    }
+
+    /// <summary>
+    /// Picks the snapshots directory used for name- and test-context-derived resolution. The
+    /// read path uses the runtime copy under <c>bin/</c> (<see cref="AppContext.BaseDirectory"/>);
+    /// accept-mode instead targets the source-tree <c>Snapshots/</c> folder so the accepted
+    /// baseline lands where it is committed. Falls back to the runtime directory when the
+    /// source tree cannot be located (e.g. a single-file publish).
+    /// </summary>
+    /// <param name="acceptModeOverride">Optional accept-mode override; <see langword="null"/>
+    /// consults the live environment.</param>
+    /// <param name="baseDirectory">The runtime base directory to resolve from, normally
+    /// <see cref="AppContext.BaseDirectory"/>. Injectable so the source-tree fallback can be
+    /// exercised from a directory with no ancestor project file.</param>
+    /// <returns>The absolute snapshots directory to resolve against.</returns>
+    internal static string ResolveSnapshotsDirectory(bool? acceptModeOverride, string baseDirectory)
+    {
+        var runtimeDirectory = SnapshotFileResolver.GetDefaultSnapshotsDirectory(baseDirectory);
+
+        var acceptMode = acceptModeOverride ?? SnapshotAcceptMode.IsActive();
+        if (!acceptMode)
+            return runtimeDirectory;
+
+        return SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(baseDirectory)
+            ?? runtimeDirectory;
     }
 }

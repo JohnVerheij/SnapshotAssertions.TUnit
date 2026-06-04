@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>SnapshotAssertions.TUnit</PackageId>
     <ProductName>SnapshotAssertions.TUnit</ProductName>
-    <Version>0.5.0</Version>
-    <PackageValidationBaselineVersion>0.4.0</PackageValidationBaselineVersion>
+    <Version>0.6.0</Version>
+    <PackageValidationBaselineVersion>0.5.0</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native text-snapshot assertions using [AssertionExtension]. Provides Assert.That(actual).MatchesSnapshot() / .MatchesSnapshotFile() with line-based diff display, accept-via-environment-variable workflow, and CI guard. AOT-compatible, trimmable, no reflection. Designed for API-surface verification and small text snapshots; coexists with Verify for object-graph cases.</Description>

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-04: Source-tree accept resolution and baseline-generation fixes
+
+Minor release. Adds a public source-tree resolution helper used by accept-mode, plus two behavior fixes to the baseline-generation path. Both fixes correct cases where a first-run or accepted baseline ended up in a form the next comparison would not read back as written.
+
+### Added
+
+- **`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(string startDirectory)`** walks up from a runtime directory (typically `AppContext.BaseDirectory`) to the nearest ancestor project directory and returns its `Snapshots/` folder, or `null` when no source tree is present. Accept-mode uses it to write an accepted baseline into the committable source tree rather than the runtime copy under `bin/`. Additive; validated against the `0.5.0` ApiCompat baseline.
+
+### Fixed
+
+- **`SnapshotOptions.WithNormalizer` baseline candidate** is now written in normalized form. Previously, on a first run with no baseline (and on accept-mode), the persisted candidate was the raw, un-normalized subject, so a consumer who accepted it committed un-canonicalized or unscrubbed volatile text that the very next comparison normalized away. The candidate (the `.actual.txt` a consumer renames to accept, and the `.expected.txt` accept-mode overwrites) now carries the same option-driven normalized form the comparison reads back, matching how Verify scrubs before writing its `.received` file.
+- **`SNAPSHOT_ACCEPT=1` accept target** now resolves to the source-tree `Snapshots/` directory rather than the runtime copy under `bin/`. Previously, under `dotnet test --no-build`, accepting wrote the `.expected.txt` next to the runtime location, so it never reached the committable `tests/.../Snapshots/` source folder and CI later reported the baseline as missing. Accept-mode now walks up from `AppContext.BaseDirectory` to the nearest ancestor project directory (the folder the build's include glob is relative to) and writes there, so accepting lands the baseline where it is committed and read from. The new `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(string)` helper performs this resolution and falls back to the runtime directory when no source tree is present. The read path is unchanged; only the accept write target moves.
+
 ## [0.5.0] - 2026-06-03: SnapshotOptions.WithNormalizer
 
 Feature release. Adds `SnapshotOptions.WithNormalizer(Func<string, string>)`, a caller-supplied transform applied to both the actual content and the expected baseline before any built-in normalization. It generalizes the built-in line-ending normalizer into an arbitrary pre-comparison transform: canonicalize JSON or XML, sort nondeterministic collections, mask volatile fields, or reformat numbers before the snapshot compares. Composing two of these (a canonicalizer in a sibling package plus this normalizer here) is how the family does JSON snapshots without either package depending on the other. Also folds in the accumulated CI hardening, the Renovate migration, and the CONVENTIONS v0.7 sync from the unreleased line.
@@ -254,7 +267,8 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.6.0
 [0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.5.0
 [0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
