@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-05: document source-tree accept under --no-build
+
+Documentation patch. No code, public API, or behaviour change; the `0.6.0` ApiCompat baseline surface is unchanged.
+
+### Changed
+
+- README accept-changes workflow corrected for the `0.6.0` behavior: `SNAPSHOT_ACCEPT=1` writes the new baseline directly into the **source** `Snapshots/` folder (resolved via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`, where the build does not copy snapshot files back to source. The prior text still described the pre-`0.6.0` "manually move the bin-directory files into source" step; it now documents the source-tree write with the bin-directory write called out only as the fallback when the source path cannot be resolved. The packed package README gains the same note.
+- Bumped `PackageValidationBaselineVersion` from `0.5.0` to `0.6.0` on both packages so ApiCompat strict-mode validates `0.6.1` against the most recently published baseline. Documentation-only; no `CompatibilitySuppressions.xml` change.
+
 ## [0.6.0] - 2026-06-04: Source-tree accept resolution and baseline-generation fixes
 
 Minor release. Adds a public source-tree resolution helper used by accept-mode, plus two behavior fixes to the baseline-generation path. Both fixes correct cases where a first-run or accepted baseline ended up in a form the next comparison would not read back as written.

@@ -545,10 +545,15 @@ Three modes, in order of preference:
    a stray pipeline configuration to silently accept baseline drift. See
    `SnapshotAcceptMode.IsActive` for the exact rule.
 
-After step 1 or 2, you copy the change from your test binary's directory back into the
-source `Snapshots/` folder; the next clean build picks up the new committed baseline. With
-step 3 (bulk accept), the same applies: manually move the bin-directory `.expected.txt`
-files into source.
+As of v0.6.0, step 3 (`SNAPSHOT_ACCEPT=1`) writes the new baseline directly into the **source**
+`Snapshots/` folder, not just the test binary's output directory. The source path is resolved
+from the compiled-in source location (via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`),
+so the committed baseline is updated in place even under `dotnet test --no-build`, where the build
+does not copy snapshot files back to source. If the source directory cannot be resolved (for
+example a baseline built without source information), accept-mode falls back to writing the test
+binary's directory and you move those files into source manually. For steps 1 and 2 you copy the
+`.actual.txt` over the `.expected.txt` in the source `Snapshots/` folder yourself; the next clean
+build picks up the new committed baseline.
 
 ## Cookbook: common patterns
 
