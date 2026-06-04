@@ -160,6 +160,29 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(written).IsEqualTo("id=<scrubbed>\n");
     }
 
+    /// <summary>Mismatch (non-accept): the written .actual candidate is the normalized form, not
+    /// the raw subject, so a consumer who renames it to accept commits canonical content. Pins the
+    /// mismatch-branch write content, not just that a .actual file appears.</summary>
+    [Test]
+    public async Task MismatchedContent_WritesNormalizedActualCandidate(CancellationToken cancellationToken)
+    {
+        // The baseline differs from the normalized actual, so the comparison mismatches and the
+        // non-accept branch writes the .actual candidate.
+        var (paths, _) = await CreateScenarioAsync(
+            actualContent: "value=VOLATILE\n", expectedContent: "value=STABLE-OTHER\n", cancellationToken).ConfigureAwait(false);
+
+        var options = SnapshotOptions.Default.WithNormalizer(
+            text => text.Replace("VOLATILE", "STABLE", StringComparison.Ordinal));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("value=VOLATILE\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+        var candidate = await File.ReadAllTextAsync(paths.ActualFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(candidate).IsEqualTo("value=STABLE\n");
+        await Assert.That(candidate).DoesNotContain("VOLATILE");
+    }
+
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(
         string actualContent,
         string expectedContent,
