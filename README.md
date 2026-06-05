@@ -986,7 +986,7 @@ Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
 | Verify.TUnit | SnapshotAssertions.TUnit |
 | --- | --- |
 | `await Verifier.Verify(actual)` | `await Assert.That(actual).MatchesSnapshot()` |
-| `Verifier.UseDirectory("Snapshots")` | Default - `SnapshotAssertions.TUnit` writes to `Snapshots/` next to the test class automatically; no setup needed. Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
+| `Verifier.UseDirectory("Snapshots")` | Default - `SnapshotAssertions.TUnit` writes to `Snapshots/` beside the test binary output (`AppContext.BaseDirectory`) automatically; no setup needed (accept-mode resolves back to the source tree). Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
 | `Verifier.AddScrubber(s => ...)` | `await Assert.That(actual).MatchesSnapshot().WithScrubber(Scrubbers.Pattern(regex, "TOKEN"))` |
 | Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused if `CI` is set) |
 
@@ -1027,7 +1027,7 @@ Pattern (1) is cleaner when several tests need the same omission; pattern (2) is
 Key differences beyond the call-site mapping:
 
 - Composition first. Scrubbers and renderers compose via `Scrubbers.Combine` and `.WithScrubber(...)` chains rather than registry mutation. No global state.
-- Baselines live next to the test class by default; no `UseDirectory` setup unless you want to override.
+- Baselines live beside the test binary output (`AppContext.BaseDirectory`) by default; no `UseDirectory` setup unless you want to override.
 - AOT-clean by design. There is no reflection-based default renderer. Custom types require an explicit `SnapshotRenderer<T>` or a `Renderer.For<T>(Func<T, string>)` inline factory.
 
 For Verify features not listed here, open a [Discussion](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/discussions) with a concrete use case and either a mapping will be added or the gap will be documented.
