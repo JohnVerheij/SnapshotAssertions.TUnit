@@ -51,7 +51,6 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 - [Comparison with Verify](#comparison-with-verify)
   - [Migrating from Verify.TUnit](#migrating-from-verifytunit)
 - [Troubleshooting](#troubleshooting)
-- [Modern .NET 10+ practices on display](#modern-net-10-practices-on-display)
 - [Design notes](#design-notes)
 - [Stability intent (pre-1.0)](#stability-intent-pre-10)
 - [Limitations and future work](#limitations-and-future-work)
@@ -64,12 +63,12 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 
 ## Why this package
 
-For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` → committed `.expected.txt`), the existing options are:
+For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` -> committed `.expected.txt`), the existing options are:
 
 - **Verify (`Verify.TUnit`)**: feature-rich, but its `Verify.props` forces `<Deterministic>false</Deterministic>` (Verify needs absolute PDB paths to find `.verified.txt` files). On Linux runners that interaction breaks `Microsoft.CodeCoverage`'s instrumentation pipeline and produces an empty 178-byte cobertura skeleton, which Codecov rejects as "Unusable". The interaction is documented at [TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149).
 - **Hand-rolled file compare**: `PublicApiGenerator` + `File.ReadAllText` + `string.Equals`. Works, but every project re-invents the same 30-50 lines of accept-flow / file-naming / diff-display scaffolding.
 
-`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string → file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing and IDE-integrated diff display remain explicitly out of scope; use Verify when you need those. Built-in scrubbing of dynamic content (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex patterns) ships in v0.2.0+: see [Scrubbers](#scrubbers-volatile-value-handling).
+`SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string -> file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing and IDE-integrated diff display remain explicitly out of scope; use Verify when you need those. Built-in scrubbing of dynamic content (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex patterns) ships in v0.2.0+: see [Scrubbers](#scrubbers-volatile-value-handling).
 
 ## Install
 
@@ -145,7 +144,7 @@ csproj (see "Project setup" below).
 
 ```text
 Snapshots/PublicApiTests.SnapshotAssertionsPublicApiHasNotChanged.expected.txt
-Snapshots/HostEndpointsTests.PredictReturnsBadRequest.expected.txt
+Snapshots/HostEndpointsTests.GetForecastReturnsBadRequest.expected.txt
 ```
 
 **Custom name:** pass an explicit name when one test produces multiple snapshots:
@@ -346,7 +345,7 @@ await Assert.That(input)
 
 ### The `Scrubbers.Default` preset
 
-For the common case, `Scrubbers.Default` chains all three built-ins in deterministic order (`Guid` → `Iso8601Timestamp` → `UnixEpochMillis`):
+For the common case, `Scrubbers.Default` chains all three built-ins in deterministic order (`Guid` -> `Iso8601Timestamp` -> `UnixEpochMillis`):
 
 ```csharp
 await Assert.That(jsonResponse)
@@ -545,10 +544,15 @@ Three modes, in order of preference:
    a stray pipeline configuration to silently accept baseline drift. See
    `SnapshotAcceptMode.IsActive` for the exact rule.
 
-After step 1 or 2, you copy the change from your test binary's directory back into the
-source `Snapshots/` folder; the next clean build picks up the new committed baseline. With
-step 3 (bulk accept), the same applies: manually move the bin-directory `.expected.txt`
-files into source.
+As of v0.6.0, step 3 (`SNAPSHOT_ACCEPT=1`) writes the new baseline directly into the **source**
+`Snapshots/` folder, not just the test binary's output directory. The source path is resolved
+from the compiled-in source location (via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`),
+so the committed baseline is updated in place even under `dotnet test --no-build`, where the build
+does not copy snapshot files back to source. If the source directory cannot be resolved (for
+example a baseline built without source information), accept-mode falls back to writing the test
+binary's directory and you move those files into source manually. For steps 1 and 2 you copy the
+`.actual.txt` over the `.expected.txt` in the source `Snapshots/` folder yourself; the next clean
+build picks up the new committed baseline.
 
 ## Cookbook: common patterns
 
@@ -919,7 +923,7 @@ internal sealed class NumericTokenScrubber : SnapshotScrubber
 }
 ```
 
-Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalisation; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
+Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalization; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
 
 Common subclass mechanics across all four examples: use `state.GetOrAssignIndex(kind, value)` for indexed-token state; apply `RegexOptions.NonBacktracking | RegexOptions.CultureInvariant`; word-boundary anchor with `\b` since lookarounds are not available in `NonBacktracking`; produce token strings as `<kind:N>`. To share an index space with a built-in scrubber (e.g. give your custom variant the same `"guid"` kind name as `Scrubbers.Guid`), reuse the kind name verbatim.
 
@@ -958,8 +962,8 @@ The recipe is format-agnostic: the only per-format work is the decode step (`Par
 
 | Capability | `SnapshotAssertions.TUnit` | Verify |
 |---|---|---|
-| Text snapshot (string → file) | ✅ | ✅ |
-| Object-graph snapshot (any object → file) | ❌ | ✅ |
+| Text snapshot (string -> file) | ✅ | ✅ |
+| Object-graph snapshot (any object -> file) | ❌ | ✅ |
 | Automatic scrubbing of dynamic content (Guids, dates, IPs) | ⚠️ partial: opt-in via `WithScrubber()` for GUIDs / ISO 8601 / Unix-epoch-millis / custom regex; no IPs or auto-detection | ✅ |
 | IDE-integrated diff display | ❌ (relies on file paths in failure message) | ✅ |
 | `Microsoft.CodeCoverage` Linux compatibility | ✅ | ❌ ([TUnit#4149](https://github.com/thomhurst/TUnit/discussions/4149)) |
@@ -982,7 +986,7 @@ Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
 | Verify.TUnit | SnapshotAssertions.TUnit |
 | --- | --- |
 | `await Verifier.Verify(actual)` | `await Assert.That(actual).MatchesSnapshot()` |
-| `Verifier.UseDirectory("Snapshots")` | Default — `SnapshotAssertions.TUnit` writes to `Snapshots/` next to the test class automatically; no setup needed. Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
+| `Verifier.UseDirectory("Snapshots")` | Default - `SnapshotAssertions.TUnit` writes to `Snapshots/` beside the test binary output (`AppContext.BaseDirectory`) automatically; no setup needed (accept-mode resolves back to the source tree). Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
 | `Verifier.AddScrubber(s => ...)` | `await Assert.That(actual).MatchesSnapshot().WithScrubber(Scrubbers.Pattern(regex, "TOKEN"))` |
 | Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused if `CI` is set) |
 
@@ -1023,7 +1027,7 @@ Pattern (1) is cleaner when several tests need the same omission; pattern (2) is
 Key differences beyond the call-site mapping:
 
 - Composition first. Scrubbers and renderers compose via `Scrubbers.Combine` and `.WithScrubber(...)` chains rather than registry mutation. No global state.
-- Baselines live next to the test class by default; no `UseDirectory` setup unless you want to override.
+- Baselines live beside the test binary output (`AppContext.BaseDirectory`) by default; no `UseDirectory` setup unless you want to override.
 - AOT-clean by design. There is no reflection-based default renderer. Custom types require an explicit `SnapshotRenderer<T>` or a `Renderer.For<T>(Func<T, string>)` inline factory.
 
 For Verify features not listed here, open a [Discussion](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/discussions) with a concrete use case and either a mapping will be added or the gap will be documented.
@@ -1091,74 +1095,13 @@ This shouldn't happen: accept-mode is refused if `CI` is set, regardless of
   with explicit values is the deterministic test surface; the no-arg overload reads the live
   environment.
 
-## Modern .NET 10+ practices on display
-
-Each row points at a fact verifiable from the source code or build output.
-
-| Practice | Where in this package |
-|---|---|
-| **AOT-compatible** | `IsAotCompatible=true` in both csprojs. AOT analyzers run during `dotnet build`. No `[RequiresUnreferencedCode]` or `[RequiresDynamicCode]` annotations. |
-| **Trimmable** | `IsTrimmable=true`. Tiny public surface; nothing to annotate. |
-| **AOT-publish CI gate** | `dotnet publish -r linux-x64 --aot` against the smoke-test consumer in `ci.yml`. Strongest possible AOT guarantee: not just "AOT-compatible by analyzer," but "actually publishes to native code without warnings." |
-| **No reflection in the assertion path** | The assertion only does file I/O, string comparison, and rendering. No `MethodBase.Invoke`, no `Activator.CreateInstance(Type)`, no runtime type discovery. |
-| **CancellationToken throughout** | Every async public API accepts `CancellationToken ct = default`. |
-| **Async file I/O end-to-end** | `File.ReadAllTextAsync`, `File.WriteAllTextAsync`. No sync-over-async. |
-| **C# 14 / `LangVersion=14.0`** | File-scoped namespaces, record types, primary constructors, required members, nullable reference types enforced. |
-| **Deterministic builds + Source Link + SBOM + reproducible restore** | `Deterministic=true`, embedded Source Link, `Microsoft.Sbom.Targets` SBOM generation, lock files + `--locked-mode` restore on CI. |
-| **Trusted Publishing (OIDC) for NuGet** | No long-lived API keys in CI secrets. |
-| **5 Roslyn analyzer packs at full strength** | Meziantou.Analyzer, SonarAnalyzer.CSharp, Roslynator.Analyzers, Microsoft.VisualStudio.Threading.Analyzers, DotNetProjectFile.Analyzers. `TreatWarningsAsErrors=true`. No suppressions without per-call justification comment. |
-| **`StringComparison.Ordinal` everywhere** | Per Meziantou MA0006. No silent culture defaults. |
-| **External-consumer smoke test in CI** | Packed `.nupkg`, deliberately-different namespace, exercises every public entry point, AOT-publishes. |
-| **Coverage gates: 90% line / 80% branch** | Hard CI gate; build fails if either drops below threshold. |
-
 ## Design notes
 
-### `MatchesSnapshot()` is post-mortem, not interactive
-
-The assertion compares the actual content against the committed baseline at evaluation time
-and either passes or throws. It does not prompt, open a diff window, or wait for input.
-Interactive flows (IDE diff-and-merge view) are provided by the IDE based on the side-by-side
-`.expected.txt` / `.actual.txt` files the assertion writes; the assertion itself stays
-machine-evaluable so the same code path runs identically locally and in CI.
-
-### Accept-mode lives in `SnapshotEvaluator`, not in the assertion
-
-The decision "should I overwrite the baseline?" is made inside the evaluator after the
-comparer reports a mismatch. This keeps the TUnit adapter thin and the accept-mode logic
-independently testable: `SnapshotAcceptMode.IsActive(string?, string?)` is pure (no env var
-reads), so its full truth table is verified by 7 unit tests.
-
-### `CI=true` guard is intentionally unconditional
-
-`SnapshotAcceptMode.IsActive` returns `false` whenever `CI` is truthy, regardless of
-`SNAPSHOT_ACCEPT`. There's no way to override the guard from inside the package (no
-"force" flag, no per-test attribute). This is deliberate: the failure mode of an accidental
-override is silent baseline drift in committed history, which is exactly what the snapshot
-test is meant to prevent.
-
-### Default-name resolution uses simple class name, not full namespace
-
-`{TestClassName}.{TestMethodName}` rather than `{Namespace}.{TestClassName}.{TestMethodName}`.
-The simpler form keeps file names short and avoids cross-platform path-length surprises.
-If two test classes share a name across namespaces, pass an explicit name to disambiguate.
-
-### Why no `[CallerFilePath]`-based source-relative paths
-
-Some snapshot libraries use `[CallerFilePath]` to derive paths relative to the test source
-file rather than the binary directory. `SnapshotAssertions.TUnit` doesn't, because:
-
-- `[CallerFilePath]` doesn't propagate cleanly through TUnit's source-generated assertion entry methods: the values would all point at the generated extension, not the user's call site.
-- The binary-directory convention is well-trodden (Verify uses it for `Snapshots/`-folder layouts under `<None Include CopyToOutputDirectory>`) and integrates cleanly with `<None Include>` csproj wiring.
-
-The trade-off is that consumers must wire `<None Include>` in their csproj. The README
-documents this prominently.
-
-### Strict defaults
-
-`SnapshotOptions.Default` preserves everything: line endings, BOM, trailing whitespace,
-trailing newline. Cross-platform false positives are real but should be opted into via
-`SnapshotOptions.NormalizedLineEndings` rather than silently normalized away. Same convention
-as the family-wide explicit-`StringComparison` rule.
+- **`MatchesSnapshot()` is post-mortem, not interactive.** It compares actual against the committed baseline and passes or throws; it never prompts or opens a diff window. The IDE provides the interactive diff from the `.expected.txt` / `.actual.txt` files the assertion writes, so the same code path runs identically locally and in CI.
+- **The `CI=true` guard is unconditional.** Accept-mode is disabled whenever `CI` is truthy, regardless of `SNAPSHOT_ACCEPT`, with no in-package override. An accidental override would mean silent baseline drift in committed history, which is exactly what the test prevents.
+- **Default names use the simple class name** (`{TestClassName}.{TestMethodName}`), not the full namespace, to keep file names short and avoid path-length surprises. Pass an explicit name to disambiguate two same-named test classes.
+- **No `[CallerFilePath]`-based paths.** It doesn't propagate through TUnit's generated assertion methods (the values point at the generated extension, not your call site), so paths resolve from the binary directory. The trade-off is the `<None Include>` csproj wiring documented above.
+- **Strict defaults.** `SnapshotOptions.Default` preserves line endings, BOM, and trailing whitespace/newline; cross-platform normalization is opt-in via `SnapshotOptions.NormalizedLineEndings`, never silent.
 
 ## Stability intent (pre-1.0)
 
@@ -1181,15 +1124,6 @@ The 0.x series may include breaking changes on minor-version bumps. Concretely:
 
 ## Limitations and future work
 
-### Resolved
-
-- ✅ **0.1.1 housekeeping**: folded into 0.2.0 (dependency refresh, `PackageValidationBaselineVersion=0.1.0`, CONVENTIONS.md v0.2). Shipped in v0.2.0.
-- ✅ **Pattern-based scrubbing**: originally targeted for 0.3.0 under `MatchesSnapshotScrubbed(IScrubber)`. Pulled forward to 0.2.0 with a different shape: `.WithScrubber(SnapshotScrubber)` chain method, `Scrubbers` static factory, and indexed-token format for stable recurring-value handling. See [Scrubbers (volatile value handling)](#scrubbers-volatile-value-handling).
-- ✅ **Reusable scrubber bundles**: `Scrubbers.Combine(params SnapshotScrubber[])` factory shipped in v0.3.0. Lets a project assemble `Scrubbers.Default + custom-patterns` once as a `static readonly` field and pass that single value to `.WithScrubber(...)` on every assertion rather than re-chaining the same bundle per test.
-- ✅ **Snapshot.Render namespace reservation**: `SnapshotAssertions.Render` reserved in v0.3.0 as the family convention for sibling-package text renderers (consumed via `using SnapshotAssertions.Render;`). No public surface ships under it from this package today; the namespace exists to keep sibling renderer entry points discoverable through a single `using` directive.
-- ✅ **Parameterized-test baselines**: `MatchesSnapshot()` already routes `[Arguments]`-row values through `SnapshotFileResolver` and produces per-row baseline files (`{TestClass}.{TestMethod}.{ArgsHash8}.expected.txt`). The v0.3.0 cookbook documents the file-name convention, the `InvariantCulture`-stable hash contract, and the edge cases (same stringified bytes collide; argument-order change requires baseline rename).
-- ✅ **Framework-agnostic core test project**: shipped in v0.4.0. A dedicated test project for the `SnapshotAssertions` core (no TUnit-adapter reference; TUnit is the runner only) enforces the BCL-only public-API contract end-to-end at build time. If a regression leaks a TUnit type into the core's public surface, the compile breaks there before the adapter project hides it via its own TUnit reference. Internal architectural work; no public-surface impact.
-
 ### Confirmed roadmap
 
 - **Demand-driven**: JSON-aware snapshot comparison (`MatchesJsonSnapshot()`) with property-order / array-order / ignored-properties options. Originally targeted for 0.3.0; deferred to keep the `JsonSnapshotOptions` shape from being designed against a speculative spec. The bundled `Scrubbers` plus sorted-key serialization handles the typical JSON-snapshot case today. Open a GitHub issue with a concrete example if the current path falls short.
@@ -1204,7 +1138,7 @@ Out of scope (intentionally: use Verify instead):
 
 ## Family compatibility
 
-The seven assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The eight assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and `TracingAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)
@@ -1214,6 +1148,7 @@ For per-package release notes:
 - [JsonAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/JsonAssertions.TUnit/blob/main/CHANGELOG.md)
 - [SseAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/SseAssertions.TUnit/blob/main/CHANGELOG.md)
 - [GrpcAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/GrpcAssertions.TUnit/blob/main/CHANGELOG.md)
+- [TracingAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/TracingAssertions.TUnit/blob/main/CHANGELOG.md)
 
 ## Pair with
 
@@ -1238,6 +1173,7 @@ For per-package release notes:
 - **[`GrpcAssertions.TUnit`](https://www.nuget.org/packages/GrpcAssertions.TUnit/)**: fluent
   gRPC outcome assertions (`ThrowsGrpcException` with `StatusCode` shorthands and detail
   refinements) plus the `GrpcCallBuilder` test-double helper.
+- **[`TracingAssertions.TUnit`](https://www.nuget.org/packages/TracingAssertions.TUnit/)**: fluent OpenTelemetry distributed-tracing (`Activity` / span) assertions: operation name, tags, status, and parent/child and same-trace relationships, captured via a raw `ActivityListener` with no OpenTelemetry SDK dependency.
 
 ## Contributing
 

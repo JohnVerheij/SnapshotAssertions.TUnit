@@ -1,65 +1,9 @@
 # Code conventions
 
-Rules for how code is written across the assertion family (`LogAssertions.TUnit`,
+Rules for how code is written across the eight assertion-family packages (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
-`JsonAssertions.TUnit`, `SseAssertions.TUnit`, and `GrpcAssertions.TUnit`). The same file is copied identically
-into each repo.
-
-**Document version:** v0.8 (2026-06-02). Changes from v0.7:
-
-- **Family roster expanded to seven packages.** `GrpcAssertions.TUnit` joins as the
-  seventh member, asserting on gRPC call outcomes (`RpcException` presence, `StatusCode`,
-  and `Status.Detail`) as a strict-scope-distinct transport domain from `JsonAssertions.TUnit`
-  and `SseAssertions.TUnit`. The cap revision 6 → 7 was justified by strict-scope analysis on
-  a known-distinct domain (per the per-package scope policy below), not by adoption-growth
-  reasoning.
-- **Dependency policy added.** `GrpcAssertions.TUnit` is the first family package to carry a
-  disclosed external runtime dependency, the permissive Apache-2.0 `Grpc.Core.Api`, intrinsic
-  because the assertions are typed against the consumer's real `RpcException` / `StatusCode` /
-  `Status`. The new "Dependency policy" section below states the bar for any such dependency.
-
-**Document version:** v0.7 (2026-05-17). Changes from v0.6:
-
-- **Family roster expanded to six packages.** `SseAssertions.TUnit` joins as the sixth
-  member, handling Server-Sent Events (SSE) as a strict-scope-distinct domain from
-  `JsonAssertions.TUnit`. The cap revision 5 → 6 was justified by strict-scope analysis on
-  a known-distinct domain (per the per-package scope policy below), not by adoption-growth
-  reasoning. The cap is reviewed before each revision; the goal is "high-quality niche",
-  not exhaustive ecosystem coverage.
-- **Per-package strict-scope policy formalised.** Each package has an explicit scope
-  statement that bounds what domain it asserts on; the policy keeps the family decoupled
-  by domain and prevents scope creep between packages. See the new "Per-package strict-scope
-  policy" section below.
-- **Core+adapter packaging rule clarified.** Each family package chooses single-package or
-  core+adapter at v0.0.1; the choice is per-package and is documented in each package's
-  README. See the new "Core+adapter packaging rule" section below.
-
-**Document version:** v0.6 (2026-05-16). Changes from v0.5: added the **Cross-package
-references rule** and the **Naming invariant** as family-wide architectural invariants.
-Both are pack-time-enforced via NuGet dependency list scan + PublicAPI prefix scan;
-`JsonAssertions.TUnit` v0.3.0 is the first package to ship the enforcement infrastructure;
-the 4 sibling repos adopt the same `CONVENTIONS.md` v0.6 immediately after v0.3.0 merges.
-
-**Document version:** v0.5 (2026-05-15). Changes from v0.4: added the **CHANGELOG conventions**
-section (Keep a Changelog 1.1.0 standard headers, user-facing-only content, header order,
-stylistic rules) and the **`PackageReleaseNotes` auto-extract** convention that ties the
-per-version CHANGELOG section to nuget.org's Release Notes tab via a shared
-`Directory.Build.targets` build extension.
-
-**Document version:** v0.4 (2026-05-14). Changes from v0.3: added `JsonAssertions.TUnit` to
-the family roster (the fifth package; JSON path / value / shape assertions over
-`System.Text.Json`).
-
-**Document version:** v0.3 (2026-05-12). Changes from v0.2: added the `SnapshotAssertions.Render`
-namespace reservation for sibling-package text renderers so consumers discover renderer
-entry points via a single `using SnapshotAssertions.Render;`.
-
-**Document version:** v0.2 (2026-05-07). Changes from v0.1: codified the family rule against
-promoting Verify; added polling-loop default-schedule agreement; added `ToSnapshotString()`
-format-version header rule; added test-projects-only scope blockquote as a binding
-cross-repo convention; codified TFM policy (LTS-anchored; multi-target during STS support
-windows); expanded the `CancellationToken` plumbing rule with provider-driven polling-sleep
-semantics.
+`JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and
+`TracingAssertions.TUnit`). The same file is copied into each repo.
 
 ## Naming patterns
 
@@ -84,15 +28,22 @@ enforces this via MA0006 / MA0001.
 ## Async pattern + `CancellationToken` plumbing
 
 Every assertion chain is `await`-able end-to-end. No `.Result`, no `.GetAwaiter().GetResult()`,
-no sync-over-async. Every async public API accepts `CancellationToken ct = default` (additive
-overload where the existing API didn't); defaulting to `default` keeps existing call-sites
-unaffected.
+no sync-over-async. Every async public API accepts `CancellationToken cancellationToken = default`
+as its **last** parameter (additive overload where the existing API didn't); defaulting to `default`
+keeps existing call-sites unaffected. The parameter is always named `cancellationToken` (never `ct`).
+Only the `CancellationToken` may carry a default in a given overload: any other optional parameter is
+expressed as a separate, shorter overload (each token-last), never as a second default that overlaps a
+shorter overload, so a positional `(..., cancellationToken)` call binds with no named argument and no
+CS0121 ambiguity. **Generator limit:** where TUnit's source generator would emit two
+`(receiver, CancellationToken)` overloads on different receiver types (a CS0111 duplicate, since C#
+ignores generic constraints when comparing signatures), the overload-pair is not applied - the
+leading-optional-then-token shape stays and a named `cancellationToken:` argument is accepted there.
 
 For polling, looping, or internal-timeout APIs, the additional rules are:
 
-- Call `ct.ThrowIfCancellationRequested()` at the top of every poll iteration. Don't wait
+- Call `cancellationToken.ThrowIfCancellationRequested()` at the top of every poll iteration. Don't wait
   for the next sleep to surface cancellation.
-- For sleep / delay between iterations, use `Task.Delay(interval, ct)` for cancellation
+- For sleep / delay between iterations, use `Task.Delay(interval, cancellationToken)` for cancellation
   cleanup. When a `TimeProvider?` is supplied non-null on the API, see the polling-loop
   default-schedule section below for the provider-driven variant.
 - For internal-timeout APIs (e.g. `WithinHardTimeBudget(TimeSpan)`), create the internal
@@ -116,7 +67,7 @@ package's timing-related API accepts `TimeProvider` independently; no shared dep
 `LogAssertions.WithinTimeout` and `TimeAssertions.Eventually` (and any future polling
 terminator across the family) follow an explicit, fully-pinned schedule. Each package
 implements independently (the family rule forbids cross-package code reference); the
-convention pins the schedule so consumers see uniform behaviour without literal code
+convention pins the schedule so consumers see uniform behavior without literal code
 sharing.
 
 **Schedule.** Exponential schedule: 100ms, 200ms, 400ms, 800ms, then 1000ms cap. Escalates
@@ -124,12 +75,12 @@ one step per failed poll. Resets to 100ms on a true poll. Both axes pinned (mult
 trigger) so two independent implementations cannot drift in cadence.
 
 **Provider-driven polling sleep.** When the supplied `TimeProvider?` parameter is non-null,
-the polling sleep MUST use `Task.Delay(interval, timeProvider, ct)` (the static `Task.Delay`
+the polling sleep MUST use `Task.Delay(interval, timeProvider, cancellationToken)` (the static `Task.Delay`
 overload accepting a `TimeProvider`, available .NET 8+) rather than `Task.Delay(interval,
-ct)`. This is required for `FakeTimeProvider` to drive the polling loop deterministically: a
+cancellationToken)`. This is required for `FakeTimeProvider` to drive the polling loop deterministically: a
 wall-clock `Task.Delay` ignores `Advance(...)` and the loop never re-evaluates the predicate
 when the consumer expected fake-time progression to do so. When `TimeProvider?` is null,
-falls back to `Task.Delay(interval, ct)`. If `Task.Delay(TimeSpan, TimeProvider,
+falls back to `Task.Delay(interval, cancellationToken)`. If `Task.Delay(TimeSpan, TimeProvider,
 CancellationToken)` doesn't satisfy the polling shape for some future requirement, fall back
 to a timer-built wait via `timeProvider.CreateTimer(...)` plus a `TaskCompletionSource`. Same
 rule applies to `EveryWindow`, `WithinHardTimeBudget`, and any future polling/timer-driven
@@ -184,9 +135,9 @@ end-to-end. Concretely:
 |---|---|
 | `src/<Family>.csproj` (core production) | NO |
 | `src/<Family>.TUnit.csproj` (adapter production) | NO |
-| `tests/<Family>.Tests/` (framework-agnostic core tests) | YES — sibling CORE packages only; sibling adapters NOT allowed (would defeat the framework-agnostic positioning) |
-| `tests/<Family>.TUnit.Tests/` (adapter tests) | YES — any sibling package (core or adapter) |
-| `tests/<Family>.AotConsumer/` (AOT smoke test) | YES — any sibling package |
+| `tests/<Family>.Tests/` (framework-agnostic core tests) | YES - sibling CORE packages only; sibling adapters NOT allowed (would defeat the framework-agnostic positioning) |
+| `tests/<Family>.TUnit.Tests/` (adapter tests) | YES - any sibling package (core or adapter) |
+| `tests/<Family>.AotConsumer/` (AOT smoke test) | YES - any sibling package |
 
 Pack-time CI validation enforces the production-side rule: the NuGet package's
 dependency list (verified at pack time + on nuget.org) must NOT contain any
@@ -204,10 +155,11 @@ No sibling-package-name prefix may appear in another sibling's public API.
 - `Json...` typenames and member names belong to `JsonAssertions` only
 - `Sse...` typenames and member names belong to `SseAssertions` only
 - `Grpc...` typenames and member names belong to `GrpcAssertions` only
+- `Tracing...` typenames and member names belong to `TracingAssertions` only
 
 Applies to typenames AND method names AND extension method names in the
-package's PublicAPI surface. The family's verb-naming convention is what's
-being protected — extension methods are still public API and follow the
+package's public API surface. The family's verb-naming convention is what's
+being protected - extension methods are still public API and follow the
 same rule.
 
 Bounded exceptions (strict whitelist):
@@ -217,16 +169,15 @@ Bounded exceptions (strict whitelist):
   its leading prefix is `Json*` AND it's BCL-shipped, not family-branded)
 - Internal types within a package may use any name if not exposed publicly
 - Additional exceptions require explicit `CONVENTIONS.md` entry with
-  justification. Initial v0.6 whitelist: empty. Each future exception is
-  considered case-by-case and added explicitly.
+  justification. The whitelist is currently empty; each exception is considered case-by-case and added explicitly.
 
 Composition between packages happens via standard BCL types and delegates
 (`Func<T, string>`, `IDisposable`, etc.), never via sibling-branded types
 appearing in another package's surface.
 
-Pack-time CI validation enforces this: the package's PublicAPI snapshot
-must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`,
-or `Grpc*` as a leading prefix on typenames, method names, or extension
+Pack-time CI validation enforces this: the package's public API snapshot
+must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`, `Grpc*`,
+or `Tracing*` as a leading prefix on typenames, method names, or extension
 method names exposed publicly (with the strict whitelist above).
 
 ## Per-package strict-scope policy
@@ -247,12 +198,13 @@ test-projects-only blockquote.
 | `JsonAssertions.TUnit` | JSON content assertions over `System.Text.Json`: path / value / shape on `JsonDocument`, HTTP-response JSON, and `JsonSerializerContext`-registered types. |
 | `SseAssertions.TUnit` | Server-Sent Events wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation. |
 | `GrpcAssertions.TUnit` | gRPC call outcomes: `RpcException` presence, `StatusCode`, and `Status.Detail`. Transport-level status, not Protobuf message structure. |
+| `TracingAssertions.TUnit` | OpenTelemetry distributed-tracing spans (`System.Diagnostics.Activity`): operation name, tags, status, and parent/child and same-trace relationships. Captured via a raw `ActivityListener`, no OpenTelemetry SDK. |
 
 The policy goal is "high-quality niche per package", not exhaustive
 ecosystem coverage. Domains that fall outside the per-package scope
 statements are out of family scope; they are not folded into an existing
 package. The roster cap is reviewed before each revision and currently
-sits at seven; revisions require a strict-scope-distinct domain (per this
+sits at eight; revisions require a strict-scope-distinct domain (per this
 section) and are not driven by adoption-growth reasoning.
 
 ## Dependency policy
@@ -263,7 +215,7 @@ the asserted domain (the public surface is typed against the dependency's types,
 home-grown substitute would not compile against real consumer values), carries a **permissive,
 MIT-compatible license**, and is **disclosed** in the package README and `SECURITY.md`.
 `GrpcAssertions.TUnit` is the first and only package to take one: the Apache-2.0
-`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other six remain
+`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other seven remain
 BCL-and-TUnit-only.
 
 ## Core+adapter packaging rule
@@ -280,20 +232,18 @@ package's README:
 | `JsonAssertions.TUnit` | single-package (only `JsonAssertions.TUnit`) |
 | `SseAssertions.TUnit` | core (`SseAssertions`) + adapter (`SseAssertions.TUnit`) |
 | `GrpcAssertions.TUnit` | core (`GrpcAssertions`) + adapter (`GrpcAssertions.TUnit`) |
+| `TracingAssertions.TUnit` | core (`TracingAssertions`) + adapter (`TracingAssertions.TUnit`) |
 
 **Core+adapter** ships the framework-agnostic primitives (parsers,
 comparison enums, failure-message factories, deterministic renderers) in
 a sibling `<Package>` core nupkg, and the TUnit-coupled assertion
-methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Six
-of seven packages take this shape because the core primitives have value
+methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Seven
+of eight packages take this shape because the core primitives have value
 outside the TUnit adapter (consumer-level composition, sibling-test
 reuse, framework-agnostic test reuse).
 
 **Single-package** ships only `<Package>.TUnit` with no separate core.
-`JsonAssertions.TUnit` is the sole single-package member: the
-JSON-comparison primitives are thin enough that splitting would produce
-a near-empty core, and `System.Text.Json` already provides the
-deterministic primitives.
+`JsonAssertions.TUnit` is the sole single-package member: the bare `JsonAssertions` ID was already taken on nuget.org (by an unrelated package), so a separate core could not use the matching name. A split would also have produced a near-empty core, since `System.Text.Json` already provides the deterministic primitives.
 
 The choice is per-package and is reviewed at v0.0.1; once shipped, the
 shape is fixed. A single-package member adding a separate core later
@@ -367,21 +317,21 @@ The rules below codify what that means in practice across the family.
 **Content rules:**
 
 1. **User-facing only.** A CHANGELOG entry describes what changed for consumers: API
-   additions or changes, behavioural changes, bug fixes a consumer can hit, dependency bumps
-   with a transitive effect. Internal refactors with no behavioural change, test-only
+   additions or changes, behavioral changes, bug fixes a consumer can hit, dependency bumps
+   with a transitive effect. Internal refactors with no behavioral change, test-only
    tweaks, and dev-dependency bumps with no transitive effect belong in commit messages,
    not the CHANGELOG.
 2. **Only the six Keep a Changelog headers.** `Added`, `Changed`, `Deprecated`, `Removed`,
    `Fixed`, `Security`. No `Notes` / `Documentation` / `Tests` / `Quality` sections; doc
    changes that affect consumers go under `Changed`, and test / coverage changes do not
    belong in the CHANGELOG at all (rule 1).
-3. **Standard header order within each version section.** `Added` → `Changed` → `Deprecated`
-   → `Removed` → `Fixed` → `Security`. Within a header, list entries by significance, not
+3. **Standard header order within each version section.** `Added` -> `Changed` -> `Deprecated`
+   -> `Removed` -> `Fixed` -> `Security`. Within a header, list entries by significance, not
    alphabetically.
 
 **Stylistic rules:**
 
-4. Past-tense active voice, one change per bullet: "Added X", "Fixed Y", "Changed Z" — not
+4. Past-tense active voice, one change per bullet: "Added X", "Fixed Y", "Changed Z" - not
    "X has been added" or "Will be removed in 2.0".
 5. Lead each bullet with the affected API in `code` formatting: ``HasJsonProperty`` now
    returns ``AssertionResult`` instead of ``bool``. ...

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-05: document source-tree accept under --no-build
+
+Documentation and release-tooling patch. No code, public API, or behavior change; the `0.6.0` ApiCompat baseline surface is unchanged.
+
+### Changed
+
+- README accept-changes workflow corrected for the `0.6.0` behavior: `SNAPSHOT_ACCEPT=1` writes the new baseline directly into the **source** `Snapshots/` folder (resolved via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`, where the build does not copy snapshot files back to source. The prior text still described the pre-`0.6.0` "manually move the bin-directory files into source" step; it now documents the source-tree write with the bin-directory write called out only as the fallback when the source path cannot be resolved. The packed package README gains the same note.
+- Bumped `PackageValidationBaselineVersion` from `0.5.0` to `0.6.0` on both packages so ApiCompat strict-mode validates `0.6.1` against the most recently published baseline. Documentation-only; no `CompatibilitySuppressions.xml` change.
+- The release workflow now publishes the matching `CHANGELOG.md` section as the GitHub release body (`body_path`), so release notes carry the full hand-written detail instead of GitHub's auto-generated commit summary.
+
 ## [0.6.0] - 2026-06-04: Source-tree accept resolution and baseline-generation fixes
 
 Minor release. Adds a public source-tree resolution helper used by accept-mode, plus two behavior fixes to the baseline-generation path. Both fixes correct cases where a first-run or accepted baseline ended up in a form the next comparison would not read back as written.
@@ -68,14 +78,14 @@ Additive release. No breaking changes; baselines that opted into `Scrubbers.Defa
 
 ### Changed
 
-- `TUnit` package reference bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep.
-- `Microsoft.SourceLink.GitHub` bumped `10.0.203` → `10.0.300`. The embedded source-link metadata in shipped `.pdb` files now points at the updated SourceLink schema; debugging-into-the-package from consumers' IDEs is unaffected in behaviour but uses the newer SourceLink format.
+- `TUnit` package reference bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioral change for this package, taken for family lockstep.
+- `Microsoft.SourceLink.GitHub` bumped `10.0.203` → `10.0.300`. The embedded source-link metadata in shipped `.pdb` files now points at the updated SourceLink schema; debugging-into-the-package from consumers' IDEs is unaffected in behavior but uses the newer SourceLink format.
 - README cookbook documents `Scrubbers.Common` ordering rationale, smart-diff suggestion output shape and top-3 cap, the renderer-pattern API with four worked subclass examples (`OtelTraceIdScrubber`, `EphemeralPathScrubber`, `PortScrubber`, `NumericTokenScrubber` as a parameterised variant), and sibling-family composition without cross-package dependency.
 - Packaged READMEs (`src/SnapshotAssertions.TUnit/README.md`, `src/SnapshotAssertions/README.md`) mention `Scrubbers.Common`, smart-diff suggestions, and the renderer-pattern API with deep-links to the root README.
 
 ## [0.3.0] - 2026-05-12: Scrubbers.Combine + Render namespace + parameterized-test cookbook
 
-Additive release. Surface area grows by one public factory method on `Scrubbers` plus a reserved namespace; no breaking changes; no behavioural changes to existing API.
+Additive release. Surface area grows by one public factory method on `Scrubbers` plus a reserved namespace; no breaking changes; no behavioral changes to existing API.
 
 ### Added (SnapshotAssertions, framework-agnostic core)
 
@@ -84,7 +94,7 @@ Additive release. Surface area grows by one public factory method on `Scrubbers`
 
 ### Documentation
 
-- **README cookbook entry for parameterized `[Arguments]` tests.** Pins the file-name convention (`{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`) and documents the `InvariantCulture` stringification behaviour for `IFormattable` argument types (so baselines are portable across developer machines and CI regardless of current culture).
+- **README cookbook entry for parameterized `[Arguments]` tests.** Pins the file-name convention (`{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`) and documents the `InvariantCulture` stringification behavior for `IFormattable` argument types (so baselines are portable across developer machines and CI regardless of current culture).
 - **`Scrubbers.Combine` usage example** added to the "Composing multiple scrubbers" section of the GitHub README and to the packaged README's Scrubbers overview.
 - **`CONVENTIONS.md` upgraded to v0.3.** Adds the `SnapshotAssertions.Render` namespace convention so sibling packages have a stable cross-repo target for their text renderers.
 
@@ -96,7 +106,7 @@ Additive release. Surface area grows by one public factory method on `Scrubbers`
 
 ### Refactored
 
-- **`LineDiffRenderer.EmitLine` split into helpers** (`LinesMatch`, `EmitMatchingLine`, `AccumulateDifferingTotal`, `EmitDifferingPair`). Behaviour is unchanged; the previous 18-Cyclomatic-Complexity main method is now under the family's 15 threshold and each branch path is independently named for clarity. Public API surface is untouched.
+- **`LineDiffRenderer.EmitLine` split into helpers** (`LinesMatch`, `EmitMatchingLine`, `AccumulateDifferingTotal`, `EmitDifferingPair`). Behavior is unchanged; the previous 18-Cyclomatic-Complexity main method is now under the family's 15 threshold and each branch path is independently named for clarity. Public API surface is untouched.
 
 ### Quality
 
@@ -267,10 +277,11 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[Unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.6.0
-[0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.5.0
-[0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.4.0
-[0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.3.0
-[0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.2.0
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/tag/v0.1.0

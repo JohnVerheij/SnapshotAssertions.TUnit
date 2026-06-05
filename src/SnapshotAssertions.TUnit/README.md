@@ -45,6 +45,8 @@ Three modes, in order of preference:
 2. **Manual `cp`.** `cp Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
 3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test`. Refuses to run if `CI=true` (so a slipped pipeline env never accepts silently).
 
+As of v0.6.0, bulk accept writes the new baseline straight into the **source** `Snapshots/` folder (resolved via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`. It falls back to the test binary's directory only when the source path cannot be resolved.
+
 CI never sets `SNAPSHOT_ACCEPT`. Mismatches always fail the build in pipelines.
 
 ## Scrubbers
