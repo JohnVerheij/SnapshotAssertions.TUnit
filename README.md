@@ -923,7 +923,7 @@ internal sealed class NumericTokenScrubber : SnapshotScrubber
 }
 ```
 
-Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalisation; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
+Two `NumericTokenScrubber` instances with prefixes that differ only in case (e.g. `"CycleId"` and `"cycleid"`) share kind name and therefore share index space because of the `ToLowerInvariant()` normalization; that matches the `Guid` / `GuidN` shared-index pattern in the built-ins. To get distinct index spaces, vary the prefix substantively (different word, not different casing).
 
 Common subclass mechanics across all four examples: use `state.GetOrAssignIndex(kind, value)` for indexed-token state; apply `RegexOptions.NonBacktracking | RegexOptions.CultureInvariant`; word-boundary anchor with `\b` since lookarounds are not available in `NonBacktracking`; produce token strings as `<kind:N>`. To share an index space with a built-in scrubber (e.g. give your custom variant the same `"guid"` kind name as `Scrubbers.Guid`), reuse the kind name verbatim.
 

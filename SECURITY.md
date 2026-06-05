@@ -20,7 +20,7 @@ Reports submitted this way are visible only to repository maintainers and are en
 
 ### Alternative: open a contact-request issue
 
-If GitHub's private reporting form is unavailable in your account (e.g. organisation-level restrictions), open a regular issue with the title `Security: contact request` and **no exploit details in the body**. Just enough to indicate you have a security report to file. The maintainer will move the conversation to a private channel from there.
+If GitHub's private reporting form is unavailable in your account (e.g. organization-level restrictions), open a regular issue with the title `Security: contact request` and **no exploit details in the body**. Just enough to indicate you have a security report to file. The maintainer will move the conversation to a private channel from there.
 
 (Drafting a GitHub Security Advisory directly is restricted to repository admins and security managers, so it is not a viable fallback for external reporters.)
 

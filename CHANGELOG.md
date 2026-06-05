@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.1] - 2026-06-05: document source-tree accept under --no-build
 
-Documentation and release-tooling patch. No code, public API, or behaviour change; the `0.6.0` ApiCompat baseline surface is unchanged.
+Documentation and release-tooling patch. No code, public API, or behavior change; the `0.6.0` ApiCompat baseline surface is unchanged.
 
 ### Changed
 
@@ -78,14 +78,14 @@ Additive release. No breaking changes; baselines that opted into `Scrubbers.Defa
 
 ### Changed
 
-- `TUnit` package reference bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioural change for this package, taken for family lockstep.
-- `Microsoft.SourceLink.GitHub` bumped `10.0.203` → `10.0.300`. The embedded source-link metadata in shipped `.pdb` files now points at the updated SourceLink schema; debugging-into-the-package from consumers' IDEs is unaffected in behaviour but uses the newer SourceLink format.
+- `TUnit` package reference bumped `1.44.0` → `1.44.39` (and the external-consumer smoke-test pin). 1.44.39 carries the `[GenerateAssertion]` source-generator fix for value-type optional parameters; no behavioral change for this package, taken for family lockstep.
+- `Microsoft.SourceLink.GitHub` bumped `10.0.203` → `10.0.300`. The embedded source-link metadata in shipped `.pdb` files now points at the updated SourceLink schema; debugging-into-the-package from consumers' IDEs is unaffected in behavior but uses the newer SourceLink format.
 - README cookbook documents `Scrubbers.Common` ordering rationale, smart-diff suggestion output shape and top-3 cap, the renderer-pattern API with four worked subclass examples (`OtelTraceIdScrubber`, `EphemeralPathScrubber`, `PortScrubber`, `NumericTokenScrubber` as a parameterised variant), and sibling-family composition without cross-package dependency.
 - Packaged READMEs (`src/SnapshotAssertions.TUnit/README.md`, `src/SnapshotAssertions/README.md`) mention `Scrubbers.Common`, smart-diff suggestions, and the renderer-pattern API with deep-links to the root README.
 
 ## [0.3.0] - 2026-05-12: Scrubbers.Combine + Render namespace + parameterized-test cookbook
 
-Additive release. Surface area grows by one public factory method on `Scrubbers` plus a reserved namespace; no breaking changes; no behavioural changes to existing API.
+Additive release. Surface area grows by one public factory method on `Scrubbers` plus a reserved namespace; no breaking changes; no behavioral changes to existing API.
 
 ### Added (SnapshotAssertions, framework-agnostic core)
 
@@ -94,7 +94,7 @@ Additive release. Surface area grows by one public factory method on `Scrubbers`
 
 ### Documentation
 
-- **README cookbook entry for parameterized `[Arguments]` tests.** Pins the file-name convention (`{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`) and documents the `InvariantCulture` stringification behaviour for `IFormattable` argument types (so baselines are portable across developer machines and CI regardless of current culture).
+- **README cookbook entry for parameterized `[Arguments]` tests.** Pins the file-name convention (`{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`) and documents the `InvariantCulture` stringification behavior for `IFormattable` argument types (so baselines are portable across developer machines and CI regardless of current culture).
 - **`Scrubbers.Combine` usage example** added to the "Composing multiple scrubbers" section of the GitHub README and to the packaged README's Scrubbers overview.
 - **`CONVENTIONS.md` upgraded to v0.3.** Adds the `SnapshotAssertions.Render` namespace convention so sibling packages have a stable cross-repo target for their text renderers.
 
@@ -106,7 +106,7 @@ Additive release. Surface area grows by one public factory method on `Scrubbers`
 
 ### Refactored
 
-- **`LineDiffRenderer.EmitLine` split into helpers** (`LinesMatch`, `EmitMatchingLine`, `AccumulateDifferingTotal`, `EmitDifferingPair`). Behaviour is unchanged; the previous 18-Cyclomatic-Complexity main method is now under the family's 15 threshold and each branch path is independently named for clarity. Public API surface is untouched.
+- **`LineDiffRenderer.EmitLine` split into helpers** (`LinesMatch`, `EmitMatchingLine`, `AccumulateDifferingTotal`, `EmitDifferingPair`). Behavior is unchanged; the previous 18-Cyclomatic-Complexity main method is now under the family's 15 threshold and each branch path is independently named for clarity. Public API surface is untouched.
 
 ### Quality
 
