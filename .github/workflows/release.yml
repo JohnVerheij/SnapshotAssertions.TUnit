@@ -58,6 +58,22 @@ jobs:
           # can reference exact version-tagged filenames.
           echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
 
+      - name: Extract release notes from CHANGELOG
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version="${REF_NAME#v}"
+          awk -v hdr="## [$version]" '
+            index($0, hdr) == 1 { capture = 1; print; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::No CHANGELOG section found for version $version" >&2
+            exit 1
+          fi
+          echo "Extracted $(wc -l < RELEASE_NOTES.md) lines of release notes for $version"
+
       - name: Restore
         run: dotnet restore
 
@@ -192,22 +208,6 @@ jobs:
             --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
-
-      - name: Extract release notes from CHANGELOG
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          version="${REF_NAME#v}"
-          awk -v hdr="## [$version]" '
-            index($0, hdr) == 1 { capture = 1; print; next }
-            capture && /^## \[/ { exit }
-            capture { print }
-          ' CHANGELOG.md > RELEASE_NOTES.md
-          if [ ! -s RELEASE_NOTES.md ]; then
-            echo "::error::No CHANGELOG section found for version $version" >&2
-            exit 1
-          fi
-          echo "Extracted $(wc -l < RELEASE_NOTES.md) lines of release notes for $version"
 
       - name: Create GitHub Release
         # zizmor: ignore[superfluous-actions] SHA-pinned; multi-file glob upload is clumsy to reproduce with gh release create
