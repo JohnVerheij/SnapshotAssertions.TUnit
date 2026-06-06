@@ -344,6 +344,7 @@ The rules below codify what that means in practice across the family.
    to the version section and add a new `## [Unreleased]` above it.
 10. Keep the reference-link footer (`[unreleased]: ...` / `[x.y.z]: ...`) in lockstep with
     every version bump.
+11. Version header carries a short factual summary after the date: `## [x.y.z] - YYYY-MM-DD: summary`. Factual (what changed), not promotional; it becomes the first line of the auto-extracted release notes.
 
 ## `PackageReleaseNotes` auto-extract from CHANGELOG
 
