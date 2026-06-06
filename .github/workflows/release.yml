@@ -68,8 +68,8 @@ jobs:
             capture && /^## \[/ { exit }
             capture { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
-          if [ ! -s RELEASE_NOTES.md ]; then
-            echo "::error::No CHANGELOG section found for version $version" >&2
+          if ! grep -qvE '^(## |[[:space:]]*$)' RELEASE_NOTES.md; then
+            echo "::error::CHANGELOG section for version $version is missing or empty" >&2
             exit 1
           fi
           echo "Extracted $(wc -l < RELEASE_NOTES.md) lines of release notes for $version"
