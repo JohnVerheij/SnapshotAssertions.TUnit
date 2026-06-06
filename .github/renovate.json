@@ -90,8 +90,7 @@
         "<PackageReference Include=\"TUnit\" Version=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\" />",
         "label: TUnit version[\\s\\S]*?placeholder: \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
-      "depNameTemplate": "TUnit-version-literal",
-      "packageNameTemplate": "TUnit",
+      "depNameTemplate": "TUnit",
       "datasourceTemplate": "nuget",
       "versioningTemplate": "semver"
     }
