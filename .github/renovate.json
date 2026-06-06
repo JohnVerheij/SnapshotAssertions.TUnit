@@ -6,36 +6,70 @@
     ":semanticCommits",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "schedule": ["before 4am"],
-  "labels": ["dependencies"],
+  "schedule": [
+    "before 4am"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "dependencyDashboard": true,
   "packageRules": [
     {
+      "description": "Force semver versioning for the TUnit packages. Renovate's nuget versioning returns zero updates for these (current pin vs latest) while semver resolves correctly, as proven by the doc-literal customManager. Without this the central Directory.Packages.props pin never advances.",
+      "matchManagers": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "TUnit",
+        "TUnit.Assertions",
+        "TUnit.Core"
+      ],
+      "versioning": "semver"
+    },
+    {
       "description": "Mirror the prior Dependabot commit convention: `deps(nuget): ...` for NuGet bumps and the TUnit version-literal sync via customManagers (both resolve to the nuget datasource).",
-      "matchManagers": ["nuget", "custom.regex"],
+      "matchManagers": [
+        "nuget",
+        "custom.regex"
+      ],
       "semanticCommitType": "deps",
       "semanticCommitScope": "nuget"
     },
     {
       "description": "Override for `dotnet-sdk` (tracked via global.json). Renovate's nuget manager surfaces it, but it is the SDK itself, not a NuGet package; tag it as a CI/tooling concern with its own scope so PR titles read `ci(dotnet-sdk): ...`.",
-      "matchPackageNames": ["dotnet-sdk"],
+      "matchPackageNames": [
+        "dotnet-sdk"
+      ],
       "semanticCommitType": "ci",
       "semanticCommitScope": "dotnet-sdk"
     },
     {
       "description": "Mirror the prior Dependabot commit convention: `ci(github-actions): ...` for workflow action bumps.",
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "semanticCommitType": "ci",
       "semanticCommitScope": "github-actions"
     },
     {
       "description": "Group the three TUnit packages (TUnit, TUnit.Assertions, TUnit.Core) into a single PR. They share a source repo and release in lockstep, so a single PR keeps Directory.Packages.props and the lock files internally consistent and avoids three partial-bump PRs per TUnit release.",
-      "matchPackageNames": ["TUnit", "TUnit.Assertions", "TUnit.Core"],
+      "matchPackageNames": [
+        "TUnit",
+        "TUnit.Assertions",
+        "TUnit.Core"
+      ],
       "groupName": "TUnit"
     },
     {
       "description": "Auto-merge non-major updates (patch, minor, digest, pin, pinDigest, lockFileMaintenance) once CI passes (requires 'Allow auto-merge' to be enabled on the repo). Major bumps stay manual. Digest is included because Renovate tracks SHA-pinned GitHub Actions as updateType 'digest' (not a semver category).",
-      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "lockFileMaintenance"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "lockFileMaintenance"
+      ],
       "automerge": true,
       "automergeStrategy": "squash",
       "platformAutomerge": true
