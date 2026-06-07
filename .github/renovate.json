@@ -15,14 +15,13 @@
   "dependencyDashboard": true,
   "packageRules": [
     {
-      "description": "Force semver versioning for the TUnit packages. Renovate's nuget versioning returns zero updates for these (current pin vs latest) while semver resolves correctly, as proven by the doc-literal customManager. Without this the central Directory.Packages.props pin never advances.",
+      "description": "Force semver versioning for the TUnit packages (TUnit and TUnit.*) and every family assertion package (any package ending in Assertions or Assertions.TUnit). Renovate's nuget versioning returns zero updates for these (current pin vs latest) while semver resolves correctly, as proven by the doc-literal customManager. Third-party deps (analyzers, SourceLink, etc.) resolve fine under nuget versioning and are left alone. Without this the central Directory.Packages.props pin never advances.",
       "matchManagers": [
         "nuget"
       ],
       "matchPackageNames": [
-        "TUnit",
-        "TUnit.Assertions",
-        "TUnit.Core"
+        "/^TUnit(\\.|$)/",
+        "/Assertions(\\.TUnit)?$/"
       ],
       "versioning": "semver"
     },
