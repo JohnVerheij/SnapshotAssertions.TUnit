@@ -1,9 +1,9 @@
 # Code conventions
 
-Rules for how code is written across the eight assertion-family packages (`LogAssertions.TUnit`,
+Rules for how code is written across the nine assertion-family packages (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
-`JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, and
-`TracingAssertions.TUnit`). The same file is copied into each repo.
+`JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`,
+`TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`). The same file is copied into each repo.
 
 ## Naming patterns
 
@@ -156,6 +156,7 @@ No sibling-package-name prefix may appear in another sibling's public API.
 - `Sse...` typenames and member names belong to `SseAssertions` only
 - `Grpc...` typenames and member names belong to `GrpcAssertions` only
 - `Tracing...` typenames and member names belong to `TracingAssertions` only
+- `Metrics...` typenames and member names belong to `MetricsAssertions` only
 
 Applies to typenames AND method names AND extension method names in the
 package's public API surface. The family's verb-naming convention is what's
@@ -177,7 +178,7 @@ appearing in another package's surface.
 
 Pack-time CI validation enforces this: the package's public API snapshot
 must not contain `Snapshot*`, `Log*`, `Math*`, `Time*`, `Json*`, `Sse*`, `Grpc*`,
-or `Tracing*` as a leading prefix on typenames, method names, or extension
+`Tracing*`, or `Metrics*` as a leading prefix on typenames, method names, or extension
 method names exposed publicly (with the strict whitelist above).
 
 ## Per-package strict-scope policy
@@ -199,12 +200,13 @@ test-projects-only blockquote.
 | `SseAssertions.TUnit` | Server-Sent Events wire-format assertions: event-count, field shape (`event:`, `data:`, `id:`, `retry:`), and stream content validation. |
 | `GrpcAssertions.TUnit` | gRPC call outcomes: `RpcException` presence, `StatusCode`, and `Status.Detail`. Transport-level status, not Protobuf message structure. |
 | `TracingAssertions.TUnit` | OpenTelemetry distributed-tracing spans (`System.Diagnostics.Activity`): operation name, tags, status, and parent/child and same-trace relationships. Captured via a raw `ActivityListener`, no OpenTelemetry SDK. |
+| `MetricsAssertions.TUnit` | `System.Diagnostics.Metrics` instrument measurements: capture and assertions over captured measurements, built on the first-party `MetricCollector` testing primitive. |
 
 The policy goal is "high-quality niche per package", not exhaustive
 ecosystem coverage. Domains that fall outside the per-package scope
 statements are out of family scope; they are not folded into an existing
 package. The roster cap is reviewed before each revision and currently
-sits at eight; revisions require a strict-scope-distinct domain (per this
+sits at nine; revisions require a strict-scope-distinct domain (per this
 section) and are not driven by adoption-growth reasoning.
 
 ## Dependency policy
@@ -215,7 +217,7 @@ the asserted domain (the public surface is typed against the dependency's types,
 home-grown substitute would not compile against real consumer values), carries a **permissive,
 MIT-compatible license**, and is **disclosed** in the package README and `SECURITY.md`.
 `GrpcAssertions.TUnit` is the first and only package to take one: the Apache-2.0
-`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other seven remain
+`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other eight remain
 BCL-and-TUnit-only.
 
 ## Core+adapter packaging rule
@@ -233,12 +235,13 @@ package's README:
 | `SseAssertions.TUnit` | core (`SseAssertions`) + adapter (`SseAssertions.TUnit`) |
 | `GrpcAssertions.TUnit` | core (`GrpcAssertions`) + adapter (`GrpcAssertions.TUnit`) |
 | `TracingAssertions.TUnit` | core (`TracingAssertions`) + adapter (`TracingAssertions.TUnit`) |
+| `MetricsAssertions.TUnit` | core (`MetricsAssertions`) + adapter (`MetricsAssertions.TUnit`) |
 
 **Core+adapter** ships the framework-agnostic primitives (parsers,
 comparison enums, failure-message factories, deterministic renderers) in
 a sibling `<Package>` core nupkg, and the TUnit-coupled assertion
-methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Seven
-of eight packages take this shape because the core primitives have value
+methods + `[GenerateAssertion]` entry points in `<Package>.TUnit`. Eight
+of nine packages take this shape because the core primitives have value
 outside the TUnit adapter (consumer-level composition, sibling-test
 reuse, framework-agnostic test reuse).
 
