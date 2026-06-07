@@ -15,15 +15,21 @@
   "dependencyDashboard": true,
   "packageRules": [
     {
-      "description": "Force semver versioning for the TUnit packages (TUnit and TUnit.*) and every family assertion package (any package ending in Assertions or Assertions.TUnit). Renovate's nuget versioning returns zero updates for these (current pin vs latest) while semver resolves correctly, as proven by the doc-literal customManager. Third-party deps (analyzers, SourceLink, etc.) resolve fine under nuget versioning and are left alone. Without this the central Directory.Packages.props pin never advances.",
+      "description": "Force semver versioning for all NuGet dependencies. The nuget manager returns zero updates for them in this config (every dependency with a pending update is stuck: TUnit, SnapshotAssertions.TUnit, Meziantou.Analyzer), while semver resolves correctly, as proven by the doc-literal customManager. SonarAnalyzer.CSharp is re-excluded in the next rule.",
+      "matchManagers": [
+        "nuget"
+      ],
+      "versioning": "semver"
+    },
+    {
+      "description": "Keep SonarAnalyzer.CSharp on nuget versioning: its 4-part version (for example 10.27.0.140913) is not valid semver, so it must use the nuget scheme, which resolves it correctly.",
       "matchManagers": [
         "nuget"
       ],
       "matchPackageNames": [
-        "/^TUnit(\\.|$)/",
-        "/Assertions(\\.TUnit)?$/"
+        "SonarAnalyzer.CSharp"
       ],
-      "versioning": "semver"
+      "versioning": "nuget"
     },
     {
       "description": "Mirror the prior Dependabot commit convention: `deps(nuget): ...` for NuGet bumps and the TUnit version-literal sync via customManagers (both resolve to the nuget datasource).",
