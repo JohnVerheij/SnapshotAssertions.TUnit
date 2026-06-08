@@ -14,9 +14,9 @@
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="4.1.5" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
-    <PackageVersion Include="TUnit" Version="1.50.0" />
-    <PackageVersion Include="TUnit.Assertions" Version="1.50.0" />
-    <PackageVersion Include="TUnit.Core" Version="1.50.0" />
+    <PackageVersion Include="TUnit" Version="1.51.0" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.51.0" />
+    <PackageVersion Include="TUnit.Core" Version="1.51.0" />
   </ItemGroup>
 
   <!-- Analyzer pack (applied to every project automatically via GlobalPackageReference) -->
