@@ -51,6 +51,8 @@ public static class LineDiffRenderer
 
         if (state.Truncated)
             EmitTruncationFooter(writer, state.TotalDiffering);
+        else if (state.TotalDiffering is 0 && !string.Equals(expected, actual, StringComparison.Ordinal))
+            EmitLineEndingHint(writer, expected, actual);
 
         return writer.ToString();
     }
@@ -133,6 +135,44 @@ public static class LineDiffRenderer
     {
         writer.Write(prefix);
         writer.WriteLine(content);
+    }
+
+    // Emitted when the strings are unequal but the line-by-line view found no differing lines: the
+    // only difference is in the line endings themselves, which SplitLines consumes (so the diff above
+    // shows every line as context). Names each side's detected ending so the cause is obvious rather
+    // than a "did not match" with a diff that shows nothing.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "MA0045:Do not use blocking calls in a sync method (need to make calling method async)", Justification = "TextWriter writes are dispatched against an in-memory StringWriter; no IO occurs and making the helper async would propagate Task-returning signatures with no benefit.")]
+    private static void EmitLineEndingHint(TextWriter writer, string expected, string actual)
+    {
+        writer.Write("(no per-line differences: the content differs only in line endings, which the line view normalizes away. expected: ");
+        writer.Write(DescribeLineEndings(expected));
+        writer.Write(", actual: ");
+        writer.Write(DescribeLineEndings(actual));
+        writer.WriteLine(". Normalize with SnapshotOptions line-ending handling (for example NormalizeToLF), or enforce a consistent ending with a .gitattributes 'eol=lf' rule.)");
+    }
+
+    private static string DescribeLineEndings(string content)
+    {
+        var crlf = content.Contains("\r\n", StringComparison.Ordinal);
+        var lf = false;
+        var cr = false;
+        for (var i = 0; i < content.Length; i++)
+        {
+            var c = content[i];
+            if (c is '\n' && (i is 0 || content[i - 1] is not '\r'))
+                lf = true;
+            else if (c is '\r' && (i + 1 >= content.Length || content[i + 1] is not '\n'))
+                cr = true;
+        }
+
+        // Only called from the hint path, which fires only when the two strings differ by their line
+        // endings alone, so at least one ending kind is always present (no zero-ending case to handle).
+        var kinds = (crlf ? 1 : 0) + (lf ? 1 : 0) + (cr ? 1 : 0);
+        if (kinds > 1)
+            return "mixed line endings";
+        if (crlf)
+            return "CRLF";
+        return lf ? "LF" : "CR";
     }
 
     private static string[] SplitLines(string content)

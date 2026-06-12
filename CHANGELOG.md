@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-12: clearer failure when snapshots differ only in line endings
+
+Patch release. Improves the failure diagnostic for a line-ending-only mismatch. No public API change.
+
+### Fixed
+
+- **The diff now explains a line-ending-only mismatch instead of rendering an empty diff.** When a snapshot failed only because of its line endings (for example a CRLF baseline against LF actual), the line-by-line view consumed the endings, so every line matched and the diff showed no `+`/`-` markers under a "did not match" header. The renderer now detects this case and appends a hint naming each side's detected endings (for example `expected: CRLF, actual: LF`) and how to normalize them. The README troubleshooting note is corrected: the diff never showed trailing `\r` characters, since the line split removes them.
+
 ## [0.6.1] - 2026-06-05: document source-tree accept under --no-build
 
 Documentation and release-tooling patch. No code, public API, or behavior change; the `0.6.0` ApiCompat baseline surface is unchanged.

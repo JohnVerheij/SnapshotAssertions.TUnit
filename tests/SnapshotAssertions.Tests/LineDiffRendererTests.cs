@@ -36,6 +36,43 @@ internal sealed class LineDiffRendererTests
         await Assert.That(diff).Contains("+actual");
     }
 
+    /// <summary>A difference that is only in the line endings (CRLF vs LF) produces no per-line
+    /// markers, because the line view consumes the endings. The renderer must then emit an explicit
+    /// hint naming each side's endings rather than a "did not match" with a blank diff.</summary>
+    [Test]
+    public async Task LineEndingOnlyDifference_EmitsHint(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diff = LineDiffRenderer.Render("a\r\nb\r\n", "a\nb\n");
+
+        await Assert.That(diff).Contains("differs only in line endings");
+        await Assert.That(diff).Contains("expected: CRLF");
+        await Assert.That(diff).Contains("actual: LF");
+        await Assert.That(diff).DoesNotContain("-a");
+        await Assert.That(diff).DoesNotContain("+a");
+    }
+
+    /// <summary>Bare-CR vs LF endings are each named in the hint.</summary>
+    [Test]
+    public async Task LineEndingOnlyDifference_CrVsLf_NamesBoth(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diff = LineDiffRenderer.Render("a\rb\r", "a\nb\n");
+
+        await Assert.That(diff).Contains("expected: CR,");
+        await Assert.That(diff).Contains("actual: LF");
+    }
+
+    /// <summary>A side that uses more than one ending style is reported as mixed.</summary>
+    [Test]
+    public async Task LineEndingOnlyDifference_Mixed_IsReported(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diff = LineDiffRenderer.Render("a\r\nb\nc\n", "a\nb\nc\n");
+
+        await Assert.That(diff).Contains("mixed line endings");
+    }
+
     /// <summary>When the number of differing lines exceeds the limit, the output is
     /// truncated with a count-summary footer.</summary>
     [Test]

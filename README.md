@@ -1060,7 +1060,7 @@ binary's output directory. Add the `<None Include>` from
 
 ### Tests pass on Windows but fail on Linux (CRLF mismatch)
 
-Symptom: the diff shows trailing `\r` characters on every line.
+Symptom: the snapshot fails with a `did not match` message, but the diff shows no `+`/`-` lines (every line renders unchanged) because the line-by-line view normalizes line endings away. From v0.6.2 the failure message adds an explicit hint naming each side's detected endings (for example `expected: CRLF, actual: LF`).
 
 **Cause:** the committed `.expected.txt` was saved with CRLF line endings (a Windows
 default), but the test on Linux produces LF.
