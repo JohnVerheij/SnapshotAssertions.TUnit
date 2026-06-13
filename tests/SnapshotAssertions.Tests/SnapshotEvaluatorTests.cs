@@ -183,6 +183,61 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(candidate).DoesNotContain("VOLATILE");
     }
 
+    /// <summary>A matching run deletes a stale <c>.actual.txt</c> left from a previous mismatch.</summary>
+    [Test]
+    public async Task MatchingContent_DeletesStaleActualFile(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync("hello\n", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(paths.ActualFilePath, "stale\n", cancellationToken).ConfigureAwait(false);
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+        await Assert.That(File.Exists(paths.ActualFilePath)).IsFalse();
+    }
+
+    /// <summary>A no-baseline write produces the actual file with the normalized content and leaves no
+    /// temporary file behind: the atomic temp-then-move write cleans up its temp on success.</summary>
+    [Test]
+    public async Task NoBaseline_WritesActualAtomically_NoTempLeftBehind(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(
+            Path.Combine(dir, "atomic.expected.txt"),
+            Path.Combine(dir, "atomic.actual.txt"));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("payload\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.NoBaseline);
+        await Assert.That(await File.ReadAllTextAsync(paths.ActualFilePath, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo("payload\n");
+        await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
+    }
+
+    /// <summary>Concurrent evaluations writing distinct actual files all succeed without a sharing
+    /// violation, exercising the atomic write under parallelism.</summary>
+    [Test]
+    public async Task ConcurrentEvaluations_DistinctPaths_AllSucceed(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var tasks = new Task<SnapshotResult>[16];
+        for (var i = 0; i < tasks.Length; i++)
+        {
+            var paths = new SnapshotPaths(
+                Path.Combine(dir, $"c{i}.expected.txt"),
+                Path.Combine(dir, $"c{i}.actual.txt"));
+            tasks[i] = SnapshotEvaluator.EvaluateAsync($"item-{i}\n", paths, SnapshotOptions.Default,
+                acceptModeOverride: false, cancellationToken: cancellationToken);
+        }
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        await Assert.That(results.Length).IsEqualTo(16);
+        await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
+    }
+
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(
         string actualContent,
         string expectedContent,

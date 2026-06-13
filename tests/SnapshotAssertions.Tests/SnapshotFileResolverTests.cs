@@ -14,6 +14,17 @@ namespace SnapshotAssertions.Tests;
 [Timeout(5_000)]
 internal sealed class SnapshotFileResolverTests
 {
+    private static readonly object?[] ArgsOneTwo = [new[] { 1, 2 }];
+    private static readonly object?[] ArgsOneTwoCopy = [new[] { 1, 2 }];
+    private static readonly object?[] ArgsThreeFour = [new[] { 3, 4 }];
+    private static readonly object?[] ArgsNestedA = [new[] { new[] { 1 }, new[] { 2 } }];
+    private static readonly object?[] ArgsNestedB = [new[] { new[] { 1 }, new[] { 9 } }];
+    private static readonly object?[] ArgsMixed = [1, "two", null];
+    private static readonly object?[] ArgsMixedCopy = [1, "two", null];
+    private static readonly object?[] ArgsMixedOther = [2, "two", null];
+    private static readonly object?[] ArgsCustom = [new CustomArg()];
+    private static readonly object?[] ArgsRawToken = ["custom-token"];
+
     /// <summary>ResolveByName builds <c>{dir}/{name}.expected.txt</c> and the actual sibling.</summary>
     [Test]
     public async Task ResolveByName_ReturnsExpectedAndActualSibling(CancellationToken cancellationToken)
@@ -124,6 +135,72 @@ internal sealed class SnapshotFileResolverTests
         cancellationToken.ThrowIfCancellationRequested();
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", string.Empty));
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", "   "));
+    }
+
+    /// <summary>Distinct collection arguments resolve to distinct snapshot files. A collection has no
+    /// value-based ToString, so before recursive stringification every array argument of a type
+    /// collapsed onto one file, colliding the parameterized variants.</summary>
+    [Test]
+    public async Task ResolveByTest_DistinctCollectionArgs_ProduceDistinctFiles(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwo);
+        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsThreeFour);
+        await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
+    }
+
+    /// <summary>Equal collection arguments (distinct instances, same values) resolve to the same file,
+    /// so a re-run of the same parameterized variant reads back its own baseline.</summary>
+    [Test]
+    public async Task ResolveByTest_EqualCollectionArgs_ProduceSameFile(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwo);
+        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwoCopy);
+        await Assert.That(first.ExpectedFilePath).IsEqualTo(second.ExpectedFilePath);
+    }
+
+    /// <summary>Nested collections are expanded recursively, so a difference in a nested element still
+    /// produces a distinct file.</summary>
+    [Test]
+    public async Task ResolveByTest_NestedCollectionArgs_AreDistinguished(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsNestedA);
+        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsNestedB);
+        await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
+    }
+
+    /// <summary>A mix of scalar, string, and null arguments hashes deterministically and distinctly:
+    /// the per-argument separator, the null sentinel, the verbatim string, and the invariant-culture
+    /// formatting of the scalar all participate.</summary>
+    [Test]
+    public async Task ResolveByTest_MixedScalarStringNullArgs_DistinctAndStable(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixed);
+        var firstAgain = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixedCopy);
+        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixedOther);
+
+        await Assert.That(first.ExpectedFilePath).IsEqualTo(firstAgain.ExpectedFilePath);
+        await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
+    }
+
+    /// <summary>A non-formattable, non-enumerable argument falls back to its own <c>ToString</c>.</summary>
+    [Test]
+    public async Task ResolveByTest_CustomObjectArg_UsesItsToString(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var withCustom = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsCustom);
+        var withRaw = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsRawToken);
+
+        // The custom type's ToString returns "custom-token", so it hashes the same as that string arg.
+        await Assert.That(withCustom.ExpectedFilePath).IsEqualTo(withRaw.ExpectedFilePath);
+    }
+
+    private sealed class CustomArg
+    {
+        public override string ToString() => "custom-token";
     }
 
     /// <summary>TryResolveSourceSnapshotsDirectory walks up from a bin-like runtime directory to

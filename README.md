@@ -626,7 +626,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 
 **Parameterized tests with `[Arguments]`: per-row baselines:**
 
-For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each `[Arguments]` row gets its own baseline file instead of overwriting one another. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture.
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each `[Arguments]` row gets its own baseline file instead of overwriting one another. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
 
 ```csharp
 [Test]
@@ -647,7 +647,7 @@ Baselines committed under `Snapshots/` carry names of the form:
 
 For example, the two rows above produce two distinct files such as
 `Snapshots/Foo.Response_for_each_route_matches.7A3F1B2C.expected.txt` and
-`Snapshots/Foo.Response_for_each_route_matches.D9E0A4B5.expected.txt`. The hash is computed from argument **values** in declaration order, so it is stable across runs and across machines (`InvariantCulture` is used for `IFormattable` types). Changing any value or reordering the values in the `[Arguments]` attribute changes the hash and requires renaming the committed baseline. Renaming the C# method parameters (without touching the values passed via `[Arguments]`) does **not** affect the hash. The argument types themselves do not appear in the file name; if two rows happen to stringify to the same byte sequence under `InvariantCulture`, they collide (a documented edge case for callers using custom types whose `ToString()` is not unique per value).
+`Snapshots/Foo.Response_for_each_route_matches.D9E0A4B5.expected.txt`. The hash is computed from argument **values** in declaration order, so it is stable across runs and across machines (`InvariantCulture` is used for `IFormattable` types). Changing any value or reordering the values in the `[Arguments]` attribute changes the hash and requires renaming the committed baseline. Renaming the C# method parameters (without touching the values passed via `[Arguments]`) does **not** affect the hash. The argument types themselves do not appear in the file name; if two rows happen to stringify to the same byte sequence under `InvariantCulture`, they collide (a documented edge case for callers using custom types whose `ToString()` is not unique per value, or two differently-typed arguments whose values stringify identically).
 
 When a row's argument list is empty (no `[Arguments]` on the method, or `[Arguments()]` with no values), no hash is appended and the file name is `{TestClassName}.{TestMethodName}.expected.txt` as for non-parameterized tests.
 

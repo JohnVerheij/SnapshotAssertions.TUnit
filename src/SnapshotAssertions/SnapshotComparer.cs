@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 
 namespace SnapshotAssertions;
 
@@ -79,13 +81,13 @@ public static class SnapshotComparer
 
     private static string NormalizeLineByLine(string content, SnapshotOptions options)
     {
+        var (lines, terminators) = SplitKeepingTerminators(content);
+
         var hasTrailingNewline = content.Length > 0
             && (content[^1] == '\n' || content[^1] == '\r');
 
-        var lines = content.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
-
-        // If the content ended with a newline, Split adds an empty trailing element. Drop it
-        // for trimming/joining; we re-emit a trailing line below per TrailingNewline policy.
+        // When the content ended with a newline, the split adds an empty trailing element. Drop it
+        // for trimming/joining; the trailing newline itself is re-emitted below per the policy.
         var lastIndex = lines.Length;
         if (hasTrailingNewline && lastIndex > 0 && lines[lastIndex - 1].Length is 0)
             lastIndex--;
@@ -96,17 +98,86 @@ public static class SnapshotComparer
                 lines[i] = lines[i].TrimEnd();
         }
 
+        // Ordinal mode preserves each line's original terminator (so mixed CRLF / LF endings, and the
+        // platform on which accept-mode runs, do not change the canonical bytes). The normalizing
+        // modes rejoin with one uniform separator.
+        return options.LineEndingMode is SnapshotLineEndingMode.Ordinal
+            ? JoinPreservingTerminators(lines, terminators, lastIndex, options.TrailingNewline, hasTrailingNewline)
+            : JoinWithUniformSeparator(lines, lastIndex, options, hasTrailingNewline);
+    }
+
+    private static string JoinWithUniformSeparator(string[] lines, int lastIndex, SnapshotOptions options, bool hasTrailingNewline)
+    {
         var separator = ResolveSeparator(options.LineEndingMode);
         var joined = string.Join(separator, lines, 0, lastIndex);
         return ApplyTrailingNewlinePolicy(joined, options.TrailingNewline, separator, lastIndex, hasTrailingNewline);
     }
 
+    private static string JoinPreservingTerminators(
+        string[] lines, string[] terminators, int lastIndex, SnapshotTrailingNewline policy, bool hasTrailingNewline)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < lastIndex; i++)
+            sb.Append(lines[i]).Append(terminators[i]);
+
+        // Required preserves the original terminators as written. Optional and Forbidden strip a
+        // trailing terminator so its presence versus absence is unobservable to the comparison.
+        if (policy is not SnapshotTrailingNewline.Required && hasTrailingNewline && lastIndex > 0)
+        {
+            var lastTerminator = terminators[lastIndex - 1];
+            sb.Length -= lastTerminator.Length;
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Splits <paramref name="content"/> into line texts and the terminator that followed each line
+    /// (<c>"\r\n"</c>, <c>"\n"</c>, <c>"\r"</c>, or <see cref="string.Empty"/> for the final segment).
+    /// The line texts match <c>string.Split(["\r\n", "\n", "\r"])</c>; the parallel terminator array
+    /// lets Ordinal mode rejoin without losing the original endings.
+    /// </summary>
+    private static (string[] Lines, string[] Terminators) SplitKeepingTerminators(string content)
+    {
+        var lines = new List<string>();
+        var terminators = new List<string>();
+
+        var start = 0;
+        var i = 0;
+        while (i < content.Length)
+        {
+            var c = content[i];
+            if (c == '\n')
+            {
+                lines.Add(content[start..i]);
+                terminators.Add("\n");
+                i++;
+                start = i;
+            }
+            else if (c == '\r')
+            {
+                var crlf = i + 1 < content.Length && content[i + 1] == '\n';
+                lines.Add(content[start..i]);
+                terminators.Add(crlf ? "\r\n" : "\r");
+                i += crlf ? 2 : 1;
+                start = i;
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        lines.Add(content[start..]);
+        terminators.Add(string.Empty);
+        return (lines.ToArray(), terminators.ToArray());
+    }
+
     private static string ResolveSeparator(SnapshotLineEndingMode mode) => mode switch
     {
-        SnapshotLineEndingMode.NormalizeToLF => "\n",
         SnapshotLineEndingMode.NormalizeToCRLF => "\r\n",
         SnapshotLineEndingMode.IgnoreLineEndings => string.Empty,
-        _ => Environment.NewLine,
+        _ => "\n", // NormalizeToLF; Ordinal never reaches here (handled by JoinPreservingTerminators).
     };
 
     private static string ApplyTrailingNewlinePolicy(
