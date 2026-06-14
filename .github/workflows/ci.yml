@@ -167,6 +167,28 @@ jobs:
       - name: Pack SnapshotAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
+      - name: Verify adapter package ships its build targets
+        # Regression guard for the 0.7.0 drop. DotNetProjectFile.Analyzers >= 1.15.0 can silently
+        # mark build/*.targets Pack="false" (see the SonarQubeIntegration property in the adapter
+        # csproj). The auto-include targets file is what copies a consumer's committed
+        # Snapshots/*.expected.txt baselines to their test output, so if it ever drops from the
+        # package again every downstream snapshot test fails with a missing-baseline error. Assert
+        # the just-packed nupkg actually contains it; the unzip listing on failure shows what shipped.
+        run: |
+          NUPKG=$(ls ./artifacts/SnapshotAssertions.TUnit.*.nupkg | head -1)
+          if [ -z "$NUPKG" ]; then
+            echo "::error::No SnapshotAssertions.TUnit nupkg found in ./artifacts"
+            exit 1
+          fi
+          echo "Inspecting $NUPKG"
+          if unzip -l "$NUPKG" | grep -q 'build/SnapshotAssertions.TUnit.targets'; then
+            echo "OK: build/SnapshotAssertions.TUnit.targets is present in the package"
+          else
+            echo "::error::build/SnapshotAssertions.TUnit.targets is missing from $NUPKG"
+            unzip -l "$NUPKG"
+            exit 1
+          fi
+
       - name: External-consumer smoke test (restore+build+test against just-packed nupkgs)
         # The smoke-test project lives outside SnapshotAssertions.TUnit.slnx and consumes
         # SnapshotAssertions.TUnit ONLY via PackageReference (NOT ProjectReference). Its NuGet.config
