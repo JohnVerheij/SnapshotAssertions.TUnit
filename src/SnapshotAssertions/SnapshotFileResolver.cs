@@ -86,11 +86,17 @@ public static class SnapshotFileResolver
     /// <param name="testMethodName">The test method name.</param>
     /// <param name="testMethodArguments">The arguments passed to the parameterized test
     /// invocation, or <see langword="null"/> for non-parameterized tests. Each argument is
-    /// stringified with <see cref="object.ToString"/> under
-    /// <see cref="CultureInfo.InvariantCulture"/> contracts at the call site, joined with
-    /// <c>"|"</c>, and hashed with SHA-256; the first 8 hex characters of the hash are
-    /// appended to the base name. The hash is stable across runs for the same argument
-    /// values, so each parameterized variant gets its own distinct snapshot file.</param>
+    /// stringified, the results joined with <c>"|"</c>, and hashed with SHA-256; the first 8 hex
+    /// characters of the hash are appended to the base name. Stringification routes by type so the
+    /// key stays stable and culture-independent: a <see langword="string"/> is taken verbatim, an
+    /// <see cref="IFormattable"/> (numbers, <see cref="DateTime"/>, <see cref="TimeSpan"/>, etc.) is
+    /// formatted with <see cref="CultureInfo.InvariantCulture"/>, an <see cref="IEnumerable"/> is
+    /// expanded element-by-element as <c>[item1,item2,...]</c> (recursively, so nested collections
+    /// expand too), and any other type falls back to
+    /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
+    /// machines for the same argument values, so each parameterized variant gets its own distinct
+    /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
+    /// snapshot file.</param>
     /// <returns>The expected and actual paths.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">

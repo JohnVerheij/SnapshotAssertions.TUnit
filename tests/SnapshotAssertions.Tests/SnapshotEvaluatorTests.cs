@@ -238,6 +238,27 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
     }
 
+    /// <summary>A failed write cleans up its temp: with the move inside the try/finally, a write that
+    /// fails (here because the target path is an existing directory, so the move cannot complete) leaves
+    /// no temporary file behind.</summary>
+    [Test]
+    public async Task FailedWrite_CleansUpTempFile(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        // Make the actual path an existing directory so the temp-then-move write fails at the move.
+        var actualPath = Path.Combine(dir, "actual-as-directory");
+        Directory.CreateDirectory(actualPath);
+        var paths = new SnapshotPaths(Path.Combine(dir, "x.expected.txt"), actualPath);
+
+        // The move onto a directory throws UnauthorizedAccessException on Windows and IOException on
+        // Linux, both SystemException; the assertion that matters is that the temp is cleaned up.
+        await Assert.That(async () => await SnapshotEvaluator.EvaluateAsync("payload\n", paths,
+                SnapshotOptions.Default, acceptModeOverride: false, cancellationToken: cancellationToken))
+            .Throws<SystemException>();
+
+        await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
+    }
+
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(
         string actualContent,
         string expectedContent,

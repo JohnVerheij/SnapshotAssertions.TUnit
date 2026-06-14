@@ -130,24 +130,29 @@ public static class SnapshotEvaluator
     /// <summary>
     /// Writes <paramref name="content"/> to <paramref name="path"/> atomically: the content goes to a
     /// uniquely-named temporary file in the same directory, which is then moved over the target. A
-    /// partial or interrupted write cannot leave a half-written baseline, and two writers racing the
-    /// same target each move their own temp, so the loser is overwritten cleanly instead of throwing a
-    /// sharing violation mid-write (common on Windows under parallel test execution).
+    /// partial or interrupted write lands on the temp, not the target, so a reader never observes a
+    /// half-written baseline (the move publishes either the old or the new content, never a torn mix).
+    /// The per-write temp name also lets parallel writers to <em>different</em> snapshot files run
+    /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
+    /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
+    /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
+    /// files.
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(path) ?? string.Empty;
         var tempPath = Path.Combine(directory, Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
 
-        await File.WriteAllTextAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
         try
         {
+            await File.WriteAllTextAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, path, overwrite: true);
         }
         finally
         {
-            // On success the temp was renamed away and this is a no-op; on failure it removes the
-            // leftover temp so a failed write does not litter the snapshots directory.
+            // On success the temp was renamed away and this is a no-op; on any failure (a throwing or
+            // cancelled write, or a failed move) it removes the leftover temp so the snapshots directory
+            // is never littered.
             DeleteIfExists(tempPath);
         }
     }
