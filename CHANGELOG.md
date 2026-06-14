@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-14: correctness hardening
+
+Minor release. Three correctness and robustness fixes to the comparison, file resolution, and write paths. No public API change.
+
+### Fixed
+
+- **Ordinal line-ending mode now preserves the original terminators.** When `SnapshotLineEndingMode.Ordinal` was combined with any option that engages line-by-line normalization (trailing-whitespace trimming or a non-Required trailing-newline policy), the canonical form rejoined every line with `Environment.NewLine`. That made an accepted baseline's bytes depend on the platform accept-mode ran on (CRLF on Windows, LF on Linux) and silently discarded the exact endings Ordinal mode exists to pin. Each line's original terminator (CRLF, LF, or bare CR) is now preserved, so the canonical form is platform-independent and faithful.
+- **Distinct collection arguments no longer collide onto one snapshot file.** A parameterized test whose arguments include an array or other collection hashed all variants of a given type to the same value (a collection has no value-based `ToString`, so it returned the type name, for example `System.Int32[]`). The variants then shared one baseline file and raced each other's `.actual` writes. Collection arguments are now expanded element-by-element (recursively, for nested collections), so each variant resolves to its own file. Scalar and string arguments hash exactly as before.
+- **Baseline and actual files are written atomically.** Writes now go to a uniquely-named temporary file that is moved over the target, so a partial or interrupted write cannot leave a half-written baseline, and two writers racing the same target no longer throw a sharing violation mid-write under parallel test execution.
+
+### Upgrade note
+
+The collection-argument fix changes the hashed file name for parameterized snapshots whose arguments include a collection (those were colliding before, so their baselines were already unreliable). Re-accept those snapshots after upgrading. Snapshots with only scalar or string arguments, and all non-parameterized snapshots, are unaffected.
+
 ## [0.6.2] - 2026-06-12: clearer failure when snapshots differ only in line endings
 
 Patch release. Improves the failure diagnostic for a line-ending-only mismatch. No public API change.
@@ -285,7 +299,9 @@ Two paths to accept a baseline change:
 - JSON-aware snapshot comparison (`MatchesJsonSnapshot()`): planned for 0.2.0.
 - Pattern-based scrubbing (`MatchesSnapshotScrubbed(IScrubber)`): planned for 0.3.0. *(Resolved earlier: shipped as `WithScrubber()` in [0.2.0](#020--built-in-scrubbers-dependency-refresh).)*
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.2...v0.7.0
+[0.6.2]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.4.0...v0.5.0

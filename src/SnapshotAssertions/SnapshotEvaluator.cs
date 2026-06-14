@@ -82,7 +82,7 @@ public static class SnapshotEvaluator
             if (acceptMode)
                 return await AcceptAsync(expectedPath, actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
 
-            await File.WriteAllTextAsync(actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
+            await WriteAtomicAsync(actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
             return SnapshotResult.NoBaseline(expectedPath, actualPath);
         }
 
@@ -97,7 +97,7 @@ public static class SnapshotEvaluator
         if (acceptMode)
             return await AcceptAsync(expectedPath, actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
 
-        await File.WriteAllTextAsync(actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
+        await WriteAtomicAsync(actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
 
         var normalizedExpected = SnapshotComparer.Normalize(expectedContent, options);
         var diff = LineDiffRenderer.Render(normalizedExpected, normalizedActual);
@@ -122,9 +122,39 @@ public static class SnapshotEvaluator
         string normalizedContent,
         CancellationToken cancellationToken)
     {
-        await File.WriteAllTextAsync(expectedPath, normalizedContent, cancellationToken).ConfigureAwait(false);
+        await WriteAtomicAsync(expectedPath, normalizedContent, cancellationToken).ConfigureAwait(false);
         DeleteIfExists(actualPath);
         return SnapshotResult.Accepted(expectedPath);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="content"/> to <paramref name="path"/> atomically: the content goes to a
+    /// uniquely-named temporary file in the same directory, which is then moved over the target. A
+    /// partial or interrupted write lands on the temp, not the target, so a reader never observes a
+    /// half-written baseline (the move publishes either the old or the new content, never a torn mix).
+    /// The per-write temp name also lets parallel writers to <em>different</em> snapshot files run
+    /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
+    /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
+    /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
+    /// files.
+    /// </summary>
+    private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var tempPath = Path.Combine(directory, Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
+            File.Move(tempPath, path, overwrite: true);
+        }
+        finally
+        {
+            // On success the temp was renamed away and this is a no-op; on any failure (a throwing or
+            // cancelled write, or a failed move) it removes the leftover temp so the snapshots directory
+            // is never littered.
+            DeleteIfExists(tempPath);
+        }
     }
 
     private static void EnsureDirectoryExists(string filePath)

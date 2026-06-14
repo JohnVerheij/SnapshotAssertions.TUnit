@@ -146,6 +146,71 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("foo   \nbar  \n", "foo\nbar\n", options)).IsTrue();
     }
 
+    /// <summary>Ordinal mode with per-line trimming preserves each line's original terminator, so the
+    /// canonical bytes are the same regardless of the platform the normalization runs on (CRLF stays
+    /// CRLF, LF stays LF, instead of collapsing to <c>Environment.NewLine</c>).</summary>
+    [Test]
+    public async Task Ordinal_TrimTrailingPerLine_PreservesOriginalTerminators(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Ordinal is the default LineEndingMode; only trailing-whitespace trimming is enabled.
+        var options = SnapshotOptions.Default with { TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine };
+        var normalized = SnapshotComparer.Normalize("a  \r\nb  \n", options);
+        await Assert.That(normalized).IsEqualTo("a\r\nb\n");
+    }
+
+    /// <summary>Under Ordinal mode the line endings are significant even when trimming is on: a CRLF
+    /// document does not match an otherwise-identical LF document. (Before the terminator-preserving
+    /// fix both sides collapsed to <c>Environment.NewLine</c> and compared equal on Windows.)</summary>
+    [Test]
+    public async Task Ordinal_TrimTrailingPerLine_CrlfVersusLf_Mismatch(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine };
+        await Assert.That(SnapshotComparer.AreEqual("a \r\nb", "a \nb", options)).IsFalse();
+    }
+
+    /// <summary>Ordinal mode with a Forbidden trailing-newline policy strips the trailing terminator
+    /// (whatever its form) so its presence versus absence is unobservable, while inner terminators are
+    /// preserved.</summary>
+    [Test]
+    public async Task Ordinal_ForbiddenTrailingNewline_StripsTrailingTerminator(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+        await Assert.That(SnapshotComparer.Normalize("a\r\nb\r\n", options)).IsEqualTo("a\r\nb");
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\r\nb", options)).IsTrue();
+    }
+
+    /// <summary>NormalizeToCRLF rejoins every line with CRLF, so an LF document matches a CRLF one.</summary>
+    [Test]
+    public async Task NormalizeToCrlf_LfMatchesCrlf(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToCRLF };
+        await Assert.That(SnapshotComparer.Normalize("a\nb", options)).IsEqualTo("a\r\nb");
+        await Assert.That(SnapshotComparer.AreEqual("a\nb", "a\r\nb", options)).IsTrue();
+    }
+
+    /// <summary>Empty content normalizes to empty even when line-by-line normalization is engaged.</summary>
+    [Test]
+    public async Task Ordinal_TrimTrailingPerLine_EmptyContent_StaysEmpty(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine };
+        await Assert.That(SnapshotComparer.Normalize(string.Empty, options)).IsEqualTo(string.Empty);
+    }
+
+    /// <summary>Ordinal mode preserves a bare carriage-return terminator (old-Mac line ending), both
+    /// in inner lines and a trailing one, rather than rewriting it.</summary>
+    [Test]
+    public async Task Ordinal_TrimTrailingPerLine_PreservesBareCarriageReturn(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine };
+        await Assert.That(SnapshotComparer.Normalize("a \rb \r", options)).IsEqualTo("a\rb\r");
+    }
+
     /// <summary>Required trailing newline: a file without one does not match a file with one.</summary>
     [Test]
     public async Task RequiredTrailingNewline_MissingTrailing_Mismatch(CancellationToken cancellationToken)

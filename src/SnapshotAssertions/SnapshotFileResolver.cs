@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -85,11 +86,17 @@ public static class SnapshotFileResolver
     /// <param name="testMethodName">The test method name.</param>
     /// <param name="testMethodArguments">The arguments passed to the parameterized test
     /// invocation, or <see langword="null"/> for non-parameterized tests. Each argument is
-    /// stringified with <see cref="object.ToString"/> under
-    /// <see cref="CultureInfo.InvariantCulture"/> contracts at the call site, joined with
-    /// <c>"|"</c>, and hashed with SHA-256; the first 8 hex characters of the hash are
-    /// appended to the base name. The hash is stable across runs for the same argument
-    /// values, so each parameterized variant gets its own distinct snapshot file.</param>
+    /// stringified, the results joined with <c>"|"</c>, and hashed with SHA-256; the first 8 hex
+    /// characters of the hash are appended to the base name. Stringification routes by type so the
+    /// key stays stable and culture-independent: a <see langword="string"/> is taken verbatim, an
+    /// <see cref="IFormattable"/> (numbers, <see cref="DateTime"/>, <see cref="TimeSpan"/>, etc.) is
+    /// formatted with <see cref="CultureInfo.InvariantCulture"/>, an <see cref="IEnumerable"/> is
+    /// expanded element-by-element as <c>[item1,item2,...]</c> (recursively, so nested collections
+    /// expand too), and any other type falls back to
+    /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
+    /// machines for the same argument values, so each parameterized variant gets its own distinct
+    /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
+    /// snapshot file.</param>
     /// <returns>The expected and actual paths.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
@@ -144,6 +151,10 @@ public static class SnapshotFileResolver
         if (arg is null)
             return "null";
 
+        // A string is enumerable but must stringify verbatim, not as a bracketed char list.
+        if (arg is string text)
+            return text;
+
         // Format with InvariantCulture for IFormattable types (DateTime, decimal, double,
         // numeric types, TimeSpan, etc.). Without this, the same arguments produce different
         // hashes on machines with different current cultures (e.g., decimal "1.5" on en-US
@@ -151,12 +162,37 @@ public static class SnapshotFileResolver
         if (arg is IFormattable formattable)
             return formattable.ToString(format: null, formatProvider: CultureInfo.InvariantCulture);
 
-        // Fall back to the type's own ToString for non-IFormattable references. The hash
-        // contract documents that callers using custom types are responsible for providing a
-        // stable ToString, so calling object.ToString here is intentional (not a culture-leak
-        // risk). Meziantou MA0107 warns generically against object.ToString; this is the one
-        // case in the resolver where it is the correct call.
+        // Expand a collection element-by-element. An array or list has no value-based ToString
+        // (it returns the type name, e.g. "System.Int32[]"), so without this every collection
+        // argument of a given type hashes identically and distinct parameterized variants collide
+        // onto one snapshot file. Bracketing makes the expansion unambiguous and recursing handles
+        // nested collections.
+        if (arg is IEnumerable enumerable)
+            return StringifyEnumerable(enumerable);
+
+        // Fall back to the type's own ToString for non-IFormattable, non-enumerable references. The
+        // hash contract documents that callers using custom types are responsible for providing a
+        // stable ToString, so calling object.ToString here is intentional (not a culture-leak risk).
+        // Meziantou MA0107 warns generically against object.ToString; this is the one case in the
+        // resolver where it is the correct call.
         return Convert.ToString(arg, CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static string StringifyEnumerable(IEnumerable enumerable)
+    {
+        var sb = new StringBuilder();
+        sb.Append('[');
+        var first = true;
+        foreach (var item in enumerable)
+        {
+            if (!first)
+                sb.Append(',');
+            sb.Append(StringifyArg(item));
+            first = false;
+        }
+
+        sb.Append(']');
+        return sb.ToString();
     }
 
     /// <summary>
