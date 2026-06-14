@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-06-14: restore the packed build targets
+
+Patch release. Restores `build/SnapshotAssertions.TUnit.targets` to the package. 0.7.0 shipped without it, so a consumer's committed `Snapshots/*.expected.txt` baselines stopped copying to the test output directory and every snapshot assertion failed with "baseline does not exist". No public API change.
+
+### Fixed
+
+- **The package again ships `build/SnapshotAssertions.TUnit.targets`.** DotNetProjectFile.Analyzers 1.15.0 added `**/*.targets` to a SonarQube content glob marked `Pack="false"`, which silently overrode this package's explicit `Pack="true"` for its own build targets and dropped the file from the 0.7.0 `.nupkg`. That targets file auto-includes a consumer's `Snapshots/**/*.expected.txt` with `CopyToOutputDirectory="PreserveNewest"`, so without it the committed baselines never reach the test binary's output directory and the resolver reports them missing. Setting `SonarQubeIntegration=false` (the integration is unused in this package) restores the packed asset, and a CI check now asserts the produced `.nupkg` contains the build targets so it cannot silently drop again.
+
+### Upgrade note
+
+Consumers who applied the 0.7.0 workaround (a manual `<None Update="Snapshots/**/*.expected.txt" CopyToOutputDirectory="PreserveNewest" />` together with `<SnapshotAssertionsAutoIncludeSnapshots>false</SnapshotAssertionsAutoIncludeSnapshots>`) can remove both after upgrading; the package's own targets resume handling the copy. Leaving the workaround in place stays harmless.
+
 ## [0.7.0] - 2026-06-14: correctness hardening
 
 Minor release. Three correctness and robustness fixes to the comparison, file resolution, and write paths. No public API change.
