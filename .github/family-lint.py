@@ -12,7 +12,8 @@ FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:\s+\S")
 TAGS_RE = re.compile(r"<PackageTags>(.*?)</PackageTags>")
 
 def lint_changelog(path):
-    lines = open(path, encoding="utf-8").read().splitlines()
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().splitlines()
     v, header_versions, footer_versions = [], [], []
     if not any(l.strip() == "## [Unreleased]" for l in lines):
         v.append("missing '## [Unreleased]' section")
@@ -47,7 +48,8 @@ def lint_changelog(path):
     return v
 
 def lint_tags(csproj):
-    m = TAGS_RE.search(open(csproj, encoding="utf-8").read())
+    with open(csproj, encoding="utf-8") as f:
+        m = TAGS_RE.search(f.read())
     if not m:
         return []
     tags = [t.strip() for t in m.group(1).split(";") if t.strip()]
