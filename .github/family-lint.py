@@ -15,23 +15,27 @@ def lint_changelog(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
     v, header_versions, footer_versions = [], [], []
-    if not any(l.strip() == "## [Unreleased]" for l in lines):
+    if not any(line.strip() == "## [Unreleased]" for line in lines):
         v.append("missing '## [Unreleased]' section")
-    if not any(l.strip().lower().startswith("[unreleased]:") for l in lines):
+    if not any(line.strip().lower().startswith("[unreleased]:") for line in lines):
         v.append("missing '[unreleased]:' footer link")
     cur, seen = None, []
-    for i, l in enumerate(lines, 1):
-        if l.startswith("## ["):
-            m = VER_LOOSE.match(l)
-            if m and l.strip() != "## [Unreleased]":
-                header_versions.append(m.group(1))
-                if not VER_RE.match(l):
-                    v.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {l.strip()!r}")
-                cur, seen = m.group(1), []
-        elif l.startswith("#### "):
-            v.append(f"L{i}: sub-header deeper than '###' not allowed: {l.strip()!r}")
-        elif l.startswith("### "):
-            name = l[4:].strip()
+    for i, line in enumerate(lines, 1):
+        if line.startswith("## ["):
+            seen = []  # every version section starts a fresh order scope
+            if line.strip() == "## [Unreleased]":
+                cur = "Unreleased"
+            else:
+                m = VER_LOOSE.match(line)
+                if m:
+                    header_versions.append(m.group(1))
+                    if not VER_RE.match(line):
+                        v.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}")
+                    cur = m.group(1)
+        elif line.startswith("#### "):
+            v.append(f"L{i}: sub-header deeper than '###' not allowed: {line.strip()!r}")
+        elif line.startswith("### "):
+            name = line[4:].strip()
             if name not in ALLOWED_H3:
                 v.append(f"L{i}: non-standard section '### {name}'")
             elif name in ORDER:
@@ -39,8 +43,8 @@ def lint_changelog(path):
                 if seen and idx < seen[-1]:
                     v.append(f"L{i}: '### {name}' out of order under [{cur}]")
                 seen.append(idx)
-        elif FOOT_RE.match(l):
-            footer_versions.append(FOOT_RE.match(l).group(1))
+        elif FOOT_RE.match(line):
+            footer_versions.append(FOOT_RE.match(line).group(1))
     for miss in sorted(set(header_versions) - set(footer_versions)):
         v.append(f"[{miss}] version section has no footer link")
     for miss in sorted(set(footer_versions) - set(header_versions)):
