@@ -91,7 +91,7 @@ jobs:
       - name: Pack SnapshotAssertions.TUnit (TUnit adapter)
         run: dotnet pack src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
 
-      - name: Install CycloneDX dotnet tool
+      - name: Restore .NET tools
         # Cross-format SBOM coverage: each nupkg already carries an SPDX 3.0 manifest under
         # _manifest/spdx_3.0/ via Microsoft.Sbom.Targets at pack time (see
         # <SbomGenerationManifestInfo> in the src csprojs). CycloneDX 1.6 lands as a sibling
@@ -101,7 +101,7 @@ jobs:
         # their choice.
         # Pin to a specific version so the SBOM tooling itself is deterministic: matches the
         # SHA-pinning posture for every other action in this workflow.
-        run: dotnet tool install --global CycloneDX --version 6.2.0
+        run: dotnet tool restore
 
       - name: Generate CycloneDX 1.6 SBOM (release artifact)
         # --exclude-dev strips analyzer / build-time-only packages from the BOM so it lists
