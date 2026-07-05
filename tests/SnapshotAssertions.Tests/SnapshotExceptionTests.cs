@@ -59,7 +59,7 @@ internal sealed class SnapshotExceptionTests
     public async Task ResultConstructor_WithFailingResult_MessageEqualsDescribe(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.NoBaseline("/tmp/foo.expected.txt", "/tmp/foo.actual.txt");
+        var result = SnapshotResult.NoBaseline("snapshots/foo.expected.txt", "snapshots/foo.actual.txt");
         var ex = new SnapshotException(result);
 
         await Assert.That(ex.Result).IsSameReferenceAs(result);
@@ -73,8 +73,8 @@ internal sealed class SnapshotExceptionTests
     public void ResultConstructor_WithPassingResult_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Assert.Throws<ArgumentException>(() => _ = new SnapshotException(SnapshotResult.Matched("/tmp/ok.expected.txt")));
-        Assert.Throws<ArgumentException>(() => _ = new SnapshotException(SnapshotResult.Accepted("/tmp/ok.expected.txt")));
+        Assert.Throws<ArgumentException>(() => _ = new SnapshotException(SnapshotResult.Matched("snapshots/ok.expected.txt")));
+        Assert.Throws<ArgumentException>(() => _ = new SnapshotException(SnapshotResult.Accepted("snapshots/ok.expected.txt")));
     }
 
     /// <summary>Result constructor rejects a null result with

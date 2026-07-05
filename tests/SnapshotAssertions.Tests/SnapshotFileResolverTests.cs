@@ -82,8 +82,8 @@ internal sealed class SnapshotFileResolverTests
     public void ResolveByName_PathSeparator_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("/tmp", "../escape"));
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("/tmp", "sub/path"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("snapshots", "../escape"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("snapshots", "sub/path"));
     }
 
     /// <summary>Empty / whitespace name throws.</summary>
@@ -91,8 +91,8 @@ internal sealed class SnapshotFileResolverTests
     public void ResolveByName_EmptyName_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("/tmp", ""));
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("/tmp", "   "));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("snapshots", ""));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByName("snapshots", "   "));
     }
 
     /// <summary>Empty / whitespace snapshots-directory throws. Without this check, an empty
@@ -124,8 +124,8 @@ internal sealed class SnapshotFileResolverTests
     public void ResolveByTest_EmptyTestClassName_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", string.Empty, "M"));
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "   ", "M"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", string.Empty, "M"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", "   ", "M"));
     }
 
     /// <summary>Empty / whitespace test-method name throws.</summary>
@@ -133,8 +133,8 @@ internal sealed class SnapshotFileResolverTests
     public void ResolveByTest_EmptyTestMethodName_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", string.Empty));
-        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("/tmp", "C", "   "));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", "C", string.Empty));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", "C", "   "));
     }
 
     /// <summary>Distinct collection arguments resolve to distinct snapshot files. A collection has no
@@ -144,8 +144,8 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_DistinctCollectionArgs_ProduceDistinctFiles(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwo);
-        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsThreeFour);
+        var first = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsOneTwo);
+        var second = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsThreeFour);
         await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
     }
 
@@ -155,8 +155,8 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_EqualCollectionArgs_ProduceSameFile(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwo);
-        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsOneTwoCopy);
+        var first = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsOneTwo);
+        var second = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsOneTwoCopy);
         await Assert.That(first.ExpectedFilePath).IsEqualTo(second.ExpectedFilePath);
     }
 
@@ -166,8 +166,8 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_NestedCollectionArgs_AreDistinguished(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsNestedA);
-        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsNestedB);
+        var first = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsNestedA);
+        var second = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsNestedB);
         await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
     }
 
@@ -178,9 +178,9 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_MixedScalarStringNullArgs_DistinctAndStable(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var first = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixed);
-        var firstAgain = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixedCopy);
-        var second = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsMixedOther);
+        var first = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsMixed);
+        var firstAgain = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsMixedCopy);
+        var second = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsMixedOther);
 
         await Assert.That(first.ExpectedFilePath).IsEqualTo(firstAgain.ExpectedFilePath);
         await Assert.That(first.ExpectedFilePath).IsNotEqualTo(second.ExpectedFilePath);
@@ -191,8 +191,8 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_CustomObjectArg_UsesItsToString(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var withCustom = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsCustom);
-        var withRaw = SnapshotFileResolver.ResolveByTest("/tmp", "C", "M", ArgsRawToken);
+        var withCustom = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsCustom);
+        var withRaw = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsRawToken);
 
         // The custom type's ToString returns "custom-token", so it hashes the same as that string arg.
         await Assert.That(withCustom.ExpectedFilePath).IsEqualTo(withRaw.ExpectedFilePath);
