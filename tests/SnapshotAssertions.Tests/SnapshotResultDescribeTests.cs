@@ -23,11 +23,11 @@ internal sealed class SnapshotResultDescribeTests
     public async Task Matched_DescribeMentionsHeadlineAndExpectedPath(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Matched("/tmp/foo.expected.txt");
+        var result = SnapshotResult.Matched("snapshots/foo.expected.txt");
 
         var description = result.Describe();
         await Assert.That(description).Contains("Snapshot matched");
-        await Assert.That(description).Contains("/tmp/foo.expected.txt");
+        await Assert.That(description).Contains("snapshots/foo.expected.txt");
         await Assert.That(result.IsPass).IsTrue();
     }
 
@@ -37,12 +37,12 @@ internal sealed class SnapshotResultDescribeTests
     public async Task Accepted_DescribeMentionsHeadlineAndAcceptModeAndPath(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Accepted("/tmp/foo.expected.txt");
+        var result = SnapshotResult.Accepted("snapshots/foo.expected.txt");
 
         var description = result.Describe();
         await Assert.That(description).Contains("Snapshot accepted");
         await Assert.That(description).Contains("SNAPSHOT_ACCEPT");
-        await Assert.That(description).Contains("/tmp/foo.expected.txt");
+        await Assert.That(description).Contains("snapshots/foo.expected.txt");
         await Assert.That(result.IsPass).IsTrue();
     }
 
@@ -52,12 +52,12 @@ internal sealed class SnapshotResultDescribeTests
     public async Task NoBaseline_DescribeMentionsHeadlineAndBothPathsAndRenameGuidance(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.NoBaseline("/tmp/foo.expected.txt", "/tmp/foo.actual.txt");
+        var result = SnapshotResult.NoBaseline("snapshots/foo.expected.txt", "snapshots/foo.actual.txt");
 
         var description = result.Describe();
         await Assert.That(description).Contains("Snapshot baseline does not exist");
-        await Assert.That(description).Contains("/tmp/foo.expected.txt");
-        await Assert.That(description).Contains("/tmp/foo.actual.txt");
+        await Assert.That(description).Contains("snapshots/foo.expected.txt");
+        await Assert.That(description).Contains("snapshots/foo.actual.txt");
         await Assert.That(description).Contains("rename");
         await Assert.That(result.IsPass).IsFalse();
     }
@@ -69,12 +69,12 @@ internal sealed class SnapshotResultDescribeTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var diff = "-old\n+new\n";
-        var result = SnapshotResult.Mismatched("/tmp/foo.expected.txt", "/tmp/foo.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/foo.expected.txt", "snapshots/foo.actual.txt", diff);
 
         var description = result.Describe();
         await Assert.That(description).Contains("Snapshot did not match the baseline");
-        await Assert.That(description).Contains("/tmp/foo.expected.txt");
-        await Assert.That(description).Contains("/tmp/foo.actual.txt");
+        await Assert.That(description).Contains("snapshots/foo.expected.txt");
+        await Assert.That(description).Contains("snapshots/foo.actual.txt");
         await Assert.That(description).Contains("-old");
         await Assert.That(description).Contains("+new");
         await Assert.That(description).Contains("rename");
@@ -86,7 +86,7 @@ internal sealed class SnapshotResultDescribeTests
     public void WriteDescription_NullWriter_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Matched("/tmp/x.expected.txt");
+        var result = SnapshotResult.Matched("snapshots/x.expected.txt");
         Assert.Throws<ArgumentNullException>(() => result.WriteDescription(null!));
     }
 
@@ -101,7 +101,7 @@ internal sealed class SnapshotResultDescribeTests
     public async Task WriteDescription_MismatchedWithoutNewlineTerminatedDiff_AppendsNewline(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Mismatched("/tmp/x.expected.txt", "/tmp/x.actual.txt", "no-newline");
+        var result = SnapshotResult.Mismatched("snapshots/x.expected.txt", "snapshots/x.actual.txt", "no-newline");
 
         var description = result.Describe();
         // The describer must close the diff line with a newline before the trailing blank line
@@ -118,7 +118,7 @@ internal sealed class SnapshotResultDescribeTests
     public async Task WriteDescription_RoundTripsViaTextWriter(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Matched("/tmp/x.expected.txt");
+        var result = SnapshotResult.Matched("snapshots/x.expected.txt");
 
         using var writer = new StringWriter();
         result.WriteDescription(writer);
@@ -136,7 +136,7 @@ internal sealed class SnapshotResultDescribeTests
     {
         ct.ThrowIfCancellationRequested();
         var diff = "-only static content\n+different static content\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).DoesNotContain("Suggestion");
     }
@@ -148,7 +148,7 @@ internal sealed class SnapshotResultDescribeTests
     {
         ct.ThrowIfCancellationRequested();
         var diff = "-id=11111111-2222-3333-4444-555555555555\n+id=22222222-2222-3333-4444-555555555555\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).Contains("Suggestion: ");
         await Assert.That(description).Contains("2 matches for GUID");
@@ -166,7 +166,7 @@ internal sealed class SnapshotResultDescribeTests
         ct.ThrowIfCancellationRequested();
         var diff = "-id=11111111-2222-3333-4444-555555555555 at=2026-05-07T13:45:30Z\n" +
                    "+id=22222222-2222-3333-4444-555555555555 at=2026-05-07T13:46:00Z\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).Contains("Suggestions: ");
         await Assert.That(description).Contains("2 matches for GUID");
@@ -184,7 +184,7 @@ internal sealed class SnapshotResultDescribeTests
                    "-nformat=f47ac10b58cc4372a5670e02b2c3d479\n" +
                    "-at=2026-05-07T13:45:30Z\n" +
                    "-took 42ms\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         // Top 3 hits surfaced; 4th rolled up into "... and 1 more" line.
         await Assert.That(description).Contains("Suggestions:");
@@ -205,7 +205,7 @@ internal sealed class SnapshotResultDescribeTests
                    "-at=2026-05-07T13:45:30Z\n" +
                    "-epoch=1714999530000\n" +
                    "-took 42ms\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).Contains("... and 2 more pattern types (2 hits). Consider .WithScrubber(Scrubbers.Common)");
     }
@@ -218,7 +218,7 @@ internal sealed class SnapshotResultDescribeTests
     {
         ct.ThrowIfCancellationRequested();
         var diff = "-a=11111111-2222-3333-4444-555555555555\n-b=22222222-2222-3333-4444-555555555555\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).Contains("Suggestion: 2 differences match a known volatile pattern.");
     }
@@ -231,7 +231,7 @@ internal sealed class SnapshotResultDescribeTests
     {
         ct.ThrowIfCancellationRequested();
         var diff = "-a=11111111-2222-3333-4444-555555555555\n";
-        var result = SnapshotResult.Mismatched("/tmp/a.expected.txt", "/tmp/a.actual.txt", diff);
+        var result = SnapshotResult.Mismatched("snapshots/a.expected.txt", "snapshots/a.actual.txt", diff);
         var description = result.Describe();
         await Assert.That(description).Contains("Suggestion: 1 of 1 difference matches a known volatile pattern.");
     }
@@ -242,7 +242,7 @@ internal sealed class SnapshotResultDescribeTests
     public async Task Matched_NoSuggestionsSection(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Matched("/tmp/a.expected.txt");
+        var result = SnapshotResult.Matched("snapshots/a.expected.txt");
         var description = result.Describe();
         await Assert.That(description).DoesNotContain("Suggestion");
     }
@@ -252,7 +252,7 @@ internal sealed class SnapshotResultDescribeTests
     public async Task NoBaseline_NoSuggestionsSection(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var result = SnapshotResult.NoBaseline("/tmp/a.expected.txt", "/tmp/a.actual.txt");
+        var result = SnapshotResult.NoBaseline("snapshots/a.expected.txt", "snapshots/a.actual.txt");
         var description = result.Describe();
         await Assert.That(description).DoesNotContain("Suggestion");
     }
@@ -262,7 +262,7 @@ internal sealed class SnapshotResultDescribeTests
     public async Task Accepted_NoSuggestionsSection(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var result = SnapshotResult.Accepted("/tmp/a.expected.txt");
+        var result = SnapshotResult.Accepted("snapshots/a.expected.txt");
         var description = result.Describe();
         await Assert.That(description).DoesNotContain("Suggestion");
     }
