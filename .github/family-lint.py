@@ -12,6 +12,28 @@ FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:\s+(\S.*?)\s*$")
 UNREL_FOOT_RE = re.compile(r"^\[[Uu]nreleased\]:\s+(\S.*?)\s*$")
 TAGS_RE = re.compile(r"<PackageTags>(.*?)</PackageTags>")
 
+def _ver(s):
+    return tuple(int(p) for p in s.split("."))
+
+def _order_issues(header_versions):
+    out = []
+    for a, b in zip(header_versions, header_versions[1:]):
+        if _ver(a) <= _ver(b):
+            out.append(f"versions must be newest-first: [{a}] should sit above [{b}], not below")
+    return out
+
+def _footer_issues(line, i, footer_versions):
+    fm = FOOT_RE.match(line)
+    if fm:
+        footer_versions.append(fm.group(1))
+        if not fm.group(2).rstrip().endswith(f"v{fm.group(1)}"):
+            return [f"L{i}: footer [{fm.group(1)}] should target 'v{fm.group(1)}': {fm.group(2).strip()!r}"]
+        return []
+    um = UNREL_FOOT_RE.match(line)
+    if um and not um.group(1).rstrip().endswith("HEAD"):
+        return [f"L{i}: footer [unreleased] should target 'HEAD': {um.group(1).strip()!r}"]
+    return []
+
 def lint_changelog(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
@@ -49,14 +71,8 @@ def lint_changelog(path):
                     v.append(f"L{i}: '### {name}' out of order under [{cur}]")
                 seen.append(idx)
         else:
-            fm = FOOT_RE.match(line)
-            um = UNREL_FOOT_RE.match(line)
-            if fm:
-                footer_versions.append(fm.group(1))
-                if not fm.group(2).rstrip().endswith(f"v{fm.group(1)}"):
-                    v.append(f"L{i}: footer [{fm.group(1)}] should target 'v{fm.group(1)}': {fm.group(2).strip()!r}")
-            elif um and not um.group(1).rstrip().endswith("HEAD"):
-                v.append(f"L{i}: footer [unreleased] should target 'HEAD': {um.group(1).strip()!r}")
+            v += _footer_issues(line, i, footer_versions)
+    v += _order_issues(header_versions)
     for miss in sorted(set(header_versions) - set(footer_versions)):
         v.append(f"[{miss}] version section has no footer link")
     for miss in sorted(set(footer_versions) - set(header_versions)):

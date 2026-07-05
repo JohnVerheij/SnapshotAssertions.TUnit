@@ -36,8 +36,8 @@ jobs:
       - name: Build (so XML docs exist in obj/)
         run: dotnet build SnapshotAssertions.TUnit.slnx --configuration Release --no-restore
 
-      - name: Install DocFX
-        run: dotnet tool install -g docfx
+      - name: Restore .NET tools
+        run: dotnet tool restore
 
       - name: Copy markdown sources into docs/
         run: |
@@ -63,7 +63,7 @@ jobs:
           done
 
       - name: Build docs
-        run: docfx docs/docfx.json
+        run: dotnet docfx docs/docfx.json
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
