@@ -16,7 +16,7 @@
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>Framework-agnostic core for text-snapshot assertions. Provides string-against-file comparison with line-ending / BOM / whitespace options, TestContext-aware default file naming, environment-variable-driven accept-mode workflow with CI guard, and line-based diff rendering. Test-framework-specific entry points live in adapter packages (SnapshotAssertions.TUnit ships today; xUnit, NUnit, MSTest adapters are possible if there is demand).</Description>
-    <PackageTags>snapshot;testing;assertions;publicapi;approval;text-comparison</PackageTags>
+    <PackageTags>assertions;testing;snapshot;publicapi;approval;text-comparison;dotnet;aot</PackageTags>
     <PackageProjectUrl>https://github.com/JohnVerheij/SnapshotAssertions.TUnit</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
