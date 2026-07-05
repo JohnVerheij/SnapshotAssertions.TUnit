@@ -48,6 +48,19 @@ jobs:
           cp CODE_OF_CONDUCT.md docs/coc.md
           cp SECURITY.md docs/security.md
           { echo "# License"; echo; echo '```'; cat LICENSE; echo '```'; } > docs/license.md
+          # rewrite cross-file links from repo-root names to the published site pages
+          PR_URL="https://github.com/${GITHUB_REPOSITORY}/blob/main/.github/PULL_REQUEST_TEMPLATE.md"
+          for f in docs/index.md docs/changelog.md docs/conventions.md docs/contributing.md docs/coc.md docs/security.md; do
+            sed -i -E \
+              -e 's#\]\((\./)?CHANGELOG\.md#](changelog.md#g' \
+              -e 's#\]\((\./)?CONVENTIONS\.md#](conventions.md#g' \
+              -e 's#\]\((\./)?CONTRIBUTING\.md#](contributing.md#g' \
+              -e 's#\]\((\./)?CODE_OF_CONDUCT\.md#](coc.md#g' \
+              -e 's#\]\((\./)?SECURITY\.md#](security.md#g' \
+              -e 's#\]\((\./)?LICENSE\)#](license.md)#g' \
+              "$f"
+            sed -i "s#\.github/PULL_REQUEST_TEMPLATE\.md#${PR_URL}#g" "$f"
+          done
 
       - name: Build docs
         run: docfx docs/docfx.json

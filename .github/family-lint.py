@@ -8,7 +8,8 @@ ALLOWED_H3 = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", 
 ORDER = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
 VER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}: \S.*$")
 VER_LOOSE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]")
-FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:\s+\S")
+FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:\s+(\S.*?)\s*$")
+UNREL_FOOT_RE = re.compile(r"^\[[Uu]nreleased\]:\s+(\S.*?)\s*$")
 TAGS_RE = re.compile(r"<PackageTags>(.*?)</PackageTags>")
 
 def lint_changelog(path):
@@ -19,10 +20,14 @@ def lint_changelog(path):
         v.append("missing '## [Unreleased]' section")
     if not any(line.strip().lower().startswith("[unreleased]:") for line in lines):
         v.append("missing '[unreleased]:' footer link")
-    cur, seen = None, []
+    cur, seen, first_section = None, [], None
     for i, line in enumerate(lines, 1):
         if line.startswith("## ["):
             seen = []  # every version section starts a fresh order scope
+            if first_section is None:
+                first_section = line.strip()
+                if first_section != "## [Unreleased]":
+                    v.append(f"L{i}: first section must be '## [Unreleased]', found {first_section!r}")
             if line.strip() == "## [Unreleased]":
                 cur = "Unreleased"
             else:
@@ -43,8 +48,15 @@ def lint_changelog(path):
                 if seen and idx < seen[-1]:
                     v.append(f"L{i}: '### {name}' out of order under [{cur}]")
                 seen.append(idx)
-        elif FOOT_RE.match(line):
-            footer_versions.append(FOOT_RE.match(line).group(1))
+        else:
+            fm = FOOT_RE.match(line)
+            um = UNREL_FOOT_RE.match(line)
+            if fm:
+                footer_versions.append(fm.group(1))
+                if not fm.group(2).rstrip().endswith(f"v{fm.group(1)}"):
+                    v.append(f"L{i}: footer [{fm.group(1)}] should target 'v{fm.group(1)}': {fm.group(2).strip()!r}")
+            elif um and not um.group(1).rstrip().endswith("HEAD"):
+                v.append(f"L{i}: footer [unreleased] should target 'HEAD': {um.group(1).strip()!r}")
     for miss in sorted(set(header_versions) - set(footer_versions)):
         v.append(f"[{miss}] version section has no footer link")
     for miss in sorted(set(footer_versions) - set(header_versions)):
@@ -57,12 +69,15 @@ def lint_tags(csproj):
     if not m:
         return []
     tags = [t.strip() for t in m.group(1).split(";") if t.strip()]
-    lead = ["tunit", "assertions", "testing"] if csproj.endswith(".TUnit.csproj") else ["assertions", "testing"]
+    is_adapter = csproj.endswith(".TUnit.csproj")
+    lead = ["tunit", "assertions", "testing"] if is_adapter else ["assertions", "testing"]
     v = []
     if tags[:len(lead)] != lead:
         v.append(f"{csproj}: PackageTags must start with '{';'.join(lead)}' (got '{';'.join(tags[:len(lead)])}')")
     if tags[-2:] != ["dotnet", "aot"]:
         v.append(f"{csproj}: PackageTags must end with 'dotnet;aot' (got '{';'.join(tags[-2:])}')")
+    if not is_adapter and "tunit" in tags:
+        v.append(f"{csproj}: core PackageTags must not contain 'tunit'")
     return v
 
 if __name__ == "__main__":
