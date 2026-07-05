@@ -1,0 +1,11 @@
+_site/
+obj/
+api/.manifest
+api/*.yml
+index.md
+changelog.md
+conventions.md
+contributing.md
+coc.md
+security.md
+license.md

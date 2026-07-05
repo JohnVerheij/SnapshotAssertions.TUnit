@@ -1,0 +1,20 @@
+- name: Home
+  href: index.md
+- name: API
+  href: api/SnapshotAssertions.html
+- name: CHANGELOG
+  href: changelog.md
+- name: Conventions
+  href: conventions.md
+- name: Project
+  items:
+    - name: Contributing
+      href: contributing.md
+    - name: Code of Conduct
+      href: coc.md
+    - name: Security
+      href: security.md
+    - name: License
+      href: license.md
+- name: GitHub
+  href: https://github.com/JohnVerheij/SnapshotAssertions.TUnit
