@@ -1,5 +1,10 @@
 ## .NET / Visual Studio gitignore (canonical subset)
 
+# Python bytecode (the family-lint gate and its tests run under CI)
+__pycache__/
+*.py[cod]
+
+
 # Build output
 [Bb]in/
 [Oo]bj/
