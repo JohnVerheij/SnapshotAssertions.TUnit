@@ -1,5 +1,5 @@
 apiRules:
 - exclude:
-    uidRegex: .*\.Internal\..*
+    uidRegex: .*\.Internal(\..*)?$
 - include:
     uidRegex: ^SnapshotAssertions(\.TUnit)?(\..+)?$

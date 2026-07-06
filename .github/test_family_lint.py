@@ -97,6 +97,11 @@ class ChangelogTests(_Base):
         text = VALID.replace("## [1.0.0] - 2026-06-01: first release", "## [1.0.0] - 2026-06-01")
         self.assertTrue(_matches(self.changelog(text), "version header not"))
 
+    def test_malformed_version_header_flagged(self):
+        # '## [1.0]' is neither '## [Unreleased]' nor a valid 'x.y.z' header.
+        text = VALID.replace("## [1.0.0] - 2026-06-01: first release", "## [1.0] - 2026-06-01: first release")
+        self.assertTrue(_matches(self.changelog(text), "malformed version header"))
+
     def test_ascending_version_order_flagged(self):
         text = VALID.replace(
             "## [1.1.0] - 2026-06-02: second release", "## [0.9.0] - 2026-06-02: second release"

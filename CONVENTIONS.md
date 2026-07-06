@@ -276,7 +276,9 @@ This is binding across:
   on nuget.org)
 
 The scope statement appears immediately after the H1 title (and after CI badges in the
-root README, before the package description).
+root README, before the package description). The DotNetAssertions family note (the
+`> Part of the **[DotNetAssertions]**...` blockquote) sits directly below the scope
+statement, never above it.
 
 ## TFM policy
 

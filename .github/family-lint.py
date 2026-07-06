@@ -34,6 +34,17 @@ def _footer_issues(line, i, footer_versions):
         return [f"L{i}: footer [unreleased] should target 'HEAD': {um.group(1).strip()!r}"]
     return []
 
+def _header_issues(line, i, header_versions):
+    """Validate a non-Unreleased '## [...]' header. Returns (issues, cur)."""
+    m = VER_LOOSE.match(line)
+    if not m:
+        return [f"L{i}: malformed version header, expected '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}"], line.strip()
+    header_versions.append(m.group(1))
+    issues = []
+    if not VER_RE.match(line):
+        issues.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}")
+    return issues, m.group(1)
+
 def lint_changelog(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
@@ -53,12 +64,8 @@ def lint_changelog(path):
             if line.strip() == "## [Unreleased]":
                 cur = "Unreleased"
             else:
-                m = VER_LOOSE.match(line)
-                if m:
-                    header_versions.append(m.group(1))
-                    if not VER_RE.match(line):
-                        v.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}")
-                    cur = m.group(1)
+                issues, cur = _header_issues(line, i, header_versions)
+                v += issues
         elif line.startswith("#### "):
             v.append(f"L{i}: sub-header deeper than '###' not allowed: {line.strip()!r}")
         elif line.startswith("### "):
