@@ -93,6 +93,15 @@ class ChangelogTests(_Base):
         )
         self.assertTrue(_matches(self.changelog(text), "out of order"))
 
+    def test_duplicate_section_flagged(self):
+        # Two '### Added' blocks under one version (same rank) must be flagged.
+        text = VALID.replace(
+            "### Added\n- `Thing.New()` does a thing.\n### Fixed",
+            "### Added\n- `Thing.New()` does a thing.\n### Added\n- `Thing.Extra()` also.\n### Fixed",
+            1,
+        )
+        self.assertTrue(_matches(self.changelog(text), "duplicate '### Added'"))
+
     def test_version_header_without_summary_flagged(self):
         text = VALID.replace("## [1.0.0] - 2026-06-01: first release", "## [1.0.0] - 2026-06-01")
         self.assertTrue(_matches(self.changelog(text), "version header not"))

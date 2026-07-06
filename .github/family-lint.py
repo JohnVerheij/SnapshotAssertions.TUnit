@@ -53,7 +53,12 @@ def _section_issues(line, i, cur, seen):
     if name not in ORDER:
         return []
     idx = ORDER.index(name)
-    out = [f"L{i}: '### {name}' out of order under [{cur}]"] if seen and idx < seen[-1] else []
+    if idx in seen:
+        out = [f"L{i}: duplicate '### {name}' section under [{cur}]"]
+    elif seen and idx < seen[-1]:
+        out = [f"L{i}: '### {name}' out of order under [{cur}]"]
+    else:
+        out = []
     seen.append(idx)
     return out
 
