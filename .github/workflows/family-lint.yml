@@ -18,5 +18,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test the lint gate
+        run: python3 .github/test_family_lint.py
+
       - name: Lint CHANGELOG + PackageTags
         run: python3 .github/family-lint.py
