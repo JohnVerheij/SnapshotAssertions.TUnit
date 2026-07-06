@@ -275,10 +275,9 @@ This is binding across:
 - Each per-package `src/<Package>/README.md` (the one packed into the `.nupkg` and shown
   on nuget.org)
 
-The scope statement appears immediately after the H1 title (and after CI badges in the
-root README, before the package description). The DotNetAssertions family note (the
-`> Part of the **[DotNetAssertions]**...` blockquote) sits directly below the scope
-statement, never above it.
+Every README places the scope statement near the top, directly below the CI/badge block.
+The DotNetAssertions family note (the `> Part of the **[DotNetAssertions]**...` blockquote)
+sits directly below that scope statement, never above it.
 
 ## TFM policy
 

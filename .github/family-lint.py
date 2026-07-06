@@ -45,6 +45,18 @@ def _header_issues(line, i, header_versions):
         issues.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}")
     return issues, m.group(1)
 
+def _section_issues(line, i, cur, seen):
+    """Validate a '### ' section header; records its order index in `seen`."""
+    name = line[4:].strip()
+    if name not in ALLOWED_H3:
+        return [f"L{i}: non-standard section '### {name}'"]
+    if name not in ORDER:
+        return []
+    idx = ORDER.index(name)
+    out = [f"L{i}: '### {name}' out of order under [{cur}]"] if seen and idx < seen[-1] else []
+    seen.append(idx)
+    return out
+
 def lint_changelog(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
@@ -69,14 +81,7 @@ def lint_changelog(path):
         elif line.startswith("#### "):
             v.append(f"L{i}: sub-header deeper than '###' not allowed: {line.strip()!r}")
         elif line.startswith("### "):
-            name = line[4:].strip()
-            if name not in ALLOWED_H3:
-                v.append(f"L{i}: non-standard section '### {name}'")
-            elif name in ORDER:
-                idx = ORDER.index(name)
-                if seen and idx < seen[-1]:
-                    v.append(f"L{i}: '### {name}' out of order under [{cur}]")
-                seen.append(idx)
+            v += _section_issues(line, i, cur, seen)
         else:
             v += _footer_issues(line, i, footer_versions)
     v += _order_issues(header_versions)
