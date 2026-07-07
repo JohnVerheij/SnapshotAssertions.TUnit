@@ -8,8 +8,8 @@ ALLOWED_H3 = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security", 
 ORDER = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
 VER_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}: \S.*$")
 VER_LOOSE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]")
-FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:\s+(\S.*?)\s*$")
-UNREL_FOOT_RE = re.compile(r"^\[[Uu]nreleased\]:\s+(\S.*?)\s*$")
+FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:(\s*)(\S.*?)\s*$")
+UNREL_FOOT_RE = re.compile(r"^\[[Uu]nreleased\]:(\s*)(\S.*?)\s*$")
 TAGS_RE = re.compile(r"<PackageTags>(.*?)</PackageTags>")
 
 def _ver(s):
@@ -26,12 +26,20 @@ def _footer_issues(line, i, footer_versions):
     fm = FOOT_RE.match(line)
     if fm:
         footer_versions.append(fm.group(1))
-        if not fm.group(2).rstrip().endswith(f"v{fm.group(1)}"):
-            return [f"L{i}: footer [{fm.group(1)}] should target 'v{fm.group(1)}': {fm.group(2).strip()!r}"]
-        return []
+        out = []
+        if fm.group(2) != " ":
+            out.append(f"L{i}: footer [{fm.group(1)}] needs exactly one space after ':'")
+        if not fm.group(3).rstrip().endswith(f"v{fm.group(1)}"):
+            out.append(f"L{i}: footer [{fm.group(1)}] should target 'v{fm.group(1)}': {fm.group(3).strip()!r}")
+        return out
     um = UNREL_FOOT_RE.match(line)
-    if um and not um.group(1).rstrip().endswith("HEAD"):
-        return [f"L{i}: footer [unreleased] should target 'HEAD': {um.group(1).strip()!r}"]
+    if um:
+        out = []
+        if um.group(1) != " ":
+            out.append(f"L{i}: footer [unreleased] needs exactly one space after ':'")
+        if not um.group(2).rstrip().endswith("HEAD"):
+            out.append(f"L{i}: footer [unreleased] should target 'HEAD': {um.group(2).strip()!r}")
+        return out
     return []
 
 def _header_issues(line, i, header_versions):
@@ -70,7 +78,7 @@ def lint_changelog(path):
         v.append("missing '## [Unreleased]' section")
     if not any(line.strip().lower().startswith("[unreleased]:") for line in lines):
         v.append("missing '[unreleased]:' footer link")
-    cur, seen, first_section = None, [], None
+    cur, seen, first_section, unreleased_at = None, [], None, None
     for i, line in enumerate(lines, 1):
         if line.startswith("## ["):
             seen = []  # every version section starts a fresh order scope
@@ -79,6 +87,9 @@ def lint_changelog(path):
                 if first_section != "## [Unreleased]":
                     v.append(f"L{i}: first section must be '## [Unreleased]', found {first_section!r}")
             if line.strip() == "## [Unreleased]":
+                if unreleased_at is not None:
+                    v.append(f"L{i}: duplicate '## [Unreleased]' section (first at L{unreleased_at})")
+                unreleased_at = i
                 cur = "Unreleased"
             else:
                 issues, cur = _header_issues(line, i, header_versions)

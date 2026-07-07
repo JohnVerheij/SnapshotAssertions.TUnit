@@ -57,11 +57,13 @@ def _validate(dest, base, root_abs, name, issues):
 def check_docs(root):
     root_abs = os.path.abspath(root)
     issues = []
-    for path in sorted(glob.glob(os.path.join(root, "*.md"))):
+    # Recursive to match DocFX's build.content pattern (**/*.md); nested pages
+    # would otherwise publish unchecked.
+    for path in sorted(glob.glob(os.path.join(root, "**", "*.md"), recursive=True)):
         with open(path, encoding="utf-8") as f:
             text = f.read()
         base = os.path.dirname(os.path.abspath(path))
-        name = os.path.basename(path)
+        name = os.path.relpath(path, root).replace(os.sep, "/")
         for m in _LINK.finditer(text):
             _validate(m.group(1), base, root_abs, name, issues)
         for m in _REFDEF.finditer(text):

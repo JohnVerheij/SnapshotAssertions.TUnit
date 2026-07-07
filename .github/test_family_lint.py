@@ -102,6 +102,28 @@ class ChangelogTests(_Base):
         )
         self.assertTrue(_matches(self.changelog(text), "duplicate '### Added'"))
 
+    def test_duplicate_unreleased_flagged(self):
+        text = VALID.replace("## [Unreleased]\n\n", "## [Unreleased]\n\n## [Unreleased]\n\n", 1)
+        self.assertTrue(_matches(self.changelog(text), "duplicate '## [Unreleased]'"))
+
+    def test_footer_missing_space_flagged(self):
+        # '[1.0.0]:https://...' must get a targeted spacing error, not fall
+        # through to a generic 'has no footer link'.
+        text = VALID.replace(
+            "[1.0.0]: https://example.com/releases/tag/v1.0.0",
+            "[1.0.0]:https://example.com/releases/tag/v1.0.0",
+        )
+        issues = self.changelog(text)
+        self.assertTrue(_matches(issues, "needs exactly one space after ':'"))
+        self.assertFalse(_matches(issues, "has no footer link"))
+
+    def test_unreleased_footer_missing_space_flagged(self):
+        text = VALID.replace(
+            "[unreleased]: https://example.com/compare/v1.1.0...HEAD",
+            "[unreleased]:https://example.com/compare/v1.1.0...HEAD",
+        )
+        self.assertTrue(_matches(self.changelog(text), "needs exactly one space after ':'"))
+
     def test_version_header_without_summary_flagged(self):
         text = VALID.replace("## [1.0.0] - 2026-06-01: first release", "## [1.0.0] - 2026-06-01")
         self.assertTrue(_matches(self.changelog(text), "version header not"))

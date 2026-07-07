@@ -67,6 +67,18 @@ class LinkCheckTests(_Base):
         self.page("index.md", "[a][x] [b][y]\n\n[x]: changelog.md\n[y]: https://example/z.md")
         self.assertEqual(self.check(), [])
 
+    def test_nested_page_dead_link_flagged(self):
+        # DocFX builds **/*.md, so nested pages must be scanned too.
+        os.makedirs(os.path.join(self.docs, "articles"))
+        self.page(os.path.join("articles", "guide.md"), "[gone](missing.md)")
+        self.assertTrue(any("dead internal link 'missing.md'" in x for x in self.check()))
+
+    def test_nested_page_resolving_link_has_no_issues(self):
+        os.makedirs(os.path.join(self.docs, "articles"))
+        self.page("changelog.md")
+        self.page(os.path.join("articles", "guide.md"), "[c](../changelog.md)")
+        self.assertEqual(self.check(), [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
