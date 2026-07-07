@@ -12,17 +12,17 @@ FOOT_RE = re.compile(r"^\[(\d+\.\d+\.\d+)\]:(\s*)(\S.*?)\s*$")
 UNREL_FOOT_RE = re.compile(r"^\[[Uu]nreleased\]:(\s*)(\S.*?)\s*$")
 TAGS_RE = re.compile(r"<PackageTags>(.*?)</PackageTags>")
 
-def _ver(s):
+def _ver(s: str) -> tuple[int, ...]:
     return tuple(int(p) for p in s.split("."))
 
-def _order_issues(header_versions):
+def _order_issues(header_versions: list[str]) -> list[str]:
     out = []
     for a, b in zip(header_versions, header_versions[1:]):
         if _ver(a) <= _ver(b):
             out.append(f"versions must be newest-first: [{a}] should sit above [{b}], not below")
     return out
 
-def _footer_issues(line, i, footer_versions):
+def _footer_issues(line: str, i: int, footer_versions: list[str]) -> list[str]:
     fm = FOOT_RE.match(line)
     if fm:
         footer_versions.append(fm.group(1))
@@ -42,7 +42,7 @@ def _footer_issues(line, i, footer_versions):
         return out
     return []
 
-def _header_issues(line, i, header_versions):
+def _header_issues(line: str, i: int, header_versions: list[str]) -> tuple[list[str], str]:
     """Validate a non-Unreleased '## [...]' header. Returns (issues, cur)."""
     m = VER_LOOSE.match(line)
     if not m:
@@ -53,7 +53,7 @@ def _header_issues(line, i, header_versions):
         issues.append(f"L{i}: version header not '## [x.y.z] - YYYY-MM-DD: summary': {line.strip()!r}")
     return issues, m.group(1)
 
-def _section_issues(line, i, cur, seen):
+def _section_issues(line: str, i: int, cur: 'str | None', seen: list[int]) -> list[str]:
     """Validate a '### ' section header; records its order index in `seen`."""
     name = line[4:].strip()
     if name not in ALLOWED_H3:
@@ -70,7 +70,7 @@ def _section_issues(line, i, cur, seen):
     seen.append(idx)
     return out
 
-def lint_changelog(path):
+def lint_changelog(path: str) -> list[str]:
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
     v, header_versions, footer_versions = [], [], []
@@ -107,7 +107,7 @@ def lint_changelog(path):
         v.append(f"[{miss}] footer link has no version section")
     return v
 
-def lint_tags(csproj):
+def lint_tags(csproj: str) -> list[str]:
     with open(csproj, encoding="utf-8") as f:
         m = TAGS_RE.search(f.read())
     if not m:
