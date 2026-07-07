@@ -14,6 +14,8 @@ import sys
 
 # Inline '[text](target)' links; the leading (?<!!) skips '![image](...)'.
 _LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
+# Reference-style definitions: a line '[label]: destination "optional title"'.
+_REFDEF = re.compile(r"^ {0,3}\[[^\]]+\]:\s*(\S+)", re.MULTILINE)
 _EXTERNAL = ("http://", "https://", "mailto:", "tel:", "ftp://", "//")
 
 
@@ -35,6 +37,23 @@ def _escapes(root_abs, target):
         return True
 
 
+def _validate(dest, base, root_abs, name, issues):
+    """Check one link destination; append an issue if it names a local Markdown
+    page that is missing or escapes the docs root. Non-Markdown, external, and
+    bare-anchor destinations are skipped."""
+    dest = dest.strip()
+    if not dest or dest.startswith("#") or dest.lower().startswith(_EXTERNAL):
+        return
+    frag = _target(dest)
+    if not frag.lower().endswith(".md"):
+        return
+    target = os.path.normpath(os.path.join(base, frag))
+    if _escapes(root_abs, target):
+        issues.append(f"{name}: link '{frag}' escapes the docs root")
+    elif not os.path.isfile(target):
+        issues.append(f"{name}: dead internal link '{frag}'")
+
+
 def check_docs(root):
     root_abs = os.path.abspath(root)
     issues = []
@@ -44,17 +63,9 @@ def check_docs(root):
         base = os.path.dirname(os.path.abspath(path))
         name = os.path.basename(path)
         for m in _LINK.finditer(text):
-            dest = m.group(1).strip()
-            if not dest or dest.startswith("#") or dest.lower().startswith(_EXTERNAL):
-                continue
-            frag = _target(dest)
-            if not frag.lower().endswith(".md"):
-                continue
-            target = os.path.normpath(os.path.join(base, frag))
-            if _escapes(root_abs, target):
-                issues.append(f"{name}: link '{frag}' escapes the docs root")
-            elif not os.path.isfile(target):
-                issues.append(f"{name}: dead internal link '{frag}'")
+            _validate(m.group(1), base, root_abs, name, issues)
+        for m in _REFDEF.finditer(text):
+            _validate(m.group(1), base, root_abs, name, issues)
     return issues
 
 

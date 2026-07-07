@@ -58,6 +58,15 @@ class LinkCheckTests(_Base):
         self.page("index.md", "![shield](missing.md)")
         self.assertEqual(self.check(), [])
 
+    def test_reference_style_dead_link_flagged(self):
+        self.page("index.md", "See [the changelog][cl].\n\n[cl]: missing.md")
+        self.assertTrue(any("dead internal link 'missing.md'" in x for x in self.check()))
+
+    def test_reference_style_resolving_and_external_ignored(self):
+        self.page("changelog.md")
+        self.page("index.md", "[a][x] [b][y]\n\n[x]: changelog.md\n[y]: https://example/z.md")
+        self.assertEqual(self.check(), [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
