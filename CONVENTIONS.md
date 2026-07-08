@@ -275,8 +275,9 @@ This is binding across:
 - Each per-package `src/<Package>/README.md` (the one packed into the `.nupkg` and shown
   on nuget.org)
 
-The scope statement appears immediately after the H1 title (and after CI badges in the
-root README, before the package description).
+Every README places the scope statement near the top, directly below the CI/badge block.
+The DotNetAssertions family note (the `> Part of the **[DotNetAssertions]**...` blockquote)
+sits directly below that scope statement, never above it.
 
 ## TFM policy
 
@@ -388,3 +389,12 @@ Two caveats consumers should know:
   blank lines preserve. Still vastly better than "See CHANGELOG.md" but not pretty.
 - Only future releases benefit. nupkgs on nuget.org are immutable; an already-shipped
   release continues to display the original `<PackageReleaseNotes>` value forever.
+
+## PackageTags conventions
+
+Each package's `<PackageTags>` follows a fixed order so tags read consistently across the family and can be linted:
+
+- **Adapter packages** (`*.TUnit`): `tunit;assertions;testing;<domain tags...>;dotnet;aot`
+- **Core packages** (framework-agnostic): `assertions;testing;<domain tags...>;dotnet;aot` - no `tunit`, since the core does not depend on TUnit.
+
+The spine leads, package-specific domain tags follow in significance order, and `dotnet;aot` closes. A core package may carry extra domain tags its adapter omits. Enforced by `.github/family-lint.py` (the `Family Lint` workflow), which also validates `CHANGELOG.md` against the CHANGELOG conventions above.

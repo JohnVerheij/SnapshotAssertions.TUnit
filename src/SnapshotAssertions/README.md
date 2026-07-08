@@ -6,6 +6,8 @@
 
 > **Scope:** Test projects only. Not intended for production code.
 
+> Part of the **[DotNetAssertions](https://dotnetassertions.dev)** family. This is the framework-agnostic core; the TUnit assertions live in the matching `.TUnit` package.
+
 Framework-agnostic core for text-snapshot assertions.
 
 > **For TUnit test projects, install [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) instead; this package comes with it transitively.** `SnapshotAssertions` is the framework-agnostic shared engine; framework-specific adapter packages add the assertion entry points each test framework expects.

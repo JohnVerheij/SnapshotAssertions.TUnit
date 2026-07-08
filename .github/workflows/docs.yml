@@ -1,0 +1,101 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: docs-build-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore SnapshotAssertions.TUnit.slnx
+
+      - name: Build (so XML docs exist in obj/)
+        run: dotnet build SnapshotAssertions.TUnit.slnx --configuration Release --no-restore
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Copy markdown sources into docs/
+        run: |
+          cp README.md docs/index.md
+          cp CHANGELOG.md docs/changelog.md
+          cp CONVENTIONS.md docs/conventions.md
+          cp CONTRIBUTING.md docs/contributing.md
+          cp CODE_OF_CONDUCT.md docs/coc.md
+          cp SECURITY.md docs/security.md
+          { echo "# License"; echo; echo '```'; cat LICENSE; echo '```'; } > docs/license.md
+          # rewrite cross-file links from repo-root names to the published site pages
+          PR_URL="https://github.com/${GITHUB_REPOSITORY}/blob/main/.github/PULL_REQUEST_TEMPLATE.md"
+          for f in docs/index.md docs/changelog.md docs/conventions.md docs/contributing.md docs/coc.md docs/security.md; do
+            sed -i -E \
+              -e 's#\]\((\./)?CHANGELOG\.md#](changelog.md#g' \
+              -e 's#\]\((\./)?CONVENTIONS\.md#](conventions.md#g' \
+              -e 's#\]\((\./)?CONTRIBUTING\.md#](contributing.md#g' \
+              -e 's#\]\((\./)?CODE_OF_CONDUCT\.md#](coc.md#g' \
+              -e 's#\]\((\./)?SECURITY\.md#](security.md#g' \
+              -e 's#\]\((\./)?LICENSE\)#](license.md)#g' \
+              "$f"
+            sed -i "s#\.github/PULL_REQUEST_TEMPLATE\.md#${PR_URL}#g" "$f"
+          done
+
+      - name: Check internal doc links
+        run: |
+          python3 .github/test_docs_linkcheck.py
+          python3 .github/docs-linkcheck.py docs
+
+      - name: Build docs
+        run: dotnet docfx docs/docfx.json
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - name: Upload artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: docs/_site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

@@ -1,0 +1,51 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "..",
+          "files": [
+            "src/SnapshotAssertions/SnapshotAssertions.csproj",
+            "src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "outputFormat": "mref",
+      "memberLayout": "samePage",
+      "includePrivateMembers": false,
+      "disableGitFeatures": false,
+      "filter": "filterConfig.yml"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["**/*.{md,yml}"],
+        "exclude": ["_site/**", "obj/**"]
+      }
+    ],
+    "resource": [
+      {
+        "files": ["CNAME", "robots.txt", "public/**"]
+      }
+    ],
+    "output": "_site",
+    "template": ["default", "modern"],
+    "globalMetadata": {
+      "_appName": "SnapshotAssertions.TUnit",
+      "_appTitle": "SnapshotAssertions.TUnit",
+      "_appFooter": "MIT. Copyright (c) 2026 John Verheij.",
+      "_enableSearch": true,
+      "_enableNewTab": true,
+      "_disableContribution": true,
+      "_disableBreadcrumb": true
+    },
+    "markdownEngineName": "markdig",
+    "sitemap": {
+      "baseUrl": "https://snapshotassertions.dev/",
+      "priority": 0.5,
+      "changefreq": "monthly"
+    }
+  }
+}

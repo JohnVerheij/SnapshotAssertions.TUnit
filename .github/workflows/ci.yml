@@ -34,7 +34,9 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore
+        run: |
+          dotnet restore
+          dotnet tool restore
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
@@ -79,7 +81,6 @@ jobs:
         # test surfaces. Without the merge, the threshold check would only see one report and
         # vastly under-count covered code.
         run: |
-          dotnet tool install --global dotnet-reportgenerator-globaltool
           REPORTS=$(find tests -name 'coverage.cobertura.xml' | tr '\n' ';' | sed 's/;$//')
           if [ -z "$REPORTS" ]; then
             echo "::warning::No cobertura coverage reports found; skipping merge"
@@ -87,7 +88,7 @@ jobs:
           fi
           echo "Source reports: $REPORTS"
           mkdir -p ./coverage-merged
-          reportgenerator \
+          dotnet reportgenerator \
             "-reports:$REPORTS" \
             -targetdir:./coverage-merged \
             "-reporttypes:Cobertura"

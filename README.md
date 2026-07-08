@@ -13,6 +13,8 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 
 > **Scope:** Test projects only. Not intended for production code.
 
+> Part of the **[DotNetAssertions](https://dotnetassertions.dev)** family of assertion extensions for TUnit.
+
 ---
 
 ## Table of contents
