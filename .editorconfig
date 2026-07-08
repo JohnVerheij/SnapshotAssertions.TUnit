@@ -43,6 +43,12 @@ indent_size = 2
 indent_size = 2
 
 [*.cs]
+# MA0211 (multi-line XML summaries) directly contradicts MA0177 (single-line summaries when they
+# fit on one line). MA0177 is on via MeziantouAnalysisMode=all-warnings and is the convention here:
+# short summaries stay on one line, long ones span multiple. The two rules are mutually exclusive,
+# so the newer MA0211 stays off.
+dotnet_diagnostic.MA0211.severity = none
+
 # Sort System.* using directives first
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
