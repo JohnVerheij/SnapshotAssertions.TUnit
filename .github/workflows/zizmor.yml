@@ -43,7 +43,7 @@ jobs:
         # diff. The action's SARIF/code-scanning mode is deliberately not used: it does not
         # fail the job, and blocking is the goal here. The pinned action version pins the
         # zizmor release it runs.
-        uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
         with:
           advanced-security: false
           annotations: true
