@@ -161,7 +161,7 @@ jobs:
         # confirms the artifact was built by THIS repo at THIS commit by THIS workflow.
         # End-to-end supply-chain provenance: the missing link between "this nupkg is signed
         # by some NuGet account" and "this nupkg was built from this audited source tree".
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             ./artifacts/*.nupkg
