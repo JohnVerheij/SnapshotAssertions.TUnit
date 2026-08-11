@@ -25,7 +25,7 @@
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.141" />
     <GlobalPackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
     <GlobalPackageReference Include="Roslynator.Analyzers" Version="4.16.0" />
-    <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097" />
+    <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.32.0.713" />
   </ItemGroup>
 
 </Project>
