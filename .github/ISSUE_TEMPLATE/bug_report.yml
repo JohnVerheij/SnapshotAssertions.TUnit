@@ -21,7 +21,7 @@ body:
     id: tunit-version
     attributes:
       label: TUnit version
-      placeholder: "1.65.0"
+      placeholder: "1.65.38"
     validations:
       required: true
 
