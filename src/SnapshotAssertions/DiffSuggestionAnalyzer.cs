@@ -81,7 +81,7 @@ public static class DiffSuggestionAnalyzer
 
     private static void SortByCountDescendingThenDeclarationOrder(List<(DiffSuggestion Suggestion, int Order)> results)
     {
-        results.Sort((a, b) =>
+        results.Sort(static (a, b) =>
         {
             var byCount = b.Suggestion.Count.CompareTo(a.Suggestion.Count);
             return byCount is not 0 ? byCount : a.Order.CompareTo(b.Order);

@@ -1,22 +1,21 @@
 <Project>
 
   <!--
-    Auto-extracts the section for the current <Version> from CHANGELOG.md and feeds it into
-    <PackageReleaseNotes> at pack time, so the Release Notes tab on nuget.org renders the
-    per-version section body verbatim rather than the literal csproj fallback. The csproj
-    keeps the GitHub-release-tag URL as its <PackageReleaseNotes> fallback; the auto-extract
-    overrides it whenever a matching CHANGELOG section is found.
+    Auto-extracts the section for the current package version from CHANGELOG.md and feeds it
+    into the release-notes property at pack time, so the Release Notes tab on nuget.org shows
+    the per-version section body rather than the literal csproj fallback. The extracted body is
+    trimmed of surrounding whitespace, and where a repository URL is available the matching
+    GitHub release-tag URL is prepended to it. The csproj value remains the fallback, and the
+    auto-extract overrides it whenever a matching CHANGELOG section is found.
 
-    Failure modes are non-fatal. If CHANGELOG.md is absent, the target is skipped via its
-    Condition. If CHANGELOG.md is present but has no '## [<Version>]' section, the target
-    emits an MSBuild warning and leaves the csproj fallback in place. Either way `dotnet pack`
-    succeeds and produces a useful Release Notes value.
+    Two failure modes are non-fatal. An absent CHANGELOG.md skips the target through its
+    condition, and a CHANGELOG.md carrying no section for the current version emits an MSBuild
+    warning and leaves the csproj fallback in place; packing succeeds either way. A read error
+    on a CHANGELOG.md that does exist is not handled and will fail the pack.
 
-    Mirrors the family pattern (Directory.Build.props for property defaults; this targets file
-    is the property-side build extension that runs after the SDK has set $(Version)). Rolls to
-    the other four family repos after the JsonAssertions pilot cycle.
+    Mirrors the family pattern: Directory.Build.props carries property defaults, and this file
+    carries the build extension that runs once the SDK has set the version property.
   -->
-
   <UsingTask TaskName="ExtractChangelogSection"
              TaskFactory="RoslynCodeTaskFactory"
              AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
@@ -61,7 +60,8 @@
         }
         Found = true;
         return true;
-      ]]></Code>
+      ]]>
+      </Code>
     </Task>
   </UsingTask>
 
