@@ -27,7 +27,17 @@
          source generator emits lazy-init code that registers as additional unhit branches in
          coverage instrumentation. The partial-method form is the original stable pattern,
          compiles to the same call-site IL, and does not regress branch coverage. -->
-    <NoWarn>$(NoWarn);Proj0039;MA0038;MA0137;MA0174;MA0190</NoWarn>
+    <!-- MA0219 (language attribute on XML-comment code elements) is suppressed because the
+         attribute is a rendering convention, not a correctness concern; the rule ships at
+         Hidden severity and its docs note the attribute is not standardized. It surfaces here
+         only because MeziantouAnalysisMode promotes every rule to Warning, which
+         TreatWarningsAsErrors then escalates into a build failure. -->
+    <!-- MA0214 (await the task rather than returning it) is suppressed for the same reason as
+         MA0174: it is one half of a mutually exclusive pair. The rule is disabled by default and
+         its docs name MA0215 as the opposite approach, to be enabled one or the other. The family
+         returns the task directly from forwarding entry points, which is the MA0215 style, so
+         MA0214 is the half we drop. MeziantouAnalysisMode would otherwise enable both. -->
+    <NoWarn>$(NoWarn);Proj0039;MA0038;MA0137;MA0174;MA0190;MA0214;MA0219</NoWarn>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-all</AnalysisLevel>
