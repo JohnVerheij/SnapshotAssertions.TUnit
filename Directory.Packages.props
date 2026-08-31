@@ -22,7 +22,7 @@
   <!-- Analyzer pack (applied to every project automatically via GlobalPackageReference) -->
   <ItemGroup>
     <GlobalPackageReference Include="DotNetProjectFile.Analyzers" Version="1.17.0" />
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.195" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.198" />
     <GlobalPackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
     <GlobalPackageReference Include="Roslynator.Analyzers" Version="5.0.0" />
     <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635" />
