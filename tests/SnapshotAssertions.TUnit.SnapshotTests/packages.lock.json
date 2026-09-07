@@ -44,15 +44,15 @@
       },
       "TUnit": {
         "type": "Direct",
-        "requested": "[1.66.10, )",
-        "resolved": "1.66.10",
-        "contentHash": "YqPLa8xMtzkCyEfn2smLxjcn2Dtb7aK4ejis2tjuSn13Hvm12mfZBGYDTmhFOKeVy2a1HGX5Rh3soCioRDQp2w==",
+        "requested": "[1.66.27, )",
+        "resolved": "1.66.27",
+        "contentHash": "3pBQuAY79GFln1bcbi0MV5/mCF+xmxf6uixHSIzzllsqTGQFVOkFsDKaCHstgb0cHqX/tFbrXuEtNgAavEGZRQ==",
         "dependencies": {
           "Microsoft.Testing.Extensions.CodeCoverage": "18.10.0",
           "Microsoft.Testing.Extensions.Telemetry": "2.4.0",
           "Microsoft.Testing.Extensions.TrxReport": "2.3.3",
-          "TUnit.Assertions": "1.66.10",
-          "TUnit.Engine": "1.66.10"
+          "TUnit.Assertions": "1.66.27",
+          "TUnit.Engine": "1.66.27"
         }
       },
       "Microsoft.ApplicationInsights": {
@@ -131,13 +131,13 @@
       },
       "TUnit.Engine": {
         "type": "Transitive",
-        "resolved": "1.66.10",
-        "contentHash": "fKEjcWsnq7A80mzzoDxDiNyHlTZSto9XLnNAAg9GY0IMFH1yLvX2VafcbidBR4IHYUqZ8f9RND4fBiBOjDaGYA==",
+        "resolved": "1.66.27",
+        "contentHash": "OdDEUCWO686+J1+V8140FG2HM0KAJ/+xJWm87MZ9nuPbwSWtZjswfdxD4TZCldlp57/uNSXSILe7td2d99vztg==",
         "dependencies": {
           "Microsoft.Testing.Extensions.TrxReport.Abstractions": "2.4.0",
           "Microsoft.Testing.Platform": "2.4.0",
           "Microsoft.Testing.Platform.MSBuild": "2.4.0",
-          "TUnit.Core": "1.66.10"
+          "TUnit.Core": "1.66.27"
         }
       },
       "snapshotassertions": {
@@ -147,21 +147,21 @@
         "type": "Project",
         "dependencies": {
           "SnapshotAssertions": "[0.7.1, )",
-          "TUnit.Assertions": "[1.66.10, )",
-          "TUnit.Core": "[1.66.10, )"
+          "TUnit.Assertions": "[1.66.27, )",
+          "TUnit.Core": "[1.66.27, )"
         }
       },
       "TUnit.Assertions": {
         "type": "CentralTransitive",
-        "requested": "[1.66.10, )",
-        "resolved": "1.66.10",
-        "contentHash": "hhafeF2BHQFKn6p+dL7XM8VEWen3E404eXORL6CVWdNnqTj1HqC/D8yh87kdXdpIfO8cHVBgTf+7GiiQenFKGg=="
+        "requested": "[1.66.27, )",
+        "resolved": "1.66.27",
+        "contentHash": "tjkydsBhXIm5N5CTHmagRwtzy9wYphuO3PXKYr8rba8VVk96cLuI7SlG3KPYQcIiRKPwpzpv1TpOxDEEkj9P9g=="
       },
       "TUnit.Core": {
         "type": "CentralTransitive",
-        "requested": "[1.66.10, )",
-        "resolved": "1.66.10",
-        "contentHash": "I88XlUrsWEu57ZXeFhmPReqm2D6eum+V11dhxxPQrDdwGYYDLHP+ydpzwcKdf/DnPT/wF7ie/C2+AgK+A8q+nA=="
+        "requested": "[1.66.27, )",
+        "resolved": "1.66.27",
+        "contentHash": "vh3sk+ezfKn9KuAH23Cr6DqWdx+eJj5yvDeHpVsfYrOFytiI2veY/w3ZJI5NG+Prt4g4rx9Y8i30T9oKJrjAYg=="
       }
     }
   }
