@@ -30,9 +30,7 @@ public static class SnapshotAcceptMode
     /// <summary>The environment variable consulted to detect a CI environment.</summary>
     public const string CiVariableName = "CI";
 
-    /// <summary>
-    /// Returns <see langword="true"/> when accept-mode is enabled and the process is not in CI.
-    /// </summary>
+    /// <summary>Returns <see langword="true"/> when accept-mode is enabled and the process is not in CI.</summary>
     /// <returns><see langword="true"/> if the actual content should be written over the
     /// expected baseline on mismatch.</returns>
     public static bool IsActive()
