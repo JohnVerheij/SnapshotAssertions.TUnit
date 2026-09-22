@@ -25,9 +25,7 @@ public static class LineDiffRenderer
     /// (context) lines are not counted toward this limit.</summary>
     public const int MaxDifferingLines = 20;
 
-    /// <summary>
-    /// Renders a line-by-line diff between <paramref name="expected"/> and <paramref name="actual"/>.
-    /// </summary>
+    /// <summary>Renders a line-by-line diff between <paramref name="expected"/> and <paramref name="actual"/>.</summary>
     /// <param name="expected">The expected baseline content.</param>
     /// <param name="actual">The actual content produced by the test.</param>
     /// <returns>A multi-line diff string, with each line prefixed by <c> </c> (context),
