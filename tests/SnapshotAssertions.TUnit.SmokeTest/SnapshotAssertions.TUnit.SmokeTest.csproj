@@ -58,7 +58,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.69.24" />
+    <PackageReference Include="TUnit" Version="1.70.1" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
