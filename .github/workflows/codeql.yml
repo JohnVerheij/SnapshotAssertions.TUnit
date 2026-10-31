@@ -1,26 +1,11 @@
 name: CodeQL
 
+# No path filters: CodeQL analyzes every change.
 on:
   push:
     branches: [main]
-    paths:
-      - '**.cs'
-      - '**.csproj'
-      - '**.props'
-      - '**.targets'
-      - '.github/workflows/**'
-      - '.github/actions/**'
-      - '.github/codeql/codeql-config.yml'
   pull_request:
     branches: [main]
-    paths:
-      - '**.cs'
-      - '**.csproj'
-      - '**.props'
-      - '**.targets'
-      - '.github/workflows/**'
-      - '.github/actions/**'
-      - '.github/codeql/codeql-config.yml'
 
 permissions:
   contents: read
