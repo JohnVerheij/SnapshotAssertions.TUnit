@@ -20,7 +20,7 @@ jobs:
     # Shared family CI: build, tests with coverage, license gate, pack, smoke test against the packed
     # package, Native AOT gate. See https://github.com/JohnVerheij/assertions-ci for the inputs and the
     # repository contract.
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@916d3ca1d50016135cdd67ae7688fb173818f3f2 # v1.0.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@87b99f445469020818c41f18e187c5e69510c973 # v1.1.0
     with:
       package: SnapshotAssertions
       expected-package-files: build/SnapshotAssertions.TUnit.targets

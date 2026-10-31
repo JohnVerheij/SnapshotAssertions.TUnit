@@ -5,6 +5,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:   # dry-run: the build job only, nothing is published
 
 permissions:
   contents: read
@@ -14,210 +15,38 @@ concurrency:
   cancel-in-progress: false   # never cancel an in-progress release
 
 jobs:
+  build:
+    # Shared family release build: every CI gate on the exact packages that ship, plus the version gate,
+    # release notes, SBOM, VEX and SHA256SUMS. It can only read the repository, so build and test code never
+    # runs next to a publishing credential. See https://github.com/JohnVerheij/assertions-ci.
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@87b99f445469020818c41f18e187c5e69510c973 # v1.1.0
+    with:
+      package: SnapshotAssertions
+      expected-package-files: build/SnapshotAssertions.TUnit.targets
+      release: true
+    permissions:
+      contents: read
+      id-token: write   # ceiling for the Codecov job, which a release skips; the build job itself only reads
+
   publish:
-    name: Build, pack & publish
+    # Checks the tag and the release files, attests, pushes to NuGet through Trusted Publishing and creates
+    # the GitHub release. Runs no project code.
+    name: Publish
+    needs: build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write       # GitHub Release creation (job-level perms override workflow-level)
-      id-token: write       # NuGet Trusted Publishing OIDC + Sigstore keyless signing
-      packages: write       # kept for symmetry; not strictly required for nuget.org
-      attestations: write   # SLSA build-provenance + SBOM attestations
+      contents: write       # GitHub release
+      id-token: write       # NuGet Trusted Publishing and Sigstore signing
+      attestations: write   # provenance and SBOM attestations
     environment:
       name: nuget
       url: https://www.nuget.org/packages/SnapshotAssertions/
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Publish
+        uses: JohnVerheij/assertions-ci/.github/actions/package-publish@87b99f445469020818c41f18e187c5e69510c973 # v1.1.0
         with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: global.json
-
-      - name: Verify tag matches package version
-        # Both packages (SnapshotAssertions and SnapshotAssertions.TUnit) ship together in
-        # lockstep: they share a single tag and must declare the same Version in their csproj.
-        # This gate blocks the release if any of the three (tag, SnapshotAssertions csproj,
-        # SnapshotAssertions.TUnit csproj) disagree.
-        run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          CORE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/SnapshotAssertions/SnapshotAssertions.csproj)
-          TUNIT_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj)
-          if [ "$TAG_VERSION" != "$CORE_VERSION" ] || [ "$TAG_VERSION" != "$TUNIT_VERSION" ]; then
-            echo "::error::Version mismatch: tag=$TAG_VERSION  SnapshotAssertions=$CORE_VERSION  SnapshotAssertions.TUnit=$TUNIT_VERSION"
-            exit 1
-          fi
-          echo "All three agree on version $TAG_VERSION"
-          # Export to subsequent steps so actions/attest (which doesn't accept globs in sbom-path)
-          # can reference exact version-tagged filenames.
-          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
-
-      - name: Extract release notes from CHANGELOG
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          version="${REF_NAME#v}"
-          awk -v hdr="## [$version]" '
-            index($0, hdr) == 1 { capture = 1; print; next }
-            capture && /^## \[/ { exit }
-            capture { print }
-          ' CHANGELOG.md > RELEASE_NOTES.md
-          if ! grep -qvE '^(## |[[:space:]]*$)' RELEASE_NOTES.md; then
-            echo "::error::CHANGELOG section for version $version is missing or empty" >&2
-            exit 1
-          fi
-          echo "Extracted $(wc -l < RELEASE_NOTES.md) lines of release notes for $version"
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Test main suite
-        run: dotnet run --project tests/SnapshotAssertions.TUnit.Tests/SnapshotAssertions.TUnit.Tests.csproj --configuration Release --no-build
-
-      - name: Test snapshot suite
-        run: dotnet run --project tests/SnapshotAssertions.TUnit.SnapshotTests/SnapshotAssertions.TUnit.SnapshotTests.csproj --configuration Release --no-build
-
-      - name: Pack SnapshotAssertions (core)
-        run: dotnet pack src/SnapshotAssertions/SnapshotAssertions.csproj --configuration Release --no-build --output ./artifacts
-
-      - name: Pack SnapshotAssertions.TUnit (TUnit adapter)
-        run: dotnet pack src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj --configuration Release --no-build --output ./artifacts
-
-      - name: Restore .NET tools
-        # Cross-format SBOM coverage: each nupkg already carries an SPDX 3.0 manifest under
-        # _manifest/spdx_3.0/ via Microsoft.Sbom.Targets at pack time (see
-        # <SbomGenerationManifestInfo> in the src csprojs). CycloneDX 1.6 lands as a sibling
-        # release artifact for security tooling that prefers CycloneDX (OWASP Dependency-Track,
-        # Snyk, etc.). CRA Annex I §2(1) says SBOM "in a commonly used and machine-readable
-        # format": singular: so either format alone satisfies; emitting both gives consumers
-        # their choice.
-        # Pin to a specific version so the SBOM tooling itself is deterministic: matches the
-        # SHA-pinning posture for every other action in this workflow.
-        run: dotnet tool restore
-
-      - name: Generate CycloneDX 1.6 SBOM (release artifact)
-        # --exclude-dev strips analyzer / build-time-only packages from the BOM so it lists
-        # only runtime-relevant dependencies: same set NuGet records under
-        # <dependencies>/<group> in the nuspec.
-        # --exclude-test-projects keeps the BOM free of test-only coupling.
-        # NOTE: serialNumber is intentionally INCLUDED. actions/attest uses serialNumber
-        # as part of its CycloneDX format-detection check (with bomFormat + specVersion); the
-        # earlier `--no-serial-number` flag (chosen for deterministic-friendly output) made
-        # the BOM unrecognisable to the attestation step. Determinism takes a back seat to
-        # attestability here.
-        run: |
-          dotnet CycloneDX src/SnapshotAssertions/SnapshotAssertions.csproj \
-            -o ./artifacts -F Json -spv 1.6 \
-            -fn "SnapshotAssertions.${TAG_VERSION}.cdx.json" \
-            --exclude-dev --exclude-test-projects
-          dotnet CycloneDX src/SnapshotAssertions.TUnit/SnapshotAssertions.TUnit.csproj \
-            -o ./artifacts -F Json -spv 1.6 \
-            -fn "SnapshotAssertions.TUnit.${TAG_VERSION}.cdx.json" \
-            --exclude-dev --exclude-test-projects
-
-      - name: Generate VEX (OpenVEX v0.2.0) document
-        # VEX (Vulnerability Exploitability eXchange) declares which dependency CVEs do or
-        # don't affect this package. OpenVEX v0.2.0 is the IETF-aligned format. Empty
-        # `statements: []` means "no public CVE in any dependency is known to apply to this
-        # release at the time of build". As CVEs land in deps, statements are added (e.g.
-        # `not_affected` with a justification, `affected` with a fixed-version pointer).
-        # Pairs naturally with the SBOM: the SBOM lists components, the VEX adds vuln context.
-        # CRA Article 14 / Annex I §2(7) requires producers to address known vulnerabilities
-        # in dependencies; VEX is the machine-readable mechanism for declaring "we considered
-        # this CVE; it doesn't apply because <reason>".
-        run: |
-          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          for PKG in SnapshotAssertions SnapshotAssertions.TUnit; do
-            cat > "./artifacts/${PKG}.${TAG_VERSION}.vex.json" <<EOF
-          {
-            "@context": "https://openvex.dev/ns/v0.2.0",
-            "@id": "https://github.com/JohnVerheij/SnapshotAssertions.TUnit/releases/download/v${TAG_VERSION}/${PKG}.${TAG_VERSION}.vex.json",
-            "author": "John Verheij",
-            "timestamp": "${TIMESTAMP}",
-            "version": 1,
-            "tooling": "Auto-generated stub at release time; statements populated as CVEs are triaged in dependencies",
-            "statements": []
-          }
-          EOF
-          done
-
-      - name: Attest build provenance (SLSA v1.0) for nupkg + snupkg artifacts
-        # Generates a cryptographically-signed SLSA v1.0 provenance attestation for each
-        # shipped artifact. The attestation records the source repo + commit SHA + build
-        # environment + build instructions, signed via Sigstore keyless signing (no long-lived
-        # signing key needed) and stored in GitHub's public transparency log.
-        #
-        # Consumers verify with:
-        #   gh attestation verify ./SnapshotAssertions.<version>.nupkg --owner JohnVerheij
-        # which downloads the attestation, validates the Sigstore certificate chain, and
-        # confirms the artifact was built by THIS repo at THIS commit by THIS workflow.
-        # End-to-end supply-chain provenance: the missing link between "this nupkg is signed
-        # by some NuGet account" and "this nupkg was built from this audited source tree".
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: |
-            ./artifacts/*.nupkg
-            ./artifacts/*.snupkg
-
-      - name: Attest CycloneDX SBOM for SnapshotAssertions (Sigstore-signed)
-        # Cryptographically attests that the SnapshotAssertions.<ver>.cdx.json file is a
-        # faithful SBOM for SnapshotAssertions.<ver>.nupkg, signed via Sigstore keyless. The
-        # SPDX 3.0 SBOM inside the nupkg is covered by the build-provenance attestation above
-        # (it's part of the artifact contents); this step adds the standalone signature for
-        # the sibling CycloneDX file so security tooling can verify either format chain
-        # end-to-end.
-        # Explicit filenames (not globs) because (a) sbom-path is single-file only, and (b)
-        # `SnapshotAssertions.*.nupkg` would also match `SnapshotAssertions.TUnit.<ver>.nupkg`,
-        # creating ambiguity about which package gets attested.
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: ./artifacts/SnapshotAssertions.${{ env.TAG_VERSION }}.nupkg
-          sbom-path: ./artifacts/SnapshotAssertions.${{ env.TAG_VERSION }}.cdx.json
-
-      - name: Attest CycloneDX SBOM for SnapshotAssertions.TUnit (Sigstore-signed)
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: ./artifacts/SnapshotAssertions.TUnit.${{ env.TAG_VERSION }}.nupkg
-          sbom-path: ./artifacts/SnapshotAssertions.TUnit.${{ env.TAG_VERSION }}.cdx.json
-
-      # NuGet Trusted Publishing: exchanges the GitHub Actions OIDC token for a
-      # short-lived NuGet API key, written to the local NuGet config so the
-      # subsequent `dotnet nuget push` picks it up automatically. No long-lived
-      # secret is stored in this repository; the trust relationship is configured
-      # on nuget.org under Account -> Trusted Publishing.
-      - name: NuGet login (Trusted Publishing)
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        id: nuget-login
-        with:
-          user: JohnVerheij
-
-      - name: Push to NuGet
-        env:
-          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
-        run: |
-          dotnet nuget push ./artifacts/*.nupkg \
-            --api-key "$NUGET_API_KEY" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
-
-      - name: Create GitHub Release
-        # zizmor: ignore[superfluous-actions] SHA-pinned; multi-file glob upload is clumsy to reproduce with gh release create
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          name: ${{ github.ref_name }}
-          body_path: RELEASE_NOTES.md
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          files: |
-            ./artifacts/*.nupkg
-            ./artifacts/*.snupkg
-            ./artifacts/*.cdx.json
-            ./artifacts/*.vex.json
+          package: SnapshotAssertions
+          version: ${{ needs.build.outputs.version }}
+          checksum: ${{ needs.build.outputs.checksum }}
