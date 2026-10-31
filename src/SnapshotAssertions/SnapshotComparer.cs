@@ -13,7 +13,7 @@ namespace SnapshotAssertions;
 /// </summary>
 public static class SnapshotComparer
 {
-    private const char Bom = '﻿';
+    private const char Bom = '\uFEFF';
 
     /// <summary>
     /// Compares <paramref name="actual"/> against <paramref name="expected"/> under
