@@ -293,7 +293,7 @@ How the trailing newline at end-of-file is treated.
 | `Optional` | Both sides normalized to no trailing newline; presence vs absence is unobservable to the comparison. |
 | `Forbidden` | Neither side may end with a trailing newline. A trailing newline on the expected baseline or on the actual content fails the comparison, even when both sides are otherwise identical. |
 
-Under `Forbidden` the failure output names which side ends with a newline. The written `.actual.txt` and an accept-mode baseline keep the content as the producer emitted it, trailing newline included, so accepting a violating actual produces a baseline that keeps failing until the producer stops emitting the newline.
+Under `Forbidden` the failure output names which side ends with a newline. The written `.actual.txt` and an accept-mode baseline contain the normalized content (after the configured line-ending handling and normalizer) with the trailing newline kept, so accepting a violating actual produces a baseline that violates the policy too. To resolve a violation, stop the producer from emitting the trailing newline, then re-accept the baseline or remove the newline from it.
 
 ### Constructing customized options
 
