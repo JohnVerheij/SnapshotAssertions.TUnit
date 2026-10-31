@@ -55,6 +55,14 @@
              skipped -> build fails with CS0103/CS1061 on SnapshotAssertions.TUnit types,
              signalling clearly that you need to pack first. -->
     <ArtifactsLocalFeedExists Condition="Exists('$(MSBuildThisFileDirectory)..\..\artifacts')">true</ArtifactsLocalFeedExists>
+
+    <!-- Native AOT when a runtime identifier is given (`dotnet publish -r linux-x64`), so day-to-day
+         builds don't pull in ILCompiler. CI's AOT gate also passes PublishAot to restore and publish. -->
+    <PublishAot Condition="'$(RuntimeIdentifier)' != ''">true</PublishAot>
+
+    <!-- CI passes the exact version it just packed (-p:SmokePackageVersion=...). Without it, the
+         highest version in the local feed is used, including pre-releases. -->
+    <SmokePackageVersion Condition="'$(SmokePackageVersion)' == ''">*-*</SmokePackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -62,11 +70,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(ArtifactsLocalFeedExists)' == 'true'">
-    <!-- Floating version: consumes whatever 0.3.x preview was packed into the local feed at
-         ../../artifacts. Use a wide pre-release pattern so any 0.3.0-rc / 0.3.0 also resolves
-         once published, which lets local devs run this against either a freshly-packed nupkg
-         or a real published version. -->
-    <PackageReference Include="SnapshotAssertions.TUnit" Version="0.3.0-*" />
+    <PackageReference Include="SnapshotAssertions.TUnit" Version="$(SmokePackageVersion)" />
   </ItemGroup>
 
 </Project>
