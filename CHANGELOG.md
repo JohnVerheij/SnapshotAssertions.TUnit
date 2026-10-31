@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
+
+Minor release. `SnapshotTrailingNewline.Forbidden` now enforces the check its documentation described, and the TUnit dependency floor moves to 1.76.45. No public API shape change.
+
+### Changed
+
+- **BREAKING:** `SnapshotTrailingNewline.Forbidden` now fails the comparison when the expected baseline or the actual content ends with a trailing newline, including when both do and the content is otherwise identical. It previously behaved exactly like `Optional`: both sides had a trailing newline stripped before comparison, so its presence was unobservable, and the README recorded the two values as producing the same outcome. Normalization under `Forbidden` now preserves the trailing-newline state, as `Required` does, so a written `.actual.txt` or an accepted baseline shows exactly what the producer emitted, and the failure output names the offending side and the alternatives.
+- `SnapshotTrailingNewline.Required` and `SnapshotOptions.TrailingNewline` documentation now describes the implemented behavior: the trailing-newline state of both sides is preserved and compared, and a difference fails the comparison. The previous wording said the baseline must end with a newline, which was never checked on its own.
+- `TUnit.Assertions` and `TUnit.Core` minimum versions raised from 1.54.0 to 1.76.45.
+
+**Upgrade:** Consumers on `Forbidden` whose baseline or producer ends with a trailing newline now fail. Remove the trailing newline from the producer and re-accept the baseline, or choose `Optional` (presence is ignored) or `Required` (presence is preserved and compared). `Optional` and `Required` behavior is unchanged.
+
 ## [0.7.1] - 2026-06-14: restore the packed build targets
 
 Patch release. Restores `build/SnapshotAssertions.TUnit.targets` to the package. 0.7.0 shipped without it, so a consumer's committed `Snapshots/*.expected.txt` baselines stopped copying to the test output directory and every snapshot assertion failed with "baseline does not exist". No public API change.
@@ -156,7 +168,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.1...v0.6.2

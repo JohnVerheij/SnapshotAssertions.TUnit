@@ -56,8 +56,8 @@ public sealed record SnapshotOptions
     public SnapshotTrailingWhitespace TrailingWhitespace { get; init; } = SnapshotTrailingWhitespace.Preserve;
 
     /// <summary>How the trailing newline at end-of-file is treated. Defaults to
-    /// <see cref="SnapshotTrailingNewline.Required"/>: the baseline must end with a newline
-    /// or the comparison fails.</summary>
+    /// <see cref="SnapshotTrailingNewline.Required"/>: the trailing-newline state of both sides
+    /// is preserved and compared, so a difference in it fails the comparison.</summary>
     public SnapshotTrailingNewline TrailingNewline { get; init; } = SnapshotTrailingNewline.Required;
 
     /// <summary>
