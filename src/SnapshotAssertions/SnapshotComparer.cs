@@ -34,7 +34,51 @@ public static class SnapshotComparer
 
         var normalizedActual = Normalize(actual, options);
         var normalizedExpected = Normalize(expected, options);
+
+        // A Forbidden trailing-newline policy is a constraint on each side, not a normalization:
+        // two contents that both end with a newline are byte-equal and still fail it.
+        if (DescribeTrailingNewlineViolation(normalizedActual, normalizedExpected, options) is not null)
+            return false;
+
         return string.Equals(normalizedActual, normalizedExpected, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Describes how <paramref name="normalizedActual"/> and <paramref name="normalizedExpected"/>
+    /// violate a <see cref="SnapshotTrailingNewline.Forbidden"/> policy, or returns
+    /// <see langword="null"/> when the policy is not <c>Forbidden</c> or neither side ends with a
+    /// newline. Both inputs must already be normalized by <see cref="Normalize"/>, which under
+    /// <c>Forbidden</c> preserves the trailing-newline state (as it does under <c>Required</c>),
+    /// so the check inspects the same form the comparison uses and the evaluator writes to disk.
+    /// </summary>
+    /// <param name="normalizedActual">The normalized actual content.</param>
+    /// <param name="normalizedExpected">The normalized expected baseline content.</param>
+    /// <param name="options">The comparison options.</param>
+    /// <returns>A single-line description naming the offending side(s) and the ways to resolve it,
+    /// or <see langword="null"/> when there is no violation.</returns>
+    internal static string? DescribeTrailingNewlineViolation(
+        string normalizedActual,
+        string normalizedExpected,
+        SnapshotOptions options)
+    {
+        if (options.TrailingNewline is not SnapshotTrailingNewline.Forbidden)
+            return null;
+
+        var actualEnds = EndsWithNewline(normalizedActual);
+        var expectedEnds = EndsWithNewline(normalizedExpected);
+        if (!actualEnds && !expectedEnds)
+            return null;
+
+        var subject = (expectedEnds, actualEnds) switch
+        {
+            (true, true) => "both the expected baseline and the actual content end with a trailing newline",
+            (true, false) => "the expected baseline ends with a trailing newline",
+            _ => "the actual content ends with a trailing newline",
+        };
+
+        return "(trailing newline policy: SnapshotTrailingNewline.Forbidden does not allow a trailing newline on either side, but "
+            + subject
+            + ". Remove it from the producer and the baseline, or choose SnapshotTrailingNewline.Optional to ignore it or Required to preserve and compare it.)";
     }
 
     /// <summary>
@@ -74,17 +118,18 @@ public static class SnapshotComparer
         return content;
     }
 
+    private static bool EndsWithNewline(string content)
+        => content.Length > 0 && content[^1] is '\n' or '\r';
+
     private static bool NeedsLineByLineNormalization(SnapshotOptions options)
         => options.LineEndingMode is not SnapshotLineEndingMode.Ordinal
             || options.TrailingWhitespace is SnapshotTrailingWhitespace.TrimTrailingPerLine
-            || options.TrailingNewline is not SnapshotTrailingNewline.Required;
+            || options.TrailingNewline is SnapshotTrailingNewline.Optional;
 
     private static string NormalizeLineByLine(string content, SnapshotOptions options)
     {
         var (lines, terminators) = SplitKeepingTerminators(content);
-
-        var hasTrailingNewline = content.Length > 0
-            && (content[^1] == '\n' || content[^1] == '\r');
+        var hasTrailingNewline = EndsWithNewline(content);
 
         // When the content ended with a newline, the split adds an empty trailing element. Drop it
         // for trimming/joining; the trailing newline itself is re-emitted below per the policy.
@@ -93,10 +138,7 @@ public static class SnapshotComparer
             lastIndex--;
 
         if (options.TrailingWhitespace is SnapshotTrailingWhitespace.TrimTrailingPerLine)
-        {
-            for (var i = 0; i < lastIndex; i++)
-                lines[i] = lines[i].TrimEnd();
-        }
+            TrimTrailingWhitespace(lines, lastIndex);
 
         // Ordinal mode preserves each line's original terminator (so mixed CRLF / LF endings, and the
         // platform on which accept-mode runs, do not change the canonical bytes). The normalizing
@@ -104,6 +146,12 @@ public static class SnapshotComparer
         return options.LineEndingMode is SnapshotLineEndingMode.Ordinal
             ? JoinPreservingTerminators(lines, terminators, lastIndex, options.TrailingNewline, hasTrailingNewline)
             : JoinWithUniformSeparator(lines, lastIndex, options, hasTrailingNewline);
+    }
+
+    private static void TrimTrailingWhitespace(string[] lines, int count)
+    {
+        for (var i = 0; i < count; i++)
+            lines[i] = lines[i].TrimEnd();
     }
 
     private static string JoinWithUniformSeparator(string[] lines, int lastIndex, SnapshotOptions options, bool hasTrailingNewline)
@@ -120,9 +168,11 @@ public static class SnapshotComparer
         for (var i = 0; i < lastIndex; i++)
             sb.Append(lines[i]).Append(terminators[i]);
 
-        // Required preserves the original terminators as written. Optional and Forbidden strip a
-        // trailing terminator so its presence versus absence is unobservable to the comparison.
-        if (policy is not SnapshotTrailingNewline.Required && hasTrailingNewline && lastIndex > 0)
+        // Required and Forbidden preserve the original terminators as written (under Forbidden a
+        // preserved end-of-file terminator is what fails the comparison; see
+        // DescribeTrailingNewlineViolation). Optional strips a trailing terminator so its presence
+        // versus absence is unobservable to the comparison.
+        if (policy is SnapshotTrailingNewline.Optional && hasTrailingNewline && lastIndex > 0)
         {
             var lastTerminator = terminators[lastIndex - 1];
             sb.Length -= lastTerminator.Length;
@@ -190,9 +240,13 @@ public static class SnapshotComparer
         switch (policy)
         {
             case SnapshotTrailingNewline.Required:
-                // Preserve the trailing-newline state of the input. If actual lacks a trailing
-                // newline but expected has one (or vice versa), the normalized forms differ
-                // and the comparison correctly reports a mismatch.
+            case SnapshotTrailingNewline.Forbidden:
+                // Preserve the trailing-newline state of the input. Under Required, if actual lacks
+                // a trailing newline but expected has one (or vice versa), the normalized forms
+                // differ and the comparison correctly reports a mismatch. Under Forbidden the
+                // preserved state is what DescribeTrailingNewlineViolation inspects, so a trailing
+                // newline on either side fails the comparison and is visible in the written
+                // .actual file or accepted baseline.
                 //
                 // Special case: under SnapshotLineEndingMode.IgnoreLineEndings the separator
                 // is empty, so the natural append-separator path produces no trailing marker.
@@ -209,7 +263,6 @@ public static class SnapshotComparer
                 }
                 return joined;
             case SnapshotTrailingNewline.Optional:
-            case SnapshotTrailingNewline.Forbidden:
                 // Both sides normalized to no trailing newline; presence vs absence is
                 // unobservable to the comparison.
                 return joined;

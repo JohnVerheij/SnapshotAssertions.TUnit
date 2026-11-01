@@ -99,10 +99,29 @@ public static class SnapshotEvaluator
 
         await WriteAtomicAsync(actualPath, normalizedActual, cancellationToken).ConfigureAwait(false);
 
+        var diff = RenderMismatchDiff(expectedContent, normalizedActual, options);
+        return SnapshotResult.Mismatched(expectedPath, actualPath, diff);
+    }
+
+    /// <summary>
+    /// Renders the failure diff for a mismatch: the line-by-line view of the two normalized forms,
+    /// followed by the trailing-newline policy hint when a
+    /// <see cref="SnapshotTrailingNewline.Forbidden"/> violation is a reason the comparison failed.
+    /// The line view alone can show every line as context in that case (both sides end with a
+    /// newline and are otherwise identical), so the hint names the cause explicitly. The renderer's
+    /// output is newline-terminated whenever it emitted anything, and a violation implies at least
+    /// one non-empty side, so the hint always starts on its own line.
+    /// </summary>
+    /// <param name="expectedContent">The raw expected baseline content as read from disk.</param>
+    /// <param name="normalizedActual">The already-normalized actual content.</param>
+    /// <param name="options">The comparison options.</param>
+    /// <returns>The rendered diff text for <see cref="SnapshotResult.Mismatched"/>.</returns>
+    private static string RenderMismatchDiff(string expectedContent, string normalizedActual, SnapshotOptions options)
+    {
         var normalizedExpected = SnapshotComparer.Normalize(expectedContent, options);
         var diff = LineDiffRenderer.Render(normalizedExpected, normalizedActual);
-
-        return SnapshotResult.Mismatched(expectedPath, actualPath, diff);
+        var policyViolation = SnapshotComparer.DescribeTrailingNewlineViolation(normalizedActual, normalizedExpected, options);
+        return policyViolation is null ? diff : diff + policyViolation + Environment.NewLine;
     }
 
     /// <summary>

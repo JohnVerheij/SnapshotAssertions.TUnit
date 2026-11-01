@@ -170,16 +170,17 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("a \r\nb", "a \nb", options)).IsFalse();
     }
 
-    /// <summary>Ordinal mode with a Forbidden trailing-newline policy strips the trailing terminator
-    /// (whatever its form) so its presence versus absence is unobservable, while inner terminators are
-    /// preserved.</summary>
+    /// <summary>Ordinal mode with a Forbidden trailing-newline policy preserves the trailing terminator
+    /// (so a written .actual file or accepted baseline shows what the producer emitted) and fails the
+    /// comparison because the actual content ends with a newline.</summary>
     [Test]
-    public async Task Ordinal_ForbiddenTrailingNewline_StripsTrailingTerminator(CancellationToken cancellationToken)
+    public async Task Ordinal_ForbiddenTrailingNewline_PreservesTerminatorAndFailsComparison(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
-        await Assert.That(SnapshotComparer.Normalize("a\r\nb\r\n", options)).IsEqualTo("a\r\nb");
-        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\r\nb", options)).IsTrue();
+        await Assert.That(SnapshotComparer.Normalize("a\r\nb\r\n", options)).IsEqualTo("a\r\nb\r\n");
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\r\nb", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb", "a\r\nb", options)).IsTrue();
     }
 
     /// <summary>NormalizeToCRLF rejoins every line with CRLF, so an LF document matches a CRLF one.</summary>
@@ -270,12 +271,11 @@ internal sealed class SnapshotComparerTests
             .Throws<ArgumentOutOfRangeException>();
     }
 
-    /// <summary>Forbidden trailing newline: same equality outcome as Optional today (both
-    /// strip trailing newlines before comparison so presence vs absence is unobservable). The
-    /// test pins the current behaviour and exercises the <c>Forbidden</c> branch of
-    /// <see cref="SnapshotComparer.Normalize"/>'s <c>ApplyTrailingNewlinePolicy</c> helper.</summary>
+    /// <summary>Forbidden trailing newline: a trailing newline on either side fails the comparison,
+    /// including when both sides carry one and are otherwise identical (which Optional accepts).
+    /// Content without a trailing newline on both sides matches.</summary>
     [Test]
-    public async Task ForbiddenTrailingNewline_PresentOrAbsent_Match(CancellationToken cancellationToken)
+    public async Task ForbiddenTrailingNewline_TrailingNewlineOnEitherSide_DoesNotMatch(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var options = SnapshotOptions.Default with
@@ -283,8 +283,81 @@ internal sealed class SnapshotComparerTests
             LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
             TrailingNewline = SnapshotTrailingNewline.Forbidden,
         };
-        await Assert.That(SnapshotComparer.AreEqual("foo", "foo\n", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("foo", "foo\n", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo\n", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo", "foo", options)).IsTrue();
+    }
+
+    /// <summary>Forbidden applies to every terminator kind at end-of-file: LF, CRLF, and a bare CR,
+    /// whether the other side is compliant or carries the same terminator.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_AnyTerminatorKind_DoesNotMatch(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+        await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\r\n", "foo", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\r", "foo", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\r\n", "foo\r\n", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("foo\r", "foo\r", options)).IsFalse();
+    }
+
+    /// <summary>Forbidden combined with IgnoreLineEndings: line breaks inside the content are ignored,
+    /// but a trailing newline (carried by the LF marker the empty-separator path appends) still fails
+    /// the comparison.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_WithIgnoreLineEndings_StillFailsOnTrailingNewline(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with
+        {
+            LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+            TrailingNewline = SnapshotTrailingNewline.Forbidden,
+        };
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb", "a\nb", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\nb", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\nb\n", options)).IsFalse();
+    }
+
+    /// <summary>Forbidden combined with per-line trailing-whitespace trimming: trailing spaces are still
+    /// trimmed, and a trailing newline still fails the comparison.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_WithTrimTrailingPerLine_TrimsButStillFailsOnTrailingNewline(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with
+        {
+            TrailingWhitespace = SnapshotTrailingWhitespace.TrimTrailingPerLine,
+            TrailingNewline = SnapshotTrailingNewline.Forbidden,
+        };
+        await Assert.That(SnapshotComparer.AreEqual("a  \nb", "a\nb", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("a  \nb\n", "a\nb", options)).IsFalse();
+    }
+
+    /// <summary>Forbidden edge cases: empty content has no trailing newline and matches itself; content
+    /// consisting of a newline alone is a trailing newline and fails.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_EmptyAndNewlineOnlyContent(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+        await Assert.That(SnapshotComparer.AreEqual("", "", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("\n", "", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("\n", "\n", options)).IsFalse();
+    }
+
+    /// <summary>Optional is unchanged by the Forbidden tightening: a trailing newline on both sides, on
+    /// one side, or on neither all match.</summary>
+    [Test]
+    public async Task OptionalTrailingNewline_AnyCombination_Matches(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Optional };
+        await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo\n", options)).IsTrue();
         await Assert.That(SnapshotComparer.AreEqual("foo\n", "foo", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("foo", "foo\n", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("foo", "foo", options)).IsTrue();
     }
 
     /// <summary>Null arguments throw <see cref="ArgumentNullException"/>.</summary>

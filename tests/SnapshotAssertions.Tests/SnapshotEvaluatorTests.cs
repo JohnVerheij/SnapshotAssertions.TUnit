@@ -259,6 +259,94 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
     }
 
+    /// <summary>Forbidden trailing-newline policy: actual content ending with a newline fails against a
+    /// compliant baseline. The failure output names the actual side only, and the written .actual.txt
+    /// keeps the newline so it shows exactly what the producer emitted.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_ActualEndsWithNewline_MismatchNamesActualSide(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "hello\n", expectedContent: "hello", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+        await Assert.That(result.Diff).IsNotNull();
+        await Assert.That(result.Diff!).Contains("the actual content ends with a trailing newline");
+        await Assert.That(result.Diff!).DoesNotContain("expected baseline ends");
+        var written = await File.ReadAllTextAsync(paths.ActualFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(written).IsEqualTo("hello\n");
+    }
+
+    /// <summary>Forbidden trailing-newline policy: a baseline and actual content that both end with a
+    /// newline and are otherwise identical fail (Optional would accept them). The failure output names
+    /// both sides.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_BothSidesEndWithNewline_MismatchNamesBothSides(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "hello\n", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+        await Assert.That(result.Diff).IsNotNull();
+        await Assert.That(result.Diff!).Contains("both the expected baseline and the actual content end with a trailing newline");
+    }
+
+    /// <summary>Forbidden trailing-newline policy: a baseline that ends with a newline fails against
+    /// compliant actual content, and the failure output names the expected side only.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_BaselineEndsWithNewline_MismatchNamesExpectedSide(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "hello", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+        await Assert.That(result.Diff).IsNotNull();
+        await Assert.That(result.Diff!).Contains("the expected baseline ends with a trailing newline");
+        await Assert.That(result.Diff!).DoesNotContain("actual content ends");
+    }
+
+    /// <summary>Forbidden trailing-newline policy under accept-mode: the accepted baseline is written as
+    /// the producer emitted it, trailing newline included, so the next comparison reports the violation
+    /// on the baseline instead of a silently rewritten baseline hiding it.</summary>
+    [Test]
+    public async Task ForbiddenTrailingNewline_AcceptMode_WritesContentAsEmitted(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "hello\n", expectedContent: "hello", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Forbidden };
+
+        var accepted = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, options,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await Assert.That(accepted.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        var baseline = await File.ReadAllTextAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(baseline).IsEqualTo("hello\n");
+
+        var rerun = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await Assert.That(rerun.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+    }
+
+    /// <summary>Optional trailing-newline policy is unaffected by the Forbidden tightening: a baseline
+    /// and actual content that differ only in the trailing newline match.</summary>
+    [Test]
+    public async Task OptionalTrailingNewline_DifferOnlyInTrailingNewline_ReturnsMatched(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync(actualContent: "hello", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { TrailingNewline = SnapshotTrailingNewline.Optional };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(
         string actualContent,
         string expectedContent,

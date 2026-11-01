@@ -152,6 +152,22 @@ public static class LineDiffRenderer
     private static string DescribeLineEndings(string content)
     {
         var crlf = content.Contains("\r\n", StringComparison.Ordinal);
+        var (lf, cr) = FindBareLineEndings(content);
+
+        // Only called from the hint path, which fires only when the two strings differ by their line
+        // endings alone, so at least one ending kind is always present (no zero-ending case to handle).
+        var kinds = (crlf ? 1 : 0) + (lf ? 1 : 0) + (cr ? 1 : 0);
+        if (kinds > 1)
+            return "mixed line endings";
+        if (crlf)
+            return "CRLF";
+        return lf ? "LF" : "CR";
+    }
+
+    // A bare LF is one not preceded by CR; a bare CR is one not followed by LF. CRLF pairs count as
+    // neither here (the caller detects them separately), so the three kinds stay distinguishable.
+    private static (bool Lf, bool Cr) FindBareLineEndings(string content)
+    {
         var lf = false;
         var cr = false;
         for (var i = 0; i < content.Length; i++)
@@ -163,14 +179,7 @@ public static class LineDiffRenderer
                 cr = true;
         }
 
-        // Only called from the hint path, which fires only when the two strings differ by their line
-        // endings alone, so at least one ending kind is always present (no zero-ending case to handle).
-        var kinds = (crlf ? 1 : 0) + (lf ? 1 : 0) + (cr ? 1 : 0);
-        if (kinds > 1)
-            return "mixed line endings";
-        if (crlf)
-            return "CRLF";
-        return lf ? "LF" : "CR";
+        return (lf, cr);
     }
 
     private static string[] SplitLines(string content)
