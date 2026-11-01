@@ -17,13 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
 
-Minor release. `SnapshotTrailingNewline.Forbidden` now enforces the check its documentation described, and the TUnit dependency floor moves to 1.76.45. No public API shape change.
+Minor release. `SnapshotTrailingNewline.Forbidden` now enforces the check its documentation described, and the TUnit dependency floor moves to 1.77.0. No public API shape change.
 
 ### Changed
 
 - **BREAKING:** `SnapshotTrailingNewline.Forbidden` now fails the comparison when the expected baseline or the actual content ends with a trailing newline, including when both do and the content is otherwise identical. It previously behaved exactly like `Optional`: both sides had a trailing newline stripped before comparison, so its presence was unobservable, and the README recorded the two values as producing the same outcome. Normalization under `Forbidden` now preserves the trailing-newline state, as `Required` does, so a written `.actual.txt` or an accepted baseline keeps the trailing newline of the normalized content, and the failure output names the offending side and the alternatives.
 - `SnapshotTrailingNewline.Required` and `SnapshotOptions.TrailingNewline` documentation now describes the implemented behavior: the trailing-newline state of both sides is preserved and compared, and a difference fails the comparison. The previous wording said the baseline must end with a newline, which was never checked on its own.
-- `TUnit.Assertions` and `TUnit.Core` minimum versions raised from 1.54.0 to 1.76.45.
+- `TUnit.Assertions` and `TUnit.Core` minimum versions raised from 1.54.0 to 1.77.0.
 
 **Upgrade:** Consumers on `Forbidden` whose baseline or producer ends with a trailing newline now fail. Remove the trailing newline from the producer and re-accept the baseline, or choose `Optional` (presence is ignored) or `Required` (presence is preserved and compared). `Optional` and `Required` behavior is unchanged.
 
