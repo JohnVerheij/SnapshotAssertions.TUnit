@@ -49,7 +49,7 @@ await Assert.That(actual).MatchesSnapshotFile(
     SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF });
 ```
 
-Pass an absolute path (a relative one resolves against the current working directory). These options compare byte for byte after normalizing CRLF and CR to LF. `SNAPSHOT_ACCEPT=1` rewrites the file at that path in place, and a mismatch writes `insert-line.golden.actual.txt` next to it. See [Using existing golden files](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#using-existing-golden-files) for the full mapping from a hand-rolled golden helper.
+Pass an absolute path (a relative one resolves against the current working directory). These options turn CRLF and CR line endings into LF and then compare everything else exactly; only a leading UTF-8 BOM is ignored. `SNAPSHOT_ACCEPT=1` rewrites the file at that path in place, and a mismatch writes `insert-line.golden.actual.txt` next to it. See [Using existing golden files](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#using-existing-golden-files) for the full mapping from a hand-rolled golden helper.
 
 ## Accept-changes workflow
 

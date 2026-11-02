@@ -11,7 +11,7 @@ namespace SnapshotAssertions;
 /// <summary>
 /// Path resolution for snapshot files. Computes the expected file path given a directory and
 /// either an explicit name or a (test class, test method) pair, plus the matching
-/// <c>.actual.txt</c> sibling path.
+/// sibling path of the actual file (<c>.actual.txt</c>, or <c>.actual</c> inserted before a custom extension).
 /// </summary>
 /// <remarks>
 /// All paths returned are absolute. The resolver does not touch the filesystem; the caller is

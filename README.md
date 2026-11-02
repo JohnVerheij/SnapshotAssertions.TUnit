@@ -142,8 +142,8 @@ line-based diff.
 ## Snapshot file conventions
 
 **Default folder location:** `Snapshots/` next to your test binary at runtime. Source files
-live under `tests/<YourProject>/Snapshots/` and are copied to the binary directory by your
-csproj (see "Project setup" below).
+live under `tests/<YourProject>/Snapshots/` and are copied to the binary directory by the
+package's build targets (see "Project setup" below).
 
 **Default file name:** `{TestClassName}.{TestMethodName}.expected.txt`, derived from
 `TestContext.Current.Metadata.TestDetails.ClassType.Name` and `.MethodName`. Examples:
@@ -173,8 +173,9 @@ await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt
 - `.expected.txt`: the committed baseline. Diffed against actual output on every test run.
 - `.actual.txt`: transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
 
-With a custom path the actual file is the expected file name with `.actual` inserted before the extension
-(`payload.json` gets `payload.actual.json`).
+With a custom path ending in `.expected.txt`, the actual file is the matching `.actual.txt`. For any other
+extension, `.actual` is inserted before it: `payload.json` gets `payload.actual.json`, and `frame.golden.txt` gets
+`frame.golden.actual.txt`.
 
 ## Project setup (`csproj` wiring)
 
@@ -195,7 +196,8 @@ control), set this property in your csproj:
 
 Then add a `<None Include="...">` matching your custom layout.
 
-Recommended `.gitignore` (transient `.actual.txt` files must not be committed):
+Recommended `.gitignore` (transient `.actual.txt` files must not be committed; with custom extensions, use
+`*.actual.*`):
 
 ```gitignore
 *.actual.txt
@@ -219,7 +221,7 @@ or renaming.
 // The repository root, found once (for example by walking up to the solution file).
 private static readonly string Fixtures = Path.Combine(RepoRoot, "tests", "fixtures", "celldiff");
 
-// Byte for byte after line-ending normalization (CRLF and CR become LF).
+// Byte for byte after line-ending normalization (CRLF and CR become LF); a leading UTF-8 BOM is ignored.
 private static readonly SnapshotOptions Golden =
     SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF };
 
@@ -237,13 +239,13 @@ What a hand-rolled golden helper does, and the equivalent here:
 | Hand-rolled helper | `SnapshotAssertions.TUnit` |
 |---|---|
 | Fixture folder in the source tree, any file name | `MatchesSnapshotFile(path)` with an absolute path. A relative path resolves against the current working directory, so build the path from the repository root. |
-| Compare byte for byte after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count; only a leading UTF-8 BOM is ignored. Not `SnapshotOptions.NormalizedLineEndings`, which also ignores the final newline. |
+| Compare byte for byte after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count; only a leading UTF-8 BOM is ignored (`BomHandling = SnapshotBomHandling.PreserveBom` makes it count). Not `SnapshotOptions.NormalizedLineEndings`, which also ignores the final newline. |
 | An update flag rewrites the golden files | `SNAPSHOT_ACCEPT=1 dotnet test` writes the actual content over the file at that path, so the committed file changes in place. |
 | CI never updates | Accept mode is refused while `CI` is set (see [Accept-changes workflow](#accept-changes-workflow), also for a pipeline step that regenerates on purpose). |
 | A missing golden file fails with instructions | "Snapshot baseline does not exist", with both paths and how to accept. |
 | The actual output is written on failure | `<name>.actual<ext>` next to the baseline: `insert-line.golden.txt` gets `insert-line.golden.actual.txt`. Ignore `*.actual.*` in `.gitignore`. |
 
-No csproj wiring is needed: the build targets copy only `Snapshots/*.expected.txt` to the output directory, and an
+No csproj wiring is needed: the build targets copy only the `.expected.txt` files under `Snapshots/` (`Snapshots/**/*.expected.txt`) to the output directory, and an
 absolute path reads the golden file where it is.
 
 ## Entry points
@@ -286,10 +288,11 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 
 `SnapshotOptions` is a sealed record with strict-by-default values. Two presets are provided:
 
-- `SnapshotOptions.Default`: strict-default (no normalization; preserve everything as-is).
+- `SnapshotOptions.Default`: strict default. Line endings, per-line trailing whitespace and the final newline are
+  compared as they are; only a leading UTF-8 BOM is stripped.
 - `SnapshotOptions.NormalizedLineEndings`: convenience preset for cross-platform tests
   where LF/CRLF differences are not meaningful. It ignores line endings and the final newline. To normalize
-  line endings but keep every other byte significant, use
+  line endings but keep everything else significant (apart from a leading UTF-8 BOM, as in `Default`), use
   `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`.
 
 Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
@@ -307,7 +310,7 @@ How line-ending differences between the actual content and the expected baseline
 
 | Value | Behavior |
 |---|---|
-| `Ordinal` (default) | No normalization. Bytes are compared as-is. CRLF and LF are different. |
+| `Ordinal` (default) | No line-ending normalization: line endings are compared as they are. CRLF and LF are different. |
 | `NormalizeToLF` | Both sides normalized to LF before comparison. Cross-platform-safe. |
 | `NormalizeToCRLF` | Both sides normalized to CRLF before comparison. Windows-leaning. |
 | `IgnoreLineEndings` | Line endings stripped from both sides entirely; only line content is compared. |
@@ -1117,9 +1120,10 @@ await Assert.That(actual).MatchesSnapshotFile("/some/path.expected.txt");
 Symptom: every test reports "Snapshot baseline does not exist" with an `.actual.txt` file
 written next to where the expected file would be.
 
-**Most likely cause:** your `.csproj` is not copying `Snapshots/*.expected.txt` to the test
-binary's output directory. Add the `<None Include>` from
-[Project setup](#project-setup-csproj-wiring).
+**Most likely cause:** the baselines are not copied to the test binary's output directory. The package's build
+targets copy `Snapshots/**/*.expected.txt` automatically, so check that the files sit under the project's
+`Snapshots/` folder and that `SnapshotAssertionsAutoIncludeSnapshots` is not set to `false`; if it is, add the
+`<None Include>` from [Project setup](#project-setup-csproj-wiring).
 
 ### Tests pass on Windows but fail on Linux (CRLF mismatch)
 

@@ -29,7 +29,7 @@ public sealed record SnapshotResult
     /// <summary>Absolute path to the expected baseline file. Always populated.</summary>
     public string ExpectedFilePath { get; }
 
-    /// <summary>Absolute path to the written <c>.actual.txt</c> file when
+    /// <summary>Absolute path to the written actual file (<c>.actual.txt</c>, or <c>.actual</c> inserted before a custom extension) when
     /// <see cref="Outcome"/> is <see cref="SnapshotMatchOutcome.Mismatched"/> or
     /// <see cref="SnapshotMatchOutcome.NoBaseline"/>; <see langword="null"/> otherwise.</summary>
     public string? ActualFilePath { get; }
@@ -57,7 +57,7 @@ public sealed record SnapshotResult
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.Mismatched"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to the expected file.</param>
-    /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file.</param>
+    /// <param name="actualFilePath">Absolute path to the written actual file (<c>.actual.txt</c>, or <c>.actual</c> inserted before a custom extension).</param>
     /// <param name="diff">Rendered line-based diff for failure-message display.</param>
     /// <returns>A failing result describing the mismatch.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
@@ -71,8 +71,8 @@ public sealed record SnapshotResult
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.NoBaseline"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to where the expected file would be.</param>
-    /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file the
-    /// caller can inspect and rename to <c>.expected.txt</c> to accept.</param>
+    /// <param name="actualFilePath">Absolute path to the written actual file (<c>.actual.txt</c>, or <c>.actual</c> inserted before a custom extension) the
+    /// caller can inspect and rename over the expected file to accept.</param>
     /// <returns>A failing result describing the missing baseline.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotResult NoBaseline(string expectedFilePath, string actualFilePath)

@@ -20,7 +20,8 @@ namespace SnapshotAssertions;
 public sealed record SnapshotOptions
 {
     /// <summary>
-    /// Strict defaults: preserve everything as-is. Used when no options are passed to the
+    /// Strict defaults: line endings, per-line trailing whitespace and the trailing-newline state are
+    /// compared as they are; only a leading UTF-8 BOM is stripped. Used when no options are passed to the
     /// snapshot assertion entry points.
     /// </summary>
     public static SnapshotOptions Default { get; } = new();
@@ -42,7 +43,7 @@ public sealed record SnapshotOptions
 
     /// <summary>How line-ending differences between the actual content and the expected
     /// baseline are handled. Defaults to <see cref="SnapshotLineEndingMode.Ordinal"/>
-    /// (no normalization).</summary>
+    /// (no line-ending normalization).</summary>
     public SnapshotLineEndingMode LineEndingMode { get; init; } = SnapshotLineEndingMode.Ordinal;
 
     /// <summary>How a leading byte-order-mark in either file is handled. Defaults to

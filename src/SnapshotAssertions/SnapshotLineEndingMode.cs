@@ -4,7 +4,7 @@ namespace SnapshotAssertions;
 /// during snapshot comparison.</summary>
 public enum SnapshotLineEndingMode
 {
-    /// <summary>No normalization. Bytes are compared as-is.</summary>
+    /// <summary>No line-ending normalization: line endings are compared as they are.</summary>
     Ordinal,
 
     /// <summary>Both sides are normalized to LF before comparison. Cross-platform-safe.</summary>
