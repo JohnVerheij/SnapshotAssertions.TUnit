@@ -65,7 +65,7 @@ internal sealed class MatchesSnapshotTests
     }
 
     /// <summary>Missing baseline: assertion fails and writes the actual file so the user can
-    /// inspect and rename it to the expected baseline.</summary>
+    /// inspect and copy it to the expected path.</summary>
     [Test]
     public async Task NoBaseline_FailsAndWritesActual(CancellationToken cancellationToken)
     {

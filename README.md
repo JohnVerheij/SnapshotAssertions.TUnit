@@ -133,10 +133,10 @@ public async Task Public_api_surface_matches_baseline()
 }
 ```
 
-That is the entire test. The default file resolver writes
-`Snapshots/{TestClassName}.{TestMethodName}.expected.txt` relative to the test binary's
-output directory (`AppContext.BaseDirectory`). On mismatch, `*.actual.txt` is written next
-to the expected file and the assertion failure message includes both paths plus a
+That is the entire test. The baseline is read from
+`Snapshots/{TestClassName}.{TestMethodName}.expected.txt` in the test binary's output directory
+(`AppContext.BaseDirectory`), where the build copies it from the project's `Snapshots/` folder. On mismatch,
+`*.actual.txt` is written next to it and the assertion failure message includes both paths plus a
 line-based diff.
 
 ## Snapshot file conventions
@@ -173,9 +173,9 @@ await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt
 - `.expected.txt`: the committed baseline. Diffed against actual output on every test run.
 - `.actual.txt`: transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
 
-With a custom path ending in `.expected.txt`, the actual file is the matching `.actual.txt`. For any other
+With a custom path ending in `.expected.txt` (exact case), the actual file is the matching `.actual.txt`. For any other
 extension, `.actual` is inserted before it: `payload.json` gets `payload.actual.json`, and `frame.golden.txt` gets
-`frame.golden.actual.txt`.
+`frame.golden.actual.txt`. A path without an extension gets `.actual` appended: `payload` gets `payload.actual`.
 
 ## Project setup (`csproj` wiring)
 
@@ -184,6 +184,9 @@ file that NuGet auto-imports into the consuming project. Any `.expected.txt` fil
 project's `Snapshots/` folder is automatically copied to the test binary's output directory
 at every build (`CopyToOutputDirectory="PreserveNewest"`). Just install the package and start
 writing tests.
+
+NuGet imports these targets only into a project that references `SnapshotAssertions.TUnit` directly. When the
+package arrives through another project, add a direct `PackageReference` to the test project.
 
 To opt out (e.g., if you keep snapshots in a non-default location and want full manual
 control), set this property in your csproj:
@@ -196,11 +199,12 @@ control), set this property in your csproj:
 
 Then add a `<None Include="...">` matching your custom layout.
 
-Recommended `.gitignore` (transient actual files must not be committed; `*.actual.*` also covers the actual
-files of custom extensions):
+Recommended `.gitignore` (transient actual files must not be committed; `*.actual.*` also covers custom
+extensions, and `*.actual` a custom path without an extension):
 
 ```gitignore
 *.actual.*
+*.actual
 ```
 
 Recommended `.gitattributes` so cross-platform runs don't produce false-positive
@@ -214,14 +218,15 @@ trailing-CRLF diffs against committed baselines:
 ## Using existing golden files
 
 A suite that already keeps golden files can use them as they are. A baseline is the plain expected text in a file
-you choose; there is no header, no metadata and no storage format of the package's own, so nothing needs converting
-or renaming.
+you choose; there is no header, no metadata and no storage format of the package's own, so nothing needs
+renaming. The file is read as UTF-8 text, or in the encoding that a byte-order mark at its start declares (UTF-16,
+UTF-32); a file in another encoding needs converting once.
 
 ```csharp
 // The repository root, found once (for example by walking up to the solution file).
 private static readonly string Fixtures = Path.Combine(RepoRoot, "tests", "fixtures", "celldiff");
 
-// Byte for byte after line-ending normalization (CRLF and CR become LF); a leading UTF-8 BOM is ignored.
+// Character for character after line-ending normalization (CRLF and CR become LF); a byte-order mark is ignored.
 private static readonly SnapshotOptions Golden =
     SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF };
 
@@ -239,14 +244,17 @@ What a hand-rolled golden helper does, and the equivalent here:
 | Hand-rolled helper | `SnapshotAssertions.TUnit` |
 |---|---|
 | Fixture folder in the source tree, any file name | `MatchesSnapshotFile(path)` with an absolute path. A relative path resolves against the current working directory, so build the path from the repository root. |
-| Compare byte for byte after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count; only a leading UTF-8 BOM is ignored (`BomHandling = SnapshotBomHandling.PreserveBom` makes it count). Not `SnapshotOptions.NormalizedLineEndings`, which also ignores the final newline. |
-| An update flag rewrites the golden files | `SNAPSHOT_ACCEPT=1 dotnet test` writes the actual content over the file at that path, so the committed file changes in place. |
-| CI never updates | Accept mode is refused while `CI` is set (see [Accept-changes workflow](#accept-changes-workflow), also for a pipeline step that regenerates on purpose). |
+| Compare exactly after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count. A byte-order mark at the start of the golden file is never compared: reading the file consumes it. Not `SnapshotOptions.NormalizedLineEndings`, which also ignores where lines break and the final newline. |
+| An update flag rewrites the golden files | `SNAPSHOT_ACCEPT=1 dotnet test` writes the normalized actual content (here with LF line endings, as UTF-8 without a byte-order mark) over each golden file that does not match, so the committed file changes in place. |
+| CI never updates | Accept mode is refused while `CI` is `1`, `true` or `yes`. GitHub Actions and GitLab CI set it; Azure Pipelines does not, so set `CI=true` there. See [Accept-changes workflow](#accept-changes-workflow), also for a pipeline step that regenerates on purpose. |
 | A missing golden file fails with instructions | "Snapshot baseline does not exist", with both paths and how to accept. |
-| The actual output is written on failure | `<name>.actual<ext>` next to the baseline: `insert-line.golden.txt` gets `insert-line.golden.actual.txt`. Ignore `*.actual.*` in `.gitignore`. |
+| The actual output is written on failure | Next to the baseline: `insert-line.golden.txt` gets `insert-line.golden.actual.txt` (every case in [Snapshot file conventions](#snapshot-file-conventions)). Ignore `*.actual.*` and `*.actual` in `.gitignore`. |
 
 No csproj wiring is needed: the build targets copy only the `.expected.txt` files under `Snapshots/` (`Snapshots/**/*.expected.txt`) to the output directory, and an
 absolute path reads the golden file where it is.
+
+With the default `Ordinal` line endings instead of `NormalizeToLF`, add the golden files to `.gitattributes` (for
+example `*.golden.txt text eol=lf`) so a Windows checkout does not turn them into CRLF.
 
 ## Entry points
 
@@ -289,11 +297,12 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 `SnapshotOptions` is a sealed record with strict-by-default values. Two presets are provided:
 
 - `SnapshotOptions.Default`: strict default. Line endings, per-line trailing whitespace and the final newline are
-  compared as they are; only a leading UTF-8 BOM is stripped.
-- `SnapshotOptions.NormalizedLineEndings`: convenience preset for cross-platform tests
-  where LF/CRLF differences are not meaningful. It ignores line endings and the final newline. To normalize
-  line endings but keep everything else significant (apart from a leading UTF-8 BOM, as in `Default`), use
-  `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`.
+  compared as they are; only a leading byte-order mark is ignored (see [`SnapshotBomHandling`](#snapshotbomhandling)).
+- `SnapshotOptions.NormalizedLineEndings`: removes line breaks before comparing (`IgnoreLineEndings`) and ignores
+  the final newline, so blank lines and where lines break are ignored too (`"a\nb"` equals `"ab"`). The written
+  actual file and an accepted baseline then have no line breaks either. For cross-platform tests, use
+  `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }` instead: CRLF and CR
+  become LF, and every line break still counts.
 
 Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
 
@@ -313,16 +322,18 @@ How line-ending differences between the actual content and the expected baseline
 | `Ordinal` (default) | No line-ending normalization: line endings are compared as they are. CRLF and LF are different. |
 | `NormalizeToLF` | Both sides normalized to LF before comparison. Cross-platform-safe. |
 | `NormalizeToCRLF` | Both sides normalized to CRLF before comparison. Windows-leaning. |
-| `IgnoreLineEndings` | Line endings stripped from both sides entirely; only line content is compared. |
+| `IgnoreLineEndings` | Line breaks removed from both sides, so the text is compared as one run: blank lines and where lines break are ignored. The written actual file and an accepted baseline have no line breaks either. |
 
 ### `SnapshotBomHandling`
 
-How a leading byte-order-mark is handled.
+How a leading byte-order mark (U+FEFF) in the content is handled. The golden file is read as text, so a byte-order
+mark at its start (UTF-8, UTF-16 or UTF-32) selects the encoding and is never part of the compared content, under
+either value; `BomHandling` applies to the actual content.
 
 | Value | Behavior |
 |---|---|
-| `StripBom` (default) | A UTF-8 BOM is stripped from both sides before comparison. |
-| `PreserveBom` | BOM bytes are treated as part of the content. |
+| `StripBom` (default) | A leading U+FEFF is removed before comparison. |
+| `PreserveBom` | A leading U+FEFF in the actual content is kept and compared. The golden file never yields one, so such content does not match. |
 
 ### `SnapshotTrailingWhitespace`
 
@@ -543,7 +554,8 @@ Snapshot did not match the baseline.
 +public void RenamedMethod()
 +public string NewProperty { get; }
 
-To accept the change, rename the actual file over the expected file,
+To accept the change, copy the actual file over the expected file
+(for a path in the build output's Snapshots/ folder, over the one in the project's Snapshots/ folder),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -560,7 +572,7 @@ count-summary footer indicating the total number of differing lines.
 
 The first time a `MatchesSnapshot()` test runs, no baseline file exists yet. The assertion
 fails with a clear "no baseline" diagnostic and writes the actual content to `.actual.txt`
-so you can inspect it and rename it over the expected file:
+so you can inspect it and copy it to the expected path:
 
 ```text
 to match the snapshot baseline
@@ -569,7 +581,8 @@ Snapshot baseline does not exist.
   Expected: C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.expected.txt
   Actual:   C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.actual.txt
 
-Inspect the actual file and rename it over the expected file to accept it as the baseline,
+To accept it as the baseline, inspect the actual file and copy it to the expected path
+(for a path in the build output's Snapshots/ folder, to the project's Snapshots/ folder instead),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -577,12 +590,13 @@ or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 
 Three modes, in order of preference:
 
-1. **IDE diff-and-merge.** Most IDEs (Rider, VS Code) detect side-by-side `.expected.txt`
-   and `.actual.txt` files and offer a diff-and-merge view. This is the most ergonomic flow
-   for reviewing a single change.
-2. **Manual `cp`.** For users without IDE integration:
+1. **IDE diff-and-merge.** Compare the `.actual.txt` file with the `.expected.txt` file in your IDE (Rider and
+   VS Code compare two selected files) and merge the change into the baseline in the project's `Snapshots/`
+   folder. This is the most ergonomic flow for reviewing a single change.
+2. **Manual `cp`.** For users without IDE integration, from the test project folder (the actual file is in the
+   build output):
    ```bash
-   cp Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt
+   cp bin/Debug/net10.0/Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt
    ```
    Failure messages include full absolute paths so any external diff tool works.
 3. **Bulk accept via env var.** When many snapshots changed (e.g. an intentional API surface
@@ -590,13 +604,12 @@ Three modes, in order of preference:
    ```bash
    SNAPSHOT_ACCEPT=1 dotnet test
    ```
-   All mismatched snapshots are accepted automatically: the actual content overwrites the
-   expected baseline, and the assertion passes (with `SnapshotMatchOutcome.Accepted`).
+   Every mismatched or missing baseline is written automatically: the normalized actual content overwrites or
+   creates the expected baseline, and the assertion passes (with `SnapshotMatchOutcome.Accepted`).
 
-   **CI guard:** if the `CI` environment variable is also set to a truthy value (which all
-   major hosted runners do: GitHub Actions, GitLab CI, Azure Pipelines, CircleCI, etc.),
-   accept-mode is *refused* even if `SNAPSHOT_ACCEPT` is set. This makes it impossible for
-   a stray pipeline configuration to silently accept baseline drift. See
+   **CI guard:** if the `CI` environment variable is also `1`, `true` or `yes` (GitHub Actions and GitLab CI set
+   `CI=true`), accept-mode is *refused* even if `SNAPSHOT_ACCEPT` is set, so a stray pipeline configuration cannot
+   silently accept baseline drift. Azure Pipelines does not set `CI`; set `CI=true` in the pipeline there. See
    `SnapshotAcceptMode.IsActive` for the exact rule.
 
    A pipeline step whose job is to regenerate the baselines (for example to open a pull request with them) sets
@@ -610,15 +623,17 @@ Three modes, in order of preference:
        CI: "false"
    ```
 
-As of v0.6.0, step 3 (`SNAPSHOT_ACCEPT=1`) writes the new baseline directly into the **source**
-`Snapshots/` folder, not just the test binary's output directory. The source path is resolved
-from the compiled-in source location (via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`),
-so the committed baseline is updated in place even under `dotnet test --no-build`, where the build
-does not copy snapshot files back to source. If the source directory cannot be resolved (for
-example a baseline built without source information), accept-mode falls back to writing the test
-binary's directory and you move those files into source manually. For steps 1 and 2 you copy the
-`.actual.txt` over the `.expected.txt` in the source `Snapshots/` folder yourself; the next clean
-build picks up the new committed baseline.
+As of v0.6.0, step 3 (`SNAPSHOT_ACCEPT=1`) writes a default-named or `.WithName(...)` baseline directly into the
+**source** `Snapshots/` folder, not the test binary's output directory, so the committed baseline is updated in
+place even under `dotnet test --no-build`. `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory` finds that
+folder by walking up from the test binary's directory to the nearest folder that contains a `.csproj` file; with
+the default `bin/` layout, that is the test project. If the output directory is not under the project folder
+(for example with `UseArtifactsOutput`, `dotnet test -o` or a custom `OutputPath`), the walk finds either no
+project, and accept-mode then writes the test binary's directory so you move those files into source yourself,
+or an unrelated project higher up, whose `Snapshots/` folder then receives the baseline. An explicit
+`.AtPath(...)` or `MatchesSnapshotFile(path)` is always written at that path. For steps 1 and 2 you copy the
+`.actual.txt` from the output directory over the `.expected.txt` in the source `Snapshots/` folder yourself; the
+next build picks up the new committed baseline.
 
 ## Cookbook: common patterns
 
@@ -668,7 +683,8 @@ public async Task Order_lifecycle_states_match()
 **Cross-platform comparison (LF/CRLF differences not meaningful):**
 
 ```csharp
-await Assert.That(actual).MatchesSnapshot(SnapshotOptions.NormalizedLineEndings);
+await Assert.That(actual).MatchesSnapshot(
+    SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF });
 ```
 
 **Custom comparison rules:**
@@ -692,7 +708,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 
 **Parameterized tests with `[Arguments]`: per-row baselines:**
 
-For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each `[Arguments]` row gets its own baseline file instead of overwriting one another. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each method-level `[Arguments]` row gets its own baseline file instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are not part of the hash, so the rows of such a class share one file; pass a name built from the class arguments to `.WithName(...)`. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
 
 ```csharp
 [Test]
@@ -763,7 +779,8 @@ Suggestions: 4 differences match known volatile patterns.
   - 2 matches for ISO 8601 timestamp. Consider .WithScrubber(Scrubbers.Iso8601Timestamp)
   Or use the curated chain: .WithScrubber(Scrubbers.Common)
 
-To accept the change, rename the actual file over the expected file,
+To accept the change, copy the actual file over the expected file
+(for a path in the build output's Snapshots/ folder, over the one in the project's Snapshots/ folder),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -1054,7 +1071,7 @@ Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
 | `await Verifier.Verify(actual)` | `await Assert.That(actual).MatchesSnapshot()` |
 | `Verifier.UseDirectory("Snapshots")` | Default - `SnapshotAssertions.TUnit` writes to `Snapshots/` beside the test binary output (`AppContext.BaseDirectory`) automatically; no setup needed (accept-mode resolves back to the source tree). Use `MatchesSnapshotFile("custom/path.expected.txt")` per-call to override the default. |
 | `Verifier.AddScrubber(s => ...)` | `await Assert.That(actual).MatchesSnapshot().WithScrubber(Scrubbers.Pattern(regex, "TOKEN"))` |
-| Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused if `CI` is set) |
+| Auto-accept via `.received` rename | `SNAPSHOT_ACCEPT=1 dotnet test` (local; refused while `CI` is `1`, `true` or `yes`) |
 
 `Verifier.Verify(actual).IgnoreMember("Id")` has no one-to-one equivalent because Verify ignores members at the object-graph level (pre-serialization) while `SnapshotAssertions` scrubbers run against the rendered string (post-serialization). Two practical replacements:
 
@@ -1123,7 +1140,8 @@ written next to where the expected file would be.
 **Most likely cause:** the baselines are not copied to the test binary's output directory. The package's build
 targets copy `Snapshots/**/*.expected.txt` automatically, so check that the files sit under the project's
 `Snapshots/` folder and that `SnapshotAssertionsAutoIncludeSnapshots` is not set to `false`; if it is, add the
-`<None Include>` from [Project setup](#project-setup-csproj-wiring).
+`<None Include>` from [Project setup](#project-setup-csproj-wiring). A package that arrives through another project
+does not import the targets at all; add a direct `PackageReference` to the test project.
 
 ### Tests pass on Windows but fail on Linux (CRLF mismatch)
 
@@ -1132,14 +1150,19 @@ Symptom: the snapshot fails with a `did not match` message, but the diff shows n
 **Cause:** the committed `.expected.txt` was saved with CRLF line endings (a Windows
 default), but the test on Linux produces LF.
 
-**Fix one (recommended):** add `*.expected.txt text eol=lf` to `.gitattributes` so committed
-baselines are always LF, then re-commit the file (Git will convert it).
-
-**Fix two:** use the cross-platform preset on the call site:
+**Fix one (recommended):** normalize line endings on both sides at the call site:
 
 ```csharp
-await Assert.That(actual).MatchesSnapshot(SnapshotOptions.NormalizedLineEndings);
+await Assert.That(actual).MatchesSnapshot(
+    SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF });
 ```
+
+**Fix two:** when the producer always emits LF, add `*.expected.txt text eol=lf` to `.gitattributes` so committed
+baselines are always LF, then re-commit the file (Git will convert it). A producer that emits the platform's
+newline would then fail on Windows instead, so use fix one there.
+
+Avoid `SnapshotOptions.NormalizedLineEndings` for this: it also ignores where lines break (see
+[`SnapshotLineEndingMode`](#snapshotlineendingmode)).
 
 ### Bootstrapping baselines for a fresh test
 
@@ -1148,16 +1171,18 @@ committed `.expected.txt` yet. Two ways to bootstrap:
 
 1. Run once. The failure writes `.actual.txt`. Rename it to `.expected.txt`, copy back to your
    source `Snapshots/` folder, commit.
-2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The baseline is written
-   straight into your source `Snapshots/` folder (see [Accept-changes workflow](#accept-changes-workflow));
+2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The baseline is written into the
+   `Snapshots/` folder next to the nearest `.csproj` above the test binary, normally your source folder (see
+   [Accept-changes workflow](#accept-changes-workflow), also for output directories outside the project);
    commit it.
 
 ### CI accidentally accepts a snapshot
 
-This shouldn't happen: accept-mode is refused if `CI` is set, regardless of
+This shouldn't happen: accept-mode is refused while `CI` is `1`, `true` or `yes`, regardless of
 `SNAPSHOT_ACCEPT`. If you observe it happening anyway, check:
 
-- Did your CI runner set `CI=true` (or `CI=1` / `CI=yes`)? Verify with a `printenv CI` step.
+- Did your CI runner set `CI=true` (or `CI=1` / `CI=yes`)? Azure Pipelines does not; verify with a `printenv CI`
+  step.
 - Are you running an older version of the package? `SnapshotAcceptMode.IsActive(string?, string?)`
   with explicit values is the deterministic test surface; the no-arg overload reads the live
   environment.
@@ -1167,8 +1192,8 @@ This shouldn't happen: accept-mode is refused if `CI` is set, regardless of
 - **`MatchesSnapshot()` is post-mortem, not interactive.** It compares actual against the committed baseline and passes or throws; it never prompts or opens a diff window. The IDE provides the interactive diff from the `.expected.txt` / `.actual.txt` files the assertion writes, so the same code path runs identically locally and in CI.
 - **The `CI=true` guard is unconditional.** Accept-mode is disabled whenever `CI` is truthy, regardless of `SNAPSHOT_ACCEPT`, with no in-package override. An accidental override would mean silent baseline drift in committed history, which is exactly what the test prevents.
 - **Default names use the simple class name** (`{TestClassName}.{TestMethodName}`), not the full namespace, to keep file names short and avoid path-length surprises. Pass an explicit name to disambiguate two same-named test classes.
-- **No `[CallerFilePath]`-based paths.** It doesn't propagate through TUnit's generated assertion methods (the values point at the generated extension, not your call site), so paths resolve from the binary directory. The trade-off is the `<None Include>` csproj wiring documented above.
-- **Strict defaults.** `SnapshotOptions.Default` preserves line endings, BOM, and trailing whitespace/newline; cross-platform normalization is opt-in via `SnapshotOptions.NormalizedLineEndings`, never silent.
+- **No `[CallerFilePath]`-based paths.** It doesn't propagate through TUnit's generated assertion methods (the values point at the generated extension, not your call site), so paths resolve from the binary directory, where the package's build targets copy the baselines.
+- **Strict defaults.** `SnapshotOptions.Default` preserves line endings and trailing whitespace/newline (only a leading byte-order mark is ignored); cross-platform normalization is opt-in via `LineEndingMode` (for example `NormalizeToLF`), never silent.
 
 ## Stability intent (pre-1.0)
 

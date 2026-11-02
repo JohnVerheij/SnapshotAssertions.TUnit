@@ -8,7 +8,7 @@ namespace SnapshotAssertions;
 /// <summary>
 /// Orchestrates a single snapshot comparison: reads the expected baseline from disk if
 /// present, compares against the actual content under the supplied options, applies
-/// accept-mode when active, and writes the normalized actual content to <c>.actual.txt</c>
+/// accept-mode when active, and writes the normalized actual content to the actual file
 /// on failure. Every baseline-candidate is persisted in normalized form so an accepted
 /// baseline matches the form the comparison reads back.
 /// </summary>
@@ -155,7 +155,8 @@ public static class SnapshotEvaluator
     /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
     /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
     /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
-    /// files.
+    /// files (class-level arguments are not part of the hash, so the rows of a class with constructor
+    /// arguments share a file unless they pass distinct names).
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {

@@ -10,16 +10,16 @@ namespace SnapshotAssertions;
 /// <remarks>
 /// <para>
 /// Accept-mode is enabled when <c>SNAPSHOT_ACCEPT</c> is set to a truthy value (one of
-/// <c>1</c>, <see langword="true"/>, or <c>yes</c>; case-insensitive). It is unconditionally
-/// <em>disabled</em> in CI: if the <c>CI</c> environment variable is set to a truthy value
-/// (which all major hosted CI services do: GitHub Actions, GitLab CI, Azure Pipelines,
-/// CircleCI, etc.), accept-mode is refused even if <c>SNAPSHOT_ACCEPT</c> is set, to prevent
-/// a stray pipeline configuration from silently accepting baseline drift.
+/// <c>1</c>, <see langword="true"/>, or <c>yes</c>; case-insensitive). It is
+/// <em>disabled</em> while the <c>CI</c> environment variable is set to a truthy value (GitHub Actions and
+/// GitLab CI set <c>CI=true</c>; Azure Pipelines does not, so a pipeline there sets it itself): accept-mode is
+/// then refused even if <c>SNAPSHOT_ACCEPT</c> is set, to prevent a stray pipeline configuration from silently
+/// accepting baseline drift.
 /// </para>
 /// <para>
 /// The CI guard reads <c>CI</c> rather than the runner-specific variables (<c>GITHUB_ACTIONS</c>,
-/// <c>GITLAB_CI</c>, <c>TF_BUILD</c>, etc.) because <c>CI</c> is the cross-runner canonical signal:
-/// every major runner sets it. This keeps the rule one-line and runner-agnostic.
+/// <c>GITLAB_CI</c>, <c>TF_BUILD</c>, etc.): it is the variable most hosted runners set, which keeps the rule
+/// one-line and runner-agnostic.
 /// </para>
 /// </remarks>
 public static class SnapshotAcceptMode

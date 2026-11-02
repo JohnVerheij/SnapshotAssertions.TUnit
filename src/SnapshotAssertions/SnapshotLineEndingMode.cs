@@ -13,7 +13,8 @@ public enum SnapshotLineEndingMode
     /// <summary>Both sides are normalized to CRLF before comparison. Windows-leaning.</summary>
     NormalizeToCRLF,
 
-    /// <summary>Line endings are removed from both sides entirely; only the line content is
-    /// compared.</summary>
+    /// <summary>Line breaks are removed from both sides, so the text is compared as one run: blank lines and where
+    /// lines break are not compared. The written actual file and an accepted baseline have no line breaks
+    /// either.</summary>
     IgnoreLineEndings,
 }

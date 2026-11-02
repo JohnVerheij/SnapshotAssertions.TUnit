@@ -16,8 +16,8 @@ public enum SnapshotMatchOutcome
     /// expected file would be so the user can inspect and accept it.</summary>
     NoBaseline,
 
-    /// <summary>The actual content did not match, but accept-mode was active
-    /// (<c>SNAPSHOT_ACCEPT=1</c> in a non-CI environment), so the actual content was written
-    /// over the expected baseline and the comparison treats this as a pass.</summary>
+    /// <summary>The actual content did not match or no baseline existed, but accept-mode was active
+    /// (<c>SNAPSHOT_ACCEPT=1</c> in a non-CI environment), so the normalized actual content was written
+    /// as the expected baseline and the comparison treats this as a pass.</summary>
     Accepted,
 }

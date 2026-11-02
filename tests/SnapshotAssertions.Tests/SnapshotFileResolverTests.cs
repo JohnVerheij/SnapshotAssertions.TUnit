@@ -77,6 +77,18 @@ internal sealed class SnapshotFileResolverTests
         await Assert.That(paths.ActualFilePath).EndsWith("Custom.actual.json");
     }
 
+    /// <summary>ResolveByFile appends <c>.actual</c> when the expected path has no extension.</summary>
+    [Test]
+    public async Task ResolveByFile_NoExtension_AppendsActual(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var dir = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "snapshot-resolver-tests"));
+        var explicitPath = Path.Combine(dir, "Custom");
+        var paths = SnapshotFileResolver.ResolveByFile(explicitPath);
+
+        await Assert.That(paths.ActualFilePath).IsEqualTo(Path.Combine(dir, "Custom.actual"));
+    }
+
     /// <summary>Path-traversal characters in the snapshot name throw.</summary>
     [Test]
     public void ResolveByName_PathSeparator_Throws(CancellationToken cancellationToken)

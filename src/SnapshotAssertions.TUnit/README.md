@@ -37,7 +37,7 @@ public async Task Public_api_surface_matches_baseline()
 }
 ```
 
-The default file resolver writes `Snapshots/{TestClassName}.{TestMethodName}.expected.txt`. On mismatch, `*.actual.txt` is written next to the expected file and the assertion failure includes both paths plus a line-based diff.
+The baseline is read from `Snapshots/{TestClassName}.{TestMethodName}.expected.txt` in the test output directory, where the build copies it from the project's `Snapshots/` folder. On mismatch, `*.actual.txt` is written next to it and the assertion failure includes both paths plus a line-based diff.
 
 ## Existing golden files
 
@@ -49,19 +49,19 @@ await Assert.That(actual).MatchesSnapshotFile(
     SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF });
 ```
 
-Pass an absolute path (a relative one resolves against the current working directory). These options turn CRLF and CR line endings into LF and then compare everything else exactly; only a leading UTF-8 BOM is ignored. `SNAPSHOT_ACCEPT=1` rewrites the file at that path in place, and a mismatch writes `insert-line.golden.actual.txt` next to it. See [Using existing golden files](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#using-existing-golden-files) for the full mapping from a hand-rolled golden helper.
+Pass an absolute path (a relative one resolves against the current working directory). These options turn CRLF and CR line endings into LF and then compare everything else character for character; a byte-order mark is never compared. The file must be UTF-8 or start with a byte-order mark. `SNAPSHOT_ACCEPT=1` rewrites a file that does not match in place, with the normalized content, and a mismatch writes `insert-line.golden.actual.txt` next to it. See [Using existing golden files](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#using-existing-golden-files) for the full mapping from a hand-rolled golden helper.
 
 ## Accept-changes workflow
 
 Three modes, in order of preference:
 
-1. **IDE diff-and-merge.** Most IDEs (Rider, VS Code) detect side-by-side `.expected.txt` and `.actual.txt` files and offer a diff-and-merge view.
-2. **Manual `cp`.** `cp Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
-3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test`. Refuses to run if `CI=true` (so a slipped pipeline env never accepts silently).
+1. **IDE diff-and-merge.** Compare the `.actual.txt` file with the baseline in your IDE (Rider and VS Code compare two selected files) and merge the change into the project's `Snapshots/` folder.
+2. **Manual `cp`.** From the test project folder: `cp bin/Debug/net10.0/Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
+3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test`. Accept mode is refused while `CI` is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently (Azure Pipelines does not set `CI`; set `CI=true` there).
 
-As of v0.6.0, bulk accept writes the new baseline straight into the **source** `Snapshots/` folder (resolved via `SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`. It falls back to the test binary's directory only when the source path cannot be resolved.
+As of v0.6.0, bulk accept writes default-named baselines straight into the **source** `Snapshots/` folder next to the nearest `.csproj` above the test binary (`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`. With an output directory outside the project folder (for example `UseArtifactsOutput`), it writes the test binary's directory, or the folder of an unrelated project higher up, instead.
 
-CI never sets `SNAPSHOT_ACCEPT`. Mismatches always fail the build in pipelines.
+Pipelines leave `SNAPSHOT_ACCEPT` unset, so mismatches fail the build; a step that regenerates baselines on purpose is shown in the [full README](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#accept-changes-workflow).
 
 ## Scrubbers
 

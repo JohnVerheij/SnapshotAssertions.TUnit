@@ -47,8 +47,9 @@ internal sealed class SnapshotResultDescribeTests
     }
 
     /// <summary>NoBaseline outcome's description carries the "baseline does not exist"
-    /// headline, mentions both paths, and includes the rename guidance. The guidance names
-    /// the expected file rather than an extension, so it also fits a custom-path baseline.</summary>
+    /// headline, mentions both paths, and includes the accept guidance. The guidance names the expected
+    /// path rather than an extension, so it also fits a custom-path baseline, and points a build-output
+    /// baseline at the project's Snapshots/ folder.</summary>
     [Test]
     public async Task NoBaseline_DescribeMentionsHeadlineAndBothPathsAndRenameGuidance(CancellationToken cancellationToken)
     {
@@ -59,12 +60,13 @@ internal sealed class SnapshotResultDescribeTests
         await Assert.That(description).Contains("Snapshot baseline does not exist");
         await Assert.That(description).Contains("snapshots/foo.expected.txt");
         await Assert.That(description).Contains("snapshots/foo.actual.txt");
-        await Assert.That(description).Contains("rename it over the expected file");
+        await Assert.That(description).Contains("copy it to the expected path");
+        await Assert.That(description).Contains("to the project's Snapshots/ folder instead");
         await Assert.That(result.IsPass).IsFalse();
     }
 
     /// <summary>Mismatched outcome's description carries the "did not match" headline,
-    /// mentions both paths, the diff content, and the rename guidance.</summary>
+    /// mentions both paths, the diff content, and the accept guidance.</summary>
     [Test]
     public async Task Mismatched_DescribeMentionsHeadlineAndBothPathsAndDiff(CancellationToken cancellationToken)
     {
@@ -78,7 +80,8 @@ internal sealed class SnapshotResultDescribeTests
         await Assert.That(description).Contains("snapshots/foo.actual.txt");
         await Assert.That(description).Contains("-old");
         await Assert.That(description).Contains("+new");
-        await Assert.That(description).Contains("rename");
+        await Assert.That(description).Contains("copy the actual file over the expected file");
+        await Assert.That(description).Contains("over the one in the project's Snapshots/ folder");
         await Assert.That(result.IsPass).IsFalse();
     }
 
