@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-02: document using existing golden files
+
+Patch release. Documentation and the TUnit dependency floor; no API or behavioral change.
+
+### Changed
+
+- **`MatchesSnapshotFile`** documentation now says a baseline is the plain expected text in any file, so the golden files a suite already keeps work as they are. A new README section, "Using existing golden files", maps a hand-rolled golden helper to the package (a fixture folder in the source tree, byte-for-byte comparison after line-ending normalization, an update flag, a missing-golden error, an actual file on failure), and the file conventions say how the actual file is named for a custom path. The package READMEs and the `SnapshotAssertions.TUnit` description say the same.
+- **`SnapshotOptions.NormalizedLineEndings`** documentation now says the preset also ignores the final newline, and names `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }` for normalizing line endings while every other byte counts.
+- **`SNAPSHOT_ACCEPT`** documentation now shows how a pipeline step that regenerates baselines on purpose sets `CI` to a non-truthy value for that step only, so the CI guard stays on everywhere else.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.77.0 to 1.78.0.
+
 ## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
 
 Minor release. `SnapshotTrailingNewline.Forbidden` now enforces the check its documentation described, and the TUnit dependency floor moves to 1.77.0. No public API shape change.
@@ -168,7 +179,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.2...v0.7.0

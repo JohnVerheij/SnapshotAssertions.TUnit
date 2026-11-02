@@ -17,7 +17,7 @@ Framework-agnostic core for text-snapshot assertions.
 ## What's in this package
 
 - **`SnapshotComparer`**: string-against-file comparison with line-ending, BOM, trailing-whitespace, and trailing-newline options.
-- **`SnapshotFileResolver`**: TestContext-aware default file naming (`Snapshots/{TestClass}.{TestMethod}.expected.txt`) and explicit-path resolution.
+- **`SnapshotFileResolver`**: TestContext-aware default file naming (`Snapshots/{TestClass}.{TestMethod}.expected.txt`) and explicit-path resolution. A baseline is the plain expected text with no header or metadata, so an explicit path can point at an existing golden file with any name and extension.
 - **`SnapshotAcceptMode`**: env-var-driven accept logic (`SNAPSHOT_ACCEPT=1` writes the actual content over the expected baseline) with a `CI=true` guard so accidental pipeline acceptance is impossible.
 - **`SnapshotOptions`**: line-ending, BOM, whitespace, and trailing-newline configuration with strict defaults, plus a caller-supplied `WithNormalizer(Func<string, string>)` pre-comparison transform *(v0.5.0+)*.
 - **`LineDiffRenderer`**: terminal line-based diff display, truncated to the first 20 differing lines for very large diffs (`LineDiffRenderer.MaxDifferingLines = 20`).

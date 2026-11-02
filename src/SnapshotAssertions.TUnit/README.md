@@ -39,6 +39,18 @@ public async Task Public_api_surface_matches_baseline()
 
 The default file resolver writes `Snapshots/{TestClassName}.{TestMethodName}.expected.txt`. On mismatch, `*.actual.txt` is written next to the expected file and the assertion failure includes both paths plus a line-based diff.
 
+## Existing golden files
+
+A baseline is the plain expected text and nothing else: no header, no metadata, no storage format of its own. Golden files a suite already keeps work as they are, at any path and with any extension:
+
+```csharp
+await Assert.That(actual).MatchesSnapshotFile(
+    Path.Combine(RepoRoot, "tests", "fixtures", "insert-line.golden.txt"),
+    SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF });
+```
+
+Pass an absolute path (a relative one resolves against the current working directory). These options compare byte for byte after normalizing CRLF and CR to LF. `SNAPSHOT_ACCEPT=1` rewrites the file at that path in place, and a mismatch writes `insert-line.golden.actual.txt` next to it. See [Using existing golden files](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#using-existing-golden-files) for the full mapping from a hand-rolled golden helper.
+
 ## Accept-changes workflow
 
 Three modes, in order of preference:

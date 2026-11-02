@@ -27,6 +27,7 @@ A TUnit-native fluent text-snapshot assertion library built on TUnit's `[Asserti
 - [Quick start](#quick-start)
 - [Snapshot file conventions](#snapshot-file-conventions)
 - [Project setup (`csproj` wiring)](#project-setup-csproj-wiring)
+- [Using existing golden files](#using-existing-golden-files)
 - [Entry points](#entry-points)
   - [Source-generated entry](#source-generated-entry)
   - [Chain methods](#chain-methods)
@@ -72,6 +73,8 @@ For TUnit projects with API-surface snapshot tests (`PublicApiGenerator` -> comm
 - **Hand-rolled file compare**: `PublicApiGenerator` + `File.ReadAllText` + `string.Equals`. Works, but every project re-invents the same 30-50 lines of accept-flow / file-naming / diff-display scaffolding.
 
 `SnapshotAssertions.TUnit` covers the **text-snapshot 80% case** (string -> file comparison) without the coverage friction or the per-project boilerplate. Object-graph diffing and IDE-integrated diff display remain explicitly out of scope; use Verify when you need those. Built-in scrubbing of dynamic content (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex patterns) ships in v0.2.0+: see [Scrubbers](#scrubbers-volatile-value-handling).
+
+A baseline is the plain expected text and nothing else: no header, no metadata, no storage format of its own. By default it lives in `Snapshots/{TestClassName}.{TestMethodName}.expected.txt`, and with `MatchesSnapshotFile(path)` it is any file you choose, so existing golden files work as they are: see [Using existing golden files](#using-existing-golden-files).
 
 ## Install
 
@@ -157,16 +160,21 @@ await Assert.That(beforeRender).MatchesSnapshot("Order.before-render");
 await Assert.That(afterRender).MatchesSnapshot("Order.after-render");
 ```
 
-**Custom path:** pass an absolute or relative file path to bypass the convention entirely:
+**Custom path:** pass an absolute or relative file path to bypass the convention entirely. Any file name and extension
+work; a relative path resolves against the current working directory. See
+[Using existing golden files](#using-existing-golden-files) for files kept in the source tree.
 
 ```csharp
 await Assert.That(payload).MatchesSnapshotFile("contract/v1/payload.expected.txt");
 ```
 
-**File extensions:**
+**File extensions** (default convention):
 
 - `.expected.txt`: the committed baseline. Diffed against actual output on every test run.
 - `.actual.txt`: transient diff output, written next to the expected file when the actual content does not match. Gitignored; never commit.
+
+With a custom path the actual file is the expected file name with `.actual` inserted before the extension
+(`payload.json` gets `payload.actual.json`).
 
 ## Project setup (`csproj` wiring)
 
@@ -200,6 +208,43 @@ trailing-CRLF diffs against committed baselines:
 *.expected.txt text eol=lf
 *.actual.txt   text eol=lf
 ```
+
+## Using existing golden files
+
+A suite that already keeps golden files can use them as they are. A baseline is the plain expected text in a file
+you choose; there is no header, no metadata and no storage format of the package's own, so nothing needs converting
+or renaming.
+
+```csharp
+// The repository root, found once (for example by walking up to the solution file).
+private static readonly string Fixtures = Path.Combine(RepoRoot, "tests", "fixtures", "celldiff");
+
+// Byte for byte after line-ending normalization (CRLF and CR become LF).
+private static readonly SnapshotOptions Golden =
+    SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF };
+
+[Test]
+public async Task Insert_line_diff_matches_golden()
+{
+    var actual = RenderDiff(before, after);
+
+    await Assert.That(actual).MatchesSnapshotFile(Path.Combine(Fixtures, "insert-line.golden.txt"), Golden);
+}
+```
+
+What a hand-rolled golden helper does, and the equivalent here:
+
+| Hand-rolled helper | `SnapshotAssertions.TUnit` |
+|---|---|
+| Fixture folder in the source tree, any file name | `MatchesSnapshotFile(path)` with an absolute path. A relative path resolves against the current working directory, so build the path from the repository root. |
+| Compare byte for byte after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count; only a leading UTF-8 BOM is ignored. Not `SnapshotOptions.NormalizedLineEndings`, which also ignores the final newline. |
+| An update flag rewrites the golden files | `SNAPSHOT_ACCEPT=1 dotnet test` writes the actual content over the file at that path, so the committed file changes in place. |
+| CI never updates | Accept mode is refused while `CI` is set (see [Accept-changes workflow](#accept-changes-workflow), also for a pipeline step that regenerates on purpose). |
+| A missing golden file fails with instructions | "Snapshot baseline does not exist", with both paths and how to accept. |
+| The actual output is written on failure | `<name>.actual<ext>` next to the baseline: `insert-line.golden.txt` gets `insert-line.golden.actual.txt`. Ignore `*.actual.*` in `.gitignore`. |
+
+No csproj wiring is needed: the build targets copy only `Snapshots/*.expected.txt` to the output directory, and an
+absolute path reads the golden file where it is.
 
 ## Entry points
 
@@ -243,7 +288,9 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 
 - `SnapshotOptions.Default`: strict-default (no normalization; preserve everything as-is).
 - `SnapshotOptions.NormalizedLineEndings`: convenience preset for cross-platform tests
-  where LF/CRLF differences are not meaningful.
+  where LF/CRLF differences are not meaningful. It ignores line endings and the final newline. To normalize
+  line endings but keep every other byte significant, use
+  `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`.
 
 Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
 
@@ -548,6 +595,17 @@ Three modes, in order of preference:
    accept-mode is *refused* even if `SNAPSHOT_ACCEPT` is set. This makes it impossible for
    a stray pipeline configuration to silently accept baseline drift. See
    `SnapshotAcceptMode.IsActive` for the exact rule.
+
+   A pipeline step whose job is to regenerate the baselines (for example to open a pull request with them) sets
+   `CI` to a non-truthy value for that step only, so the guard stays on everywhere else:
+
+   ```yaml
+   - name: Regenerate snapshot baselines
+     run: dotnet test
+     env:
+       SNAPSHOT_ACCEPT: "1"
+       CI: "false"
+   ```
 
 As of v0.6.0, step 3 (`SNAPSHOT_ACCEPT=1`) writes the new baseline directly into the **source**
 `Snapshots/` folder, not just the test binary's output directory. The source path is resolved
