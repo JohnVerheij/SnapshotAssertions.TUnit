@@ -196,11 +196,11 @@ control), set this property in your csproj:
 
 Then add a `<None Include="...">` matching your custom layout.
 
-Recommended `.gitignore` (transient `.actual.txt` files must not be committed; with custom extensions, use
-`*.actual.*`):
+Recommended `.gitignore` (transient actual files must not be committed; `*.actual.*` also covers the actual
+files of custom extensions):
 
 ```gitignore
-*.actual.txt
+*.actual.*
 ```
 
 Recommended `.gitattributes` so cross-platform runs don't produce false-positive
@@ -560,7 +560,7 @@ count-summary footer indicating the total number of differing lines.
 
 The first time a `MatchesSnapshot()` test runs, no baseline file exists yet. The assertion
 fails with a clear "no baseline" diagnostic and writes the actual content to `.actual.txt`
-so you can inspect it and rename to `.expected.txt`:
+so you can inspect it and rename it over the expected file:
 
 ```text
 to match the snapshot baseline
@@ -569,7 +569,7 @@ Snapshot baseline does not exist.
   Expected: C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.expected.txt
   Actual:   C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.actual.txt
 
-Inspect the actual file and rename it to .expected.txt to accept it as the baseline,
+Inspect the actual file and rename it over the expected file to accept it as the baseline,
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -1148,9 +1148,9 @@ committed `.expected.txt` yet. Two ways to bootstrap:
 
 1. Run once. The failure writes `.actual.txt`. Rename it to `.expected.txt`, copy back to your
    source `Snapshots/` folder, commit.
-2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The `.actual.txt` content
-   is written directly over `.expected.txt`. Then move the file from the test binary's
-   directory back into your source `Snapshots/` folder.
+2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The baseline is written
+   straight into your source `Snapshots/` folder (see [Accept-changes workflow](#accept-changes-workflow));
+   commit it.
 
 ### CI accidentally accepts a snapshot
 

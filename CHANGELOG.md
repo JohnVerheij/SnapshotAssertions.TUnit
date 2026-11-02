@@ -17,17 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1] - 2026-11-02: document using existing golden files
 
-Patch release. Documentation and the TUnit dependency floor; no API or behavioral change.
+Patch release. Documentation, the wording of the no-baseline failure message and the TUnit dependency floor; no API change.
 
 ### Changed
 
 - **`MatchesSnapshotFile`** documentation now says a baseline is the plain expected text in any file, so the golden files a suite already keeps work as they are. A new README section, "Using existing golden files", maps a hand-rolled golden helper to the package (a fixture folder in the source tree, comparison after line-ending normalization, an update flag, a missing-golden error, an actual file on failure), and the file conventions say how the actual file is named for a custom path. The package READMEs and the `SnapshotAssertions.TUnit` description say the same.
 - **`SnapshotOptions.NormalizedLineEndings`** documentation now says the preset also ignores the final newline, and names `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }` for normalizing line endings while everything else except a leading UTF-8 BOM counts.
 - **`SnapshotOptions.Default`** documentation (README and XML docs) now says a leading UTF-8 BOM is stripped; it said everything is compared as-is.
-- **`SnapshotResult.ActualFilePath`** and **`SnapshotFileResolver`** XML docs now name the actual file for a custom extension (`.actual` inserted before it) instead of always `.actual.txt`.
+- **`SnapshotResult.ActualFilePath`**, **`SnapshotFileResolver`** and **`SnapshotFileResolver.ResolveByFile`** XML docs now name the actual file for a custom extension (`.actual` inserted before it) instead of always `.actual.txt`. The README's recommended `.gitignore` ignores `*.actual.*`.
 - **`SNAPSHOT_ACCEPT`** documentation now shows how a pipeline step that regenerates baselines on purpose sets `CI` to a non-truthy value for that step only, so the CI guard stays on everywhere else.
-- The README troubleshooting entry for missing baselines now describes the automatic copy of `Snapshots/**/*.expected.txt` by the build targets instead of manual csproj wiring.
+- The README troubleshooting entry for missing baselines now describes the automatic copy of `Snapshots/**/*.expected.txt` by the build targets instead of manual csproj wiring, and the bootstrapping entry says `SNAPSHOT_ACCEPT=1` writes the source `Snapshots/` folder (since 0.6.0) instead of the test binary's directory.
 - **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.77.0 to 1.78.0.
+
+### Fixed
+
+- **`SnapshotResult.Describe`**: the no-baseline failure message told the reader to rename the actual file to `.expected.txt`, which does not accept a baseline at a custom path such as `payload.json`. It now says to rename the actual file over the expected file, as the mismatch message already did.
 
 ## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
 

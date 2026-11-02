@@ -47,7 +47,8 @@ internal sealed class SnapshotResultDescribeTests
     }
 
     /// <summary>NoBaseline outcome's description carries the "baseline does not exist"
-    /// headline, mentions both paths, and includes the rename guidance.</summary>
+    /// headline, mentions both paths, and includes the rename guidance. The guidance names
+    /// the expected file rather than an extension, so it also fits a custom-path baseline.</summary>
     [Test]
     public async Task NoBaseline_DescribeMentionsHeadlineAndBothPathsAndRenameGuidance(CancellationToken cancellationToken)
     {
@@ -58,7 +59,7 @@ internal sealed class SnapshotResultDescribeTests
         await Assert.That(description).Contains("Snapshot baseline does not exist");
         await Assert.That(description).Contains("snapshots/foo.expected.txt");
         await Assert.That(description).Contains("snapshots/foo.actual.txt");
-        await Assert.That(description).Contains("rename");
+        await Assert.That(description).Contains("rename it over the expected file");
         await Assert.That(result.IsPass).IsFalse();
     }
 

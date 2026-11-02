@@ -127,7 +127,7 @@ public sealed record SnapshotResult
                 writer.Write("  Actual:   ");
                 writer.WriteLine(ActualFilePath);
                 writer.WriteLine();
-                writer.WriteLine("Inspect the actual file and rename it to .expected.txt to accept it as the baseline,");
+                writer.WriteLine("Inspect the actual file and rename it over the expected file to accept it as the baseline,");
                 writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
                 break;
             case SnapshotMatchOutcome.Mismatched:

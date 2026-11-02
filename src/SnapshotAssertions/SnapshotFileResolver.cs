@@ -203,8 +203,8 @@ public static class SnapshotFileResolver
     /// <param name="expectedFilePath">The path to the expected file (absolute or relative).</param>
     /// <returns>The expected and actual paths. The actual path is the expected path with the
     /// <see cref="ExpectedExtension"/> suffix replaced by <see cref="ActualExtension"/>; if
-    /// the path does not end in the expected extension, <see cref="ActualExtension"/> is
-    /// appended to the expected path's stem.</returns>
+    /// the path does not end in the expected extension, <c>.actual</c> is inserted before its
+    /// final extension (<c>payload.json</c> becomes <c>payload.actual.json</c>).</returns>
     /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
     public static SnapshotPaths ResolveByFile(string expectedFilePath)
     {
