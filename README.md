@@ -228,7 +228,7 @@ These patterns can also match a custom-path baseline, or a folder, whose name co
 `report.actual.json`). For a new baseline, `git check-ignore -v <path>` prints the `.gitignore` line that matches it (a
 line starting with `!` keeps it); add a `!` line for a baseline or folder it ignores, or rename it.
 
-Recommended `.gitattributes` so cross-platform runs don't produce false-positive
+Recommended `.gitattributes` for UTF-8 baselines, so cross-platform runs don't produce false-positive
 trailing-CRLF diffs against committed baselines:
 
 ```gitattributes
@@ -238,7 +238,9 @@ trailing-CRLF diffs against committed baselines:
 
 Adding these lines to an existing repository does not convert baselines that are already committed or checked out;
 convert them once as in [Tests pass on Windows but fail on Linux](#tests-pass-on-windows-but-fail-on-linux-crlf-mismatch),
-fix two.
+fix two. Git converts line endings byte by byte, so it does not normalize a UTF-16 or UTF-32 baseline and can corrupt
+one: convert such baselines to UTF-8, or keep them out of these patterns (for example with `-text`) and compare them
+with `NormalizeToLF`.
 
 ## Using existing golden files
 
@@ -1203,8 +1205,8 @@ git checkout -- '*.expected.txt'
 
 `--renormalize` also stages uncommitted edits to those baselines, so commit any that belong elsewhere first.
 The last two commands rewrite the checked-out baselines with LF; the next build copies them to the output directory.
-Git converts line endings byte by byte, so convert a UTF-16 or UTF-32 baseline to UTF-8 before running these commands.
 A producer that emits the platform's newline would then fail on Windows instead, so use fix one there.
+Git converts line endings byte by byte, so convert a UTF-16 or UTF-32 baseline to UTF-8 before running these commands.
 
 Avoid `SnapshotOptions.NormalizedLineEndings` for this: it also ignores where lines break (see
 [`SnapshotLineEndingMode`](#snapshotlineendingmode)).
