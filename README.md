@@ -261,10 +261,12 @@ What a hand-rolled golden helper does, and the equivalent here:
 No csproj wiring is needed: the build targets copy only the `.expected.txt` files under `Snapshots/` (`Snapshots/**/*.expected.txt`) to the output directory, and an
 absolute path reads the golden file where it is.
 
-With the default `Ordinal` line endings instead of `NormalizeToLF`, add the golden files to `.gitattributes` (for
+With the default `Ordinal` line endings instead of `NormalizeToLF`, add UTF-8 golden files to `.gitattributes` (for
 example `*.golden.txt text eol=lf`) so a Windows checkout does not turn them into CRLF. Golden files already committed
 or checked out need a one-time conversion: [fix two](#tests-pass-on-windows-but-fail-on-linux-crlf-mismatch) under
-troubleshooting, with your pattern in place of `*.expected.txt`.
+troubleshooting, with your pattern in place of `*.expected.txt`. The rule is for UTF-8 files only: Git converts line
+endings byte by byte, so it does not normalize a UTF-16 or UTF-32 file and can corrupt one. Convert such golden files
+to UTF-8, or keep them out of the rule (for example with `-text`) and compare them with `NormalizeToLF`.
 
 ## Entry points
 
@@ -721,7 +723,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 
 **Parameterized tests with `[Arguments]`: per-row baselines:**
 
-For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each method-level `[Arguments]` row gets its own baseline file instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are not part of the hash, so the rows of such a class share one file; pass a name built from the class arguments, and the method arguments if the method has `[Arguments]` too, to `.WithName(...)` (an explicit name gets no argument hash). Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each method-level `[Arguments]` row gets its own baseline file instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are not part of the hash, so rows that differ only in their class arguments share one file. To separate them, pass `.WithName(...)` a name built from the test class and method names, the class arguments and any method arguments, using only characters valid in a file name and not only letter case to tell rows apart (Windows and macOS file systems ignore case by default). An explicit name replaces the whole default name, `{TestClassName}.{TestMethodName}` plus `.{ArgsHash8}` for method arguments, and gets no argument hash. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
 
 ```csharp
 [Test]
@@ -1184,6 +1186,7 @@ git checkout -- '*.expected.txt'
 
 `--renormalize` also stages uncommitted edits to those baselines, so commit any that belong elsewhere first.
 The last two commands rewrite the checked-out baselines with LF; the next build copies them to the output directory.
+Git converts line endings byte by byte, so convert a UTF-16 or UTF-32 baseline to UTF-8 before running these commands.
 A producer that emits the platform's newline would then fail on Windows instead, so use fix one there.
 
 Avoid `SnapshotOptions.NormalizedLineEndings` for this: it also ignores where lines break (see
