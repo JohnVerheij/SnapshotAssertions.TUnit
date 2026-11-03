@@ -571,7 +571,7 @@ Snapshot did not match the baseline.
 +public string NewProperty { get; }
 
 To accept the change, copy the actual file over the expected file
-(for a path in the build output's Snapshots/ folder, over the one in the project's Snapshots/ folder),
+(for an .expected.txt file in the build output's Snapshots/ folder, over the one at the matching path in the project's Snapshots/ folder),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -598,7 +598,7 @@ Snapshot baseline does not exist.
   Actual:   C:\src\MyApp.Tests\bin\Release\net10.0\Snapshots\PublicApiTests.Foo.actual.txt
 
 To accept it as the baseline, inspect the actual file and copy it to the expected path
-(for a path in the build output's Snapshots/ folder, to the project's Snapshots/ folder instead),
+(for an .expected.txt file in the build output's Snapshots/ folder, to the matching path in the project's Snapshots/ folder instead),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 
@@ -799,7 +799,7 @@ Suggestions: 4 differences match known volatile patterns.
   Or use the curated chain: .WithScrubber(Scrubbers.Common)
 
 To accept the change, copy the actual file over the expected file
-(for a path in the build output's Snapshots/ folder, over the one in the project's Snapshots/ folder),
+(for an .expected.txt file in the build output's Snapshots/ folder, over the one at the matching path in the project's Snapshots/ folder),
 or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.
 ```
 

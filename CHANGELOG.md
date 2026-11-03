@@ -41,7 +41,7 @@ Patch release. Documentation, the accept guidance in the failure messages and th
 
 ### Fixed
 
-- **`SnapshotResult.Describe`**: the accept guidance in the failure messages now says to copy the actual file to the expected path and, for a baseline in the build output's `Snapshots/` folder, to the project's `Snapshots/` folder. The no-baseline message said to rename the actual file to `.expected.txt`, which does not create a baseline at a custom path with another extension (such as `insert-line.golden.txt`), and for a default-named snapshot both messages pointed at the copy in the build output, which left the committed baseline unchanged.
+- **`SnapshotResult.Describe`**: the accept guidance in the failure messages now says to copy the actual file to the expected path and, for an `.expected.txt` file in the build output's `Snapshots/` folder, to the matching path in the project's `Snapshots/` folder. The no-baseline message said to rename the actual file to `.expected.txt`, which does not create a baseline at a custom path with another extension (such as `insert-line.golden.txt`), and for a default-named snapshot both messages pointed at the copy in the build output, which left the committed baseline unchanged.
 
 ## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
 
