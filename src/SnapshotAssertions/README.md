@@ -31,11 +31,8 @@ Framework-agnostic core for text-snapshot assertions.
 | Package | Test framework | Status |
 |---|---|---|
 | [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) | TUnit | Available now |
-| `SnapshotAssertions.NUnit` | NUnit | Possible if there is demand |
-| `SnapshotAssertions.xUnit` | xUnit | Possible if there is demand |
-| `SnapshotAssertions.MSTest` | MSTest | Possible if there is demand |
 
-If you'd find a non-TUnit adapter useful, [open a feature request](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/issues/new?template=feature_request.yml): adapters are not built proactively.
+Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the family targets TUnit.
 
 ## Installation
 

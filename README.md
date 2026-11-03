@@ -93,7 +93,7 @@ This repo ships **two** NuGet packages:
 | [`SnapshotAssertions`](https://www.nuget.org/packages/SnapshotAssertions/) | Framework-agnostic core: `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver`, `SnapshotAcceptMode`, `LineDiffRenderer`, options types | BCL only |
 | [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) | TUnit-specific entry points: `MatchesSnapshot()`, `MatchesSnapshotFile()` and shorthands | `SnapshotAssertions` + `TUnit.Assertions` + `TUnit.Core` |
 
-You install `SnapshotAssertions.TUnit`; `SnapshotAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are *not* shipped today: they would reuse the `SnapshotAssertions` core. Open a feature request if you need one.
+You install `SnapshotAssertions.TUnit`; `SnapshotAssertions` comes transitively. Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the family targets TUnit.
 
 ## Namespaces (and a `GlobalUsings.cs` recommendation)
 

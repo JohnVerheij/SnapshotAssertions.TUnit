@@ -38,6 +38,7 @@ Patch release. Documentation, the accept guidance in the failure messages and th
 - **`[Arguments]`** documentation now says class-level (constructor) arguments are not part of the hash in the snapshot file name, so rows that differ only in those arguments share one baseline file. To separate them, pass `.WithName(...)` a name built from the class and method names, the class arguments and any method arguments, because an explicit name replaces the whole default name.
 - **`SnapshotAssertions`** package README now describes `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver` and `SnapshotAcceptMode` as they behave.
 - **`SnapshotAssertions`** package README stability note now says a minor version before 1.0 can contain breaking changes, while renaming or removing one of the intended-stable types listed in the main README needs a major version, as the main README says.
+- **`SnapshotAssertions`** package README, its NuGet description and the main README now say adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned. They listed them as possible if there was demand.
 - **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.77.0 to 1.78.0.
 
 ### Fixed
