@@ -1,8 +1,8 @@
 <!--
-  Direct-reference entry point. NuGet imports build/<PackageId>.targets for a direct reference and
-  buildTransitive/<PackageId>.targets for every reference (direct and transitive). The real content
-  lives in buildTransitive/, so this file only forwards to it; a direct reference therefore evaluates
-  that file once.
+  Fallback entry point. With PackageReference, NuGet imports buildTransitive/<PackageId>.targets for
+  direct and transitive references alike when the package has one, and does not import this file.
+  Clients that only know build/ import this file instead, which forwards to the same content, so the
+  targets are evaluated once either way.
 -->
 <Project>
 

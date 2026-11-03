@@ -57,7 +57,7 @@ Three modes, in order of preference:
 
 1. **IDE diff-and-merge.** Compare the `.actual.txt` file with the baseline in your IDE (Rider and VS Code compare two selected files) and merge the change into the project's `Snapshots/` folder.
 2. **Manual `cp`.** From the test project folder: `cp bin/Debug/net10.0/Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
-3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test` (PowerShell: `$env:SNAPSHOT_ACCEPT = '1'; dotnet test; Remove-Item Env:SNAPSHOT_ACCEPT`). Accept mode is refused while `CI` is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently (Azure Pipelines does not set `CI`; set `CI=true` there).
+3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test` (PowerShell: `$env:SNAPSHOT_ACCEPT = '1'; dotnet test; Remove-Item Env:SNAPSHOT_ACCEPT`). Accept mode is refused while `CI` or `TF_BUILD` (Azure Pipelines) is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently; a step that regenerates baselines on purpose sets `SNAPSHOT_ACCEPT_IN_CI=1`.
 
 Bulk accept writes default-named baselines straight into the **source** `Snapshots/` folder of the test project, so the committed baseline updates in place even under `dotnet test --no-build`. The build targets record the project directory (the runtime option `SnapshotAssertions.ProjectDirectory`), so this also works with `UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`, and F# and Visual Basic projects. If the option is missing, accept falls back to the nearest `*.csproj`, `*.fsproj` or `*.vbproj` above the test binary.
 

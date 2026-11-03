@@ -19,7 +19,8 @@ namespace SnapshotAssertions.TUnit;
 /// (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) and
 /// the assertion fails with both paths and a line-based diff in
 /// the failure message. When the <c>SNAPSHOT_ACCEPT</c> environment variable is set to a
-/// truthy value (and the <c>CI</c> environment variable is not <c>1</c>, <see langword="true"/> or <c>yes</c>), the actual content is
+/// truthy value (and the process is not in CI: <c>CI</c> and <c>TF_BUILD</c> are not <c>1</c>, <see langword="true"/> or <c>yes</c>,
+/// unless <c>SNAPSHOT_ACCEPT_IN_CI</c> is truthy), the actual content is
 /// instead written over the expected baseline and the assertion passes; this is the
 /// accept-mode used to bulk-update snapshots after intentional changes.
 /// </para>

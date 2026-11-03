@@ -38,9 +38,12 @@ namespace SnapshotAssertions
     public static class SnapshotAcceptMode
     {
         public const string AcceptVariableName = "SNAPSHOT_ACCEPT";
+        public const string AllowInCiVariableName = "SNAPSHOT_ACCEPT_IN_CI";
+        public const string AzurePipelinesVariableName = "TF_BUILD";
         public const string CiVariableName = "CI";
         public static bool IsActive() { }
         public static bool IsActive(string? snapshotAcceptValue, string? ciValue) { }
+        public static bool IsActive(string? snapshotAcceptValue, string? ciValue, string? azurePipelinesValue, string? allowInCiValue) { }
         public static bool IsTruthy(string? value) { }
     }
     public enum SnapshotBomHandling

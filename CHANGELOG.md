@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Minor release. Work in progress.
 
+### Added
+
+- **`SnapshotAcceptMode.AzurePipelinesVariableName`** (`TF_BUILD`) and **`SnapshotAcceptMode.AllowInCiVariableName`** (`SNAPSHOT_ACCEPT_IN_CI`) are the names of the two new variables the CI guard reads.
+- **`SnapshotAcceptMode.IsActive(string?, string?, string?, string?)`** is the pure four-variable form (`SNAPSHOT_ACCEPT`, `CI`, `TF_BUILD`, `SNAPSHOT_ACCEPT_IN_CI`) that `IsActive()` now uses. A truthy `SNAPSHOT_ACCEPT_IN_CI` lifts the CI guard, so a pipeline step that regenerates baselines on purpose sets it instead of overriding `CI`. The two-variable overload keeps its meaning.
+
 ### Changed
 
 - **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
@@ -30,6 +35,7 @@ Minor release. Work in progress.
 
 ### Fixed
 
+- **Accept mode** now counts a truthy `TF_BUILD` (Azure Pipelines sets `True`) as CI, so a stray `SNAPSHOT_ACCEPT=1` on an Azure Pipelines agent is refused like it is where `CI` is set. Before, only `CI` was read, and Azure Pipelines does not set it, so accept mode ran there.
 - **`SnapshotBomHandling.PreserveBom`** now keeps a byte-order mark at the start of the baseline file: the file is read as bytes and a UTF-8, UTF-16 or UTF-32 mark is returned as a leading U+FEFF, so a baseline accepted from an actual that starts with U+FEFF matches on the next run. The mark was consumed by the read, so it never matched. `StripBom` behaves as before, and a file in UTF-16 or UTF-32 is decoded with the encoding its mark declares.
 - **Accept mode** (`SNAPSHOT_ACCEPT=1`) now writes into the project's `Snapshots/` folder when the build output is outside the project (`UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`). The package's build targets record the project directory in the test assembly's runtime configuration (`SnapshotAssertions.ProjectDirectory`), and accept mode reads it. Before, it wrote beside the test binary or into an unrelated project higher up.
 - **`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`** and the accept-mode fallback now also recognize `*.fsproj` and `*.vbproj`, so accept mode finds the project of an F# or Visual Basic test assembly when the build did not record the project directory.
