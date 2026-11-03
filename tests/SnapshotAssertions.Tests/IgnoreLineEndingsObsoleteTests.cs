@@ -8,10 +8,11 @@ using SnapshotAssertions;
 namespace SnapshotAssertions.Tests;
 
 /// <summary>
-/// Tests for the deprecated <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> value and the
-/// <see cref="SnapshotOptions.NormalizedLineEndings"/> preset that still uses it. The comparison form removes line
-/// breaks as before, so old one-line baselines keep matching; the written form (actual file, accepted baseline) keeps
-/// line breaks, joined with LF. Both are removed or changed together in 0.10.0.
+/// Tests for the deprecated <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> value. The comparison form removes
+/// line breaks as before, so old one-line baselines keep matching; the written form (actual file, accepted baseline)
+/// keeps line breaks, joined with LF. The value is removed in 0.10.0. Before 0.9.0 the
+/// <see cref="SnapshotOptions.NormalizedLineEndings"/> preset used this value; the options below reproduce that old
+/// preset explicitly.
 /// </summary>
 [SuppressMessage(
     "Info Code Smell",
@@ -68,8 +69,7 @@ internal sealed class IgnoreLineEndingsObsoleteTests
 
     /// <summary>The normalized form under <c>IgnoreLineEndings</c>, which the evaluator writes to the actual file and an
     /// accepted baseline: line breaks and blank lines are removed, a final newline is kept as one LF under the default
-    /// <see cref="SnapshotTrailingNewline.Required"/>, and the <see cref="SnapshotOptions.NormalizedLineEndings"/>
-    /// preset (<see cref="SnapshotTrailingNewline.Optional"/>) drops it. The README and the
+    /// <see cref="SnapshotTrailingNewline.Required"/>, and <see cref="SnapshotTrailingNewline.Optional"/> drops it. The README and the
     /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> docs describe these exact forms.</summary>
     [Test]
     public async Task IgnoreLineEndings_NormalizedForm_KeepsFinalNewlineUnlessOptional(CancellationToken cancellationToken)
@@ -79,7 +79,7 @@ internal sealed class IgnoreLineEndingsObsoleteTests
         await Assert.That(SnapshotComparer.Normalize("a\nb\n", required)).IsEqualTo("ab\n");
         await Assert.That(SnapshotComparer.Normalize("a\r\nb\n\nc\r\n", required)).IsEqualTo("abc\n");
         await Assert.That(SnapshotComparer.Normalize("a\nb", required)).IsEqualTo("ab");
-        await Assert.That(SnapshotComparer.Normalize("a\r\nb\n\nc\r\n", SnapshotOptions.NormalizedLineEndings)).IsEqualTo("abc");
+        await Assert.That(SnapshotComparer.Normalize("a\r\nb\n\nc\r\n", LegacyPreset)).IsEqualTo("abc");
     }
 
     /// <summary>Forbidden combined with IgnoreLineEndings: line breaks inside the content are ignored,
@@ -99,23 +99,24 @@ internal sealed class IgnoreLineEndingsObsoleteTests
         await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\nb\n", options)).IsFalse();
     }
 
-    /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset relaxes both
-    /// line-ending mode (line breaks stripped) and trailing-newline policy (presence vs
-    /// absence unobservable). BOM and per-line trailing-whitespace handling stay strict.
-    /// The two relaxations go together: under <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/>
-    /// the trailing newline is just another stripped line break, so any consumer reaching
-    /// for "ignore line endings" expects the trailing one to be ignored too.</summary>
+    /// <summary>The pre-0.9.0 meaning of the <see cref="SnapshotOptions.NormalizedLineEndings"/> preset, spelled out:
+    /// line breaks removed and the final newline ignored, so <c>"a\nb"</c> equals <c>"ab"</c>.</summary>
     [Test]
-    public async Task NormalizedLineEndingsPresetRelaxesLineEndingsAndTrailingNewline(CancellationToken cancellationToken)
+    public async Task LegacyPresetOptions_RemoveLineBreaksAndIgnoreFinalNewline(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var options = SnapshotOptions.NormalizedLineEndings;
 
-        await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.IgnoreLineEndings);
-        await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Optional);
-        await Assert.That(options.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
-        await Assert.That(options.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\nc\r", "abc", LegacyPreset)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "ab", LegacyPreset)).IsTrue();
+        await Assert.That(LegacyPreset.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
+        await Assert.That(LegacyPreset.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
     }
+
+    private static SnapshotOptions LegacyPreset { get; } = SnapshotOptions.Default with
+    {
+        LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+        TrailingNewline = SnapshotTrailingNewline.Optional,
+    };
 
     /// <summary>The written form keeps line breaks, joined with LF: a CRLF actual is written to the actual file as LF
     /// lines instead of one flattened line.</summary>

@@ -88,13 +88,16 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("a\r\nb\r\n", "a\nb\n", options)).IsTrue();
     }
 
-    /// <summary>IgnoreLineEndings: line content compared, separators dropped.</summary>
+    /// <summary>The NormalizedLineEndings preset treats CRLF, LF and CR alike but still compares where lines
+    /// break, and ignores the final newline.</summary>
     [Test]
-    public async Task IgnoreLineEndings_DifferentSeparators_Match(CancellationToken cancellationToken)
+    public async Task NormalizedLineEndings_DifferentSeparatorsMatch_LineStructureStillCounts(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var options = SnapshotOptions.NormalizedLineEndings;
-        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\nc\r", "abc", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\nc\r", "a\nb\nc", options)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("a\r\nb\nc\r", "abc", options)).IsFalse();
+        await Assert.That(SnapshotComparer.AreEqual("a\n\nb", "a\nb", options)).IsFalse();
     }
 
     /// <summary>StripBom (default): a UTF-8 BOM on one side is ignored.</summary>

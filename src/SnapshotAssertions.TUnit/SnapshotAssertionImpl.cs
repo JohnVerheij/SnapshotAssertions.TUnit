@@ -157,8 +157,8 @@ internal static class SnapshotAssertionImpl
         var details = testContext.Metadata.TestDetails;
         var className = details.ClassType.Name;
         var methodName = details.MethodName;
-        var args = details.TestMethodArguments;
-        return SnapshotFileResolver.ResolveByTest(directory, className, methodName, args);
+        return SnapshotFileResolver.ResolveByTest(
+            directory, className, details.TestClassArguments, methodName, details.TestMethodArguments);
     }
 
     /// <summary>

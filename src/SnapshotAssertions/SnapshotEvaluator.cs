@@ -155,8 +155,7 @@ public static class SnapshotEvaluator
     /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
     /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
     /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
-    /// files (class-level arguments are not part of the hash, so the rows of a class with constructor
-    /// arguments share a file unless they pass distinct names).
+    /// files (value-like class-level arguments are hashed too).
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {

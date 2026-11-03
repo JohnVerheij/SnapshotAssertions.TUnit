@@ -77,6 +77,7 @@ namespace SnapshotAssertions
         public static SnapshotAssertions.SnapshotPaths ResolveByFile(string expectedFilePath) { }
         public static SnapshotAssertions.SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName) { }
         public static SnapshotAssertions.SnapshotPaths ResolveByTest(string snapshotsDirectory, string testClassName, string testMethodName, System.Collections.Generic.IReadOnlyList<object?>? testMethodArguments = null) { }
+        public static SnapshotAssertions.SnapshotPaths ResolveByTest(string snapshotsDirectory, string testClassName, System.Collections.Generic.IReadOnlyList<object?>? testClassArguments, string testMethodName, System.Collections.Generic.IReadOnlyList<object?>? testMethodArguments) { }
         public static string? TryResolveSourceSnapshotsDirectory(string startDirectory) { }
     }
     public enum SnapshotLineEndingMode

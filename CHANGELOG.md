@@ -15,17 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-04: strict line-ending preset, accept-mode and naming fixes
+## [0.9.0] - 2026-11-04: line-ending preset, class-argument naming and accept-mode fixes
 
-Minor release. Work in progress.
+Minor release. `SnapshotOptions.NormalizedLineEndings` now means "CRLF and CR become LF, the final newline is ignored" instead of removing line breaks, and class-level `[Arguments]` rows get their own default-named baseline files; both are breaking for the baselines they affect, and each entry says how to migrate. `SnapshotLineEndingMode.IgnoreLineEndings` is deprecated and its written form keeps line breaks. The accept-mode CI guard also reads `TF_BUILD` and honors `SNAPSHOT_ACCEPT_IN_CI`, accept mode writes into the project's `Snapshots/` folder when the output is elsewhere, `PreserveBom` now keeps the baseline's byte-order mark, the build targets are packed under `buildTransitive/`, and the failure message names the project-side baseline.
 
 ### Added
 
+- **`SnapshotFileResolver.ResolveByTest(string, string, IReadOnlyList<object?>?, string, IReadOnlyList<object?>?)`** also hashes the value-like class-level (constructor) arguments into the name: `{Class}.{ClassArgsHash8}.{Method}[.{MethodArgsHash8}]`. Value-like means a string, an `IFormattable` (numbers, `Guid`, `DateTime`, enums), `null`, or a collection of these (recursively); any other argument, such as a `[ClassDataSource]` fixture, is skipped, and a collection with one non-value-like element is skipped as a whole. With no value-like class argument the name is exactly the four-parameter overload's, which stays unchanged. The TUnit adapter uses the new overload for default-named snapshots.
 - **`SnapshotAcceptMode.AzurePipelinesVariableName`** (`TF_BUILD`) and **`SnapshotAcceptMode.AllowInCiVariableName`** (`SNAPSHOT_ACCEPT_IN_CI`) are the names of the two new variables the CI guard reads.
 - **`SnapshotAcceptMode.IsActive(string?, string?, string?, string?)`** is the pure four-variable form (`SNAPSHOT_ACCEPT`, `CI`, `TF_BUILD`, `SNAPSHOT_ACCEPT_IN_CI`) that `IsActive()` now uses. A truthy `SNAPSHOT_ACCEPT_IN_CI` lifts the CI guard, so a pipeline step that regenerates baselines on purpose sets it instead of overriding `CI`. The two-variable overload keeps its meaning.
 
 ### Changed
 
+- **BREAKING:** **`SnapshotOptions.NormalizedLineEndings`** is now `LineEndingMode = NormalizeToLF` with `TrailingNewline = Optional`: CRLF and CR become LF, the final newline is ignored, and every line break still counts. It used to remove line breaks altogether, so `"a\nb"` equalled `"ab"`. Migration: a baseline accepted under the old preset is a single line, so re-accept it (`SNAPSHOT_ACCEPT=1`); a multi-line baseline written by hand keeps matching when its line structure matches the output.
+- **BREAKING:** **Default-named baselines of class-level `[Arguments]` rows** now include a hash of the class arguments in the name (`{Class}.{ClassArgsHash8}.{Method}`), so each row gets its own file; they used to share one. Migration: re-accept those rows (`SNAPSHOT_ACCEPT=1`). A class whose only constructor argument is a fixture object, and method-only `[Arguments]` rows, keep their names. The `.WithName(...)` workaround from 0.8.1 is now optional.
 - **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
 - **Failure message** of a default-named or `.WithName(...)` baseline now ends with one more line, `Project baseline: <path>`, the absolute path the baseline has under the project's `Snapshots/` folder, when the build recorded the project directory. The core message is unchanged, and a baseline set with `AtPath` or `MatchesSnapshotFile` gets no such line.
 

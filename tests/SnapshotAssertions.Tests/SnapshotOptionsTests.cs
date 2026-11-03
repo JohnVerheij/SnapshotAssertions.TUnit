@@ -27,6 +27,20 @@ internal sealed class SnapshotOptionsTests
         await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Required);
     }
 
+    /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset normalizes to LF and ignores the final
+    /// newline; BOM and per-line trailing-whitespace handling stay strict.</summary>
+    [Test]
+    public async Task NormalizedLineEndingsPreset_NormalizesToLfAndMakesFinalNewlineOptional(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = SnapshotOptions.NormalizedLineEndings;
+
+        await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.NormalizeToLF);
+        await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Optional);
+        await Assert.That(options.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
+        await Assert.That(options.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
+    }
+
     /// <summary>The default options carry no custom normalizer.</summary>
     [Test]
     public async Task DefaultOptions_NormalizerIsNull(CancellationToken cancellationToken)

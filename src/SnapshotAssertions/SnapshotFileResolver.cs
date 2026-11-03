@@ -80,7 +80,7 @@ public static class SnapshotFileResolver
     /// for parameterized tests. The base name is constructed as
     /// <c>{testClassName}.{testMethodName}</c> when <paramref name="testMethodArguments"/> is
     /// <see langword="null"/> or empty, or <c>{testClassName}.{testMethodName}.{argsHash}</c>
-    /// otherwise.
+    /// otherwise. Behaves exactly as it did before 0.9.0 and ignores class-level arguments.
     /// </summary>
     /// <param name="snapshotsDirectory">The absolute path to the directory containing snapshot
     /// files.</param>
@@ -98,8 +98,8 @@ public static class SnapshotFileResolver
     /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
     /// machines for the same argument values, so each parameterized variant gets its own distinct
     /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
-    /// snapshot file. Only the arguments passed here are hashed: the TUnit adapter passes the test method's
-    /// arguments, not class-level (constructor) arguments.</param>
+    /// snapshot file. This overload hashes only the method arguments; to include class-level (constructor)
+    /// arguments use the overload that takes <c>testClassArguments</c>, which the TUnit adapter calls.</param>
     /// <returns>The expected and actual paths.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
@@ -111,6 +111,50 @@ public static class SnapshotFileResolver
         string testClassName,
         string testMethodName,
         IReadOnlyList<object?>? testMethodArguments = null)
+        => ResolveByTest(snapshotsDirectory, testClassName, testClassArguments: null, testMethodName, testMethodArguments);
+
+    /// <summary>
+    /// Resolves the expected and actual file paths for a snapshot identified by a (test class,
+    /// test method) pair, augmented with a hash of the value-like class-level (constructor) arguments and a hash
+    /// of the test method's arguments. The base name is <c>{testClassName}.{classArgsHash}.{testMethodName}</c>
+    /// when at least one class argument is value-like, otherwise <c>{testClassName}.{testMethodName}</c>; in both
+    /// cases <c>.{methodArgsHash}</c> is appended when <paramref name="testMethodArguments"/> is not empty. With no
+    /// value-like class argument the name equals the name the four-parameter overload returns.
+    /// </summary>
+    /// <param name="snapshotsDirectory">The absolute path to the directory containing snapshot
+    /// files.</param>
+    /// <param name="testClassName">The simple test class name (no namespace).</param>
+    /// <param name="testClassArguments">The arguments passed to the test class constructor (for example by a
+    /// class-level <c>[Arguments]</c>), or <see langword="null"/>. Only value-like arguments are hashed: a
+    /// <see langword="string"/>, an <see cref="IFormattable"/> (numbers, <see cref="Guid"/>, <see cref="DateTime"/>,
+    /// enums, etc.), <see langword="null"/>, and a collection (<see cref="IEnumerable"/> other than a string) whose
+    /// elements are all value-like, recursively. Every other argument, such as a fixture object injected by
+    /// <c>[ClassDataSource]</c>, is skipped, because its <c>ToString</c> is not a stable key; the check uses type
+    /// tests only. A collection that contains one non-value-like element is skipped as a whole, so the result never
+    /// depends on how much of a collection happens to be hashable. The hashed arguments are stringified like method
+    /// arguments (see <paramref name="testMethodArguments"/>), joined with <c>"|"</c>, hashed with SHA-256, and
+    /// the first 8 hex characters are used.</param>
+    /// <param name="testMethodName">The test method name.</param>
+    /// <param name="testMethodArguments">The arguments passed to the parameterized test
+    /// invocation, or <see langword="null"/> for non-parameterized tests. Each argument is
+    /// stringified, the results joined with <c>"|"</c>, and hashed with SHA-256; the first 8 hex
+    /// characters of the hash are appended to the base name. Stringification routes by type so the
+    /// key stays stable and culture-independent: a <see langword="string"/> is taken verbatim, an
+    /// <see cref="IFormattable"/> is formatted with <see cref="CultureInfo.InvariantCulture"/>, an
+    /// <see cref="IEnumerable"/> is expanded element-by-element as <c>[item1,item2,...]</c> (recursively), and
+    /// any other type falls back to <see cref="Convert.ToString(object?, IFormatProvider?)"/>.</param>
+    /// <returns>The expected and actual paths.</returns>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
+    /// invalid file-name characters.
+    /// </exception>
+    public static SnapshotPaths ResolveByTest(
+        string snapshotsDirectory,
+        string testClassName,
+        IReadOnlyList<object?>? testClassArguments,
+        string testMethodName,
+        IReadOnlyList<object?>? testMethodArguments)
     {
         ArgumentNullException.ThrowIfNull(testClassName);
         ArgumentNullException.ThrowIfNull(testMethodName);
@@ -120,15 +164,60 @@ public static class SnapshotFileResolver
         if (string.IsNullOrWhiteSpace(testMethodName))
             throw new ArgumentException("Test method name must be non-empty.", nameof(testMethodName));
 
-        var name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", testClassName, testMethodName);
+        var name = testClassName;
+
+        var valueLikeClassArguments = SelectValueLike(testClassArguments);
+        if (valueLikeClassArguments.Count > 0)
+            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, HashArguments(valueLikeClassArguments));
+
+        name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, testMethodName);
 
         if (testMethodArguments is { Count: > 0 })
-        {
-            var hash = HashArguments(testMethodArguments);
-            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, hash);
-        }
+            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, HashArguments(testMethodArguments));
 
         return ResolveByName(snapshotsDirectory, name);
+    }
+
+    /// <summary>Returns the value-like arguments of <paramref name="arguments"/>, in order.</summary>
+    /// <param name="arguments">The class arguments, or <see langword="null"/>.</param>
+    /// <returns>The arguments for which <see cref="IsValueLike"/> holds; empty when there are none.</returns>
+    private static List<object?> SelectValueLike(IReadOnlyList<object?>? arguments)
+    {
+        var result = new List<object?>();
+        if (arguments is null)
+            return result;
+
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            if (IsValueLike(arguments[i]))
+                result.Add(arguments[i]);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
+    /// <see langword="null"/>, a <see langword="string"/>, an <see cref="IFormattable"/>, or a collection whose
+    /// elements are all value-like. Uses type tests only (no reflection).
+    /// </summary>
+    /// <param name="arg">The argument to test.</param>
+    /// <returns><see langword="true"/> if the argument may be hashed.</returns>
+    private static bool IsValueLike(object? arg)
+    {
+        if (arg is null or string or IFormattable)
+            return true;
+
+        if (arg is not IEnumerable enumerable)
+            return false;
+
+        foreach (var item in enumerable)
+        {
+            if (!IsValueLike(item))
+                return false;
+        }
+
+        return true;
     }
 
     private static string HashArguments(IReadOnlyList<object?> args)

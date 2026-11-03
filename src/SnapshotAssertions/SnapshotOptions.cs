@@ -27,22 +27,16 @@ public sealed record SnapshotOptions
     /// </summary>
     public static SnapshotOptions Default { get; } = new();
 
-    // The deprecated line-break-removing mode, the member after NormalizeToCRLF. Library code must not name an
-    // obsolete enum member (that would need a CS0618 suppression), so the preset reaches it by position.
-    private const SnapshotLineEndingMode LegacyLineBreakRemoval = SnapshotLineEndingMode.NormalizeToCRLF + 1;
-
     /// <summary>
-    /// Convenience preset that ignores line breaks altogether. Sets <see cref="LineEndingMode"/> to
-    /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> (line breaks removed, so blank lines and where lines
-    /// break are not compared, and the written actual file and an accepted baseline have no line breaks) and
-    /// <see cref="TrailingNewline"/> to <see cref="SnapshotTrailingNewline.Optional"/> (presence vs absence of a
-    /// final newline is unobservable). BOM and per-line trailing-whitespace handling remain at their strict
-    /// defaults. For cross-platform tests that should only ignore CRLF versus LF, use <see cref="Default"/> with
-    /// <see cref="LineEndingMode"/> set to <see cref="SnapshotLineEndingMode.NormalizeToLF"/>.
+    /// Convenience preset for cross-platform tests: CRLF and CR become LF
+    /// (<see cref="LineEndingMode"/> is <see cref="SnapshotLineEndingMode.NormalizeToLF"/>) and the final newline is
+    /// ignored (<see cref="TrailingNewline"/> is <see cref="SnapshotTrailingNewline.Optional"/>). Every line break
+    /// still counts, so blank lines and where lines break are compared. BOM and per-line trailing-whitespace
+    /// handling remain at their strict defaults. Before 0.9.0 the preset removed line breaks altogether.
     /// </summary>
     public static SnapshotOptions NormalizedLineEndings { get; } = new()
     {
-        LineEndingMode = LegacyLineBreakRemoval,
+        LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
         TrailingNewline = SnapshotTrailingNewline.Optional,
     };
 

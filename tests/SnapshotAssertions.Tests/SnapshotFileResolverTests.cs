@@ -41,6 +41,111 @@ internal sealed class SnapshotFileResolverTests
             .IsEqualTo(Path.GetDirectoryName(paths.ActualFilePath));
     }
 
+    private static readonly object?[] MethodArgsFive = [5];
+
+    private static readonly string ClassArgsDir = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "snapshot-resolver-class-args"));
+
+    private static string NameOf(SnapshotPaths paths) =>
+        Path.GetFileName(paths.ExpectedFilePath)[..^SnapshotFileResolver.ExpectedExtension.Length];
+
+    /// <summary>Two class-level argument rows get two different names.</summary>
+    [Test]
+    public async Task ResolveByTest_ClassArguments_DifferentRowsGetDifferentNames(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var a = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { "alpha" }, "M", null);
+        var b = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { "beta" }, "M", null);
+        var again = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { "alpha" }, "M", null);
+
+        await Assert.That(a.ExpectedFilePath).IsNotEqualTo(b.ExpectedFilePath);
+        await Assert.That(a.ExpectedFilePath).IsEqualTo(again.ExpectedFilePath);
+        await Assert.That(NameOf(a)).Matches("^C\\.[0-9A-F]{8}\\.M$");
+    }
+
+    /// <summary>Method arguments are appended after the method name, and class and method hashes are independent.</summary>
+    [Test]
+    public async Task ResolveByTest_ClassAndMethodArguments_BothHashesPresent(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var both = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { 1 }, "M", new object?[] { 2 });
+        var classOnly = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { 1 }, "M", null);
+        var methodOnly = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", "M", new object?[] { 2 });
+
+        await Assert.That(NameOf(both)).Matches("^C\\.[0-9A-F]{8}\\.M\\.[0-9A-F]{8}$");
+        await Assert.That(NameOf(both)).StartsWith(NameOf(classOnly));
+        await Assert.That(NameOf(both)).EndsWith(NameOf(methodOnly)["C.".Length..]);
+    }
+
+    /// <summary>Null, empty and fixture-only class arguments keep the name of the four-parameter overload.</summary>
+    [Test]
+    public async Task ResolveByTest_NoValueLikeClassArguments_KeepsLegacyName(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var legacy = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", "M", MethodArgsFive);
+
+        await Assert.That(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", null, "M", MethodArgsFive).ExpectedFilePath)
+            .IsEqualTo(legacy.ExpectedFilePath);
+        await Assert.That(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", Array.Empty<object?>(), "M", MethodArgsFive).ExpectedFilePath)
+            .IsEqualTo(legacy.ExpectedFilePath);
+        await Assert.That(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object() }, "M", MethodArgsFive).ExpectedFilePath)
+            .IsEqualTo(legacy.ExpectedFilePath);
+        await Assert.That(NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object() }, "M", null)))
+            .IsEqualTo("C.M");
+    }
+
+    /// <summary>A fixture object next to value arguments does not change the hash of the values.</summary>
+    [Test]
+    public async Task ResolveByTest_MixedFixtureAndValueClassArguments_HashesOnlyValues(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var valuesOnly = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { "x", 3 }, "M", null);
+        var mixed = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object(), "x", new object(), 3 }, "M", null);
+
+        await Assert.That(mixed.ExpectedFilePath).IsEqualTo(valuesOnly.ExpectedFilePath);
+    }
+
+    /// <summary>A null class argument is value-like and is hashed.</summary>
+    [Test]
+    public async Task ResolveByTest_NullClassArgument_IsHashed(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var withNull = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { null }, "M", null);
+
+        await Assert.That(NameOf(withNull)).Matches("^C\\.[0-9A-F]{8}\\.M$");
+    }
+
+    /// <summary>A collection of value-like elements is hashed by its content; one non-value-like element skips the
+    /// whole collection.</summary>
+    [Test]
+    public async Task ResolveByTest_CollectionClassArguments_HashedByContentOrSkippedWhole(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var oneTwo = new[] { 1, 2 };
+        var oneThree = new[] { 1, 3 };
+        var justOne = new[] { 1 };
+        var one = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { oneTwo }, "M", null);
+        var other = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { oneThree }, "M", null);
+        var nested = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object?[] { justOne, "a", null } }, "M", null);
+        var skippedMixed = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object?[] { 1, new object() } }, "M", null);
+        var skippedNested = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new object?[] { new object?[] { new object() } } }, "M", null);
+
+        await Assert.That(one.ExpectedFilePath).IsNotEqualTo(other.ExpectedFilePath);
+        await Assert.That(NameOf(nested)).Matches("^C\\.[0-9A-F]{8}\\.M$");
+        await Assert.That(NameOf(skippedMixed)).IsEqualTo("C.M");
+        await Assert.That(NameOf(skippedNested)).IsEqualTo("C.M");
+    }
+
+    /// <summary>The five-parameter overload validates its names like the four-parameter one.</summary>
+    [Test]
+    public void ResolveByTest_ClassArgumentsOverload_RejectsBadNames(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentNullException>(() => SnapshotFileResolver.ResolveByTest(ClassArgsDir, null!, null, "M", null));
+        Assert.Throws<ArgumentNullException>(() => SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", null, null!, null));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest(ClassArgsDir, " ", null, "M", null));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", null, " ", null));
+    }
+
     /// <summary>ResolveByTest joins class.method as the base name.</summary>
     [Test]
     public async Task ResolveByTest_JoinsClassAndMethod(CancellationToken cancellationToken)

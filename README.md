@@ -271,7 +271,7 @@ What a hand-rolled golden helper does, and the equivalent here:
 | Hand-rolled helper | `SnapshotAssertions.TUnit` |
 |---|---|
 | Fixture folder in the source tree, any file name | `MatchesSnapshotFile(path)` with an absolute path. A relative path resolves against the current working directory, so build the path from the repository root. |
-| Compare exactly after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count. A byte-order mark at the start of the golden file is never compared: reading the file consumes it. Not `SnapshotOptions.NormalizedLineEndings`, which also ignores where lines break and the final newline. |
+| Compare exactly after normalizing CRLF and CR to LF | `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`. Trailing whitespace and the final newline still count. A byte-order mark at the start of the golden file is never compared: reading the file consumes it. `SnapshotOptions.NormalizedLineEndings` is the same but ignores the final newline. |
 | An update flag rewrites the golden files | `SNAPSHOT_ACCEPT=1 dotnet test` writes the normalized actual content (here with LF line endings, as UTF-8 without a byte-order mark) over each golden file that does not match, so the committed file changes in place. |
 | CI never updates | Accept mode is refused while `CI` is `1`, `true` or `yes`. GitHub Actions and GitLab CI set it; Azure Pipelines does not, so set `CI=true` there. See [Accept-changes workflow](#accept-changes-workflow), also for a pipeline step that regenerates on purpose. |
 | A missing golden file fails with instructions | "Snapshot baseline does not exist", with both paths and how to accept. |
@@ -329,11 +329,10 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
 
 - `SnapshotOptions.Default`: strict default. Line endings, per-line trailing whitespace and the final newline are
   compared as they are; only a leading byte-order mark is ignored (see [`SnapshotBomHandling`](#snapshotbomhandling)).
-- `SnapshotOptions.NormalizedLineEndings`: removes line breaks before comparing (`IgnoreLineEndings`) and ignores
-  the final newline, so blank lines and where lines break are ignored too (`"a\nb"` equals `"ab"`). The written
-  actual file and an accepted baseline then have no line breaks either. For cross-platform tests, use
-  `SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }` instead: CRLF and CR
-  become LF, and every line break still counts.
+- `SnapshotOptions.NormalizedLineEndings`: for cross-platform tests. CRLF and CR become LF
+  (`NormalizeToLF`) and the final newline is ignored (`TrailingNewline.Optional`); every line break still counts,
+  so blank lines and where lines break are compared. Before 0.9.0 the preset removed line breaks altogether;
+  re-accept a baseline that was accepted under it (it is one line).
 
 Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
 
@@ -353,7 +352,7 @@ How line-ending differences between the actual content and the expected baseline
 | `Ordinal` (default) | No line-ending normalization: each line's ending is compared as it is, so CRLF and LF are different. Under `TrailingNewline = Optional` the final line's ending, whichever it is, is not compared. |
 | `NormalizeToLF` | Both sides normalized to LF before comparison. Cross-platform-safe. |
 | `NormalizeToCRLF` | Both sides normalized to CRLF before comparison. Windows-leaning. |
-| `IgnoreLineEndings` | Line breaks removed from both sides, so the text is compared as one run: blank lines and where lines break are ignored. A final newline is kept as one LF unless `TrailingNewline` is `Optional`: under the default `Required`, `"a\nb\n"` becomes `"ab\n"`. The written actual file and an accepted baseline keep only that final line break, and none with `Optional` (as in `SnapshotOptions.NormalizedLineEndings`). |
+| `IgnoreLineEndings` | Line breaks removed from both sides, so the text is compared as one run: blank lines and where lines break are ignored. A final newline is kept as one LF unless `TrailingNewline` is `Optional`: under the default `Required`, `"a\nb\n"` becomes `"ab\n"`. The written actual file and an accepted baseline keep only that final line break, and none with `Optional` (as under the pre-0.9.0 `NormalizedLineEndings` preset). |
 
 ### `SnapshotBomHandling`
 
@@ -742,7 +741,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 
 **Parameterized tests with `[Arguments]`: per-row baselines:**
 
-For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each method-level `[Arguments]` row gets its own baseline file instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are not part of the hash, so rows that differ only in their class arguments share one file. To separate them, pass `.WithName(...)` a name built from the test class and method names, the class arguments and any method arguments, using only characters valid in a file name and not only letter case to tell rows apart (Windows and macOS file systems ignore case by default). An explicit name replaces the whole default name, `{TestClassName}.{TestMethodName}` plus `.{ArgsHash8}` for method arguments, and gets no argument hash. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so each method-level `[Arguments]` row gets its own baseline file instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are hashed too, so each class row gets its own file: `{TestClassName}.{ClassArgsHash8}.{TestMethodName}` plus `.{ArgsHash8}` for method arguments. Only value-like class arguments count: strings, numbers and other `IFormattable` values, enums, `null`, and collections of these. Any other argument, such as a `[ClassDataSource]` fixture, is skipped (its `ToString` is not a stable key), and so is a collection that holds one such element; a class with no value-like class argument keeps the name `{TestClassName}.{TestMethodName}`. Before 0.9.0 class arguments were not hashed and class rows shared one file, so re-accept those rows. An explicit name (`.WithName(...)`) replaces the whole default name and gets no argument hash. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files.
 
 ```csharp
 [Test]
@@ -1208,7 +1207,7 @@ The last two commands rewrite the checked-out baselines with LF; the next build 
 A producer that emits the platform's newline would then fail on Windows instead, so use fix one there.
 Git converts line endings byte by byte, so convert a UTF-16 or UTF-32 baseline to UTF-8 before running these commands.
 
-Avoid `SnapshotOptions.NormalizedLineEndings` for this: it also ignores where lines break (see
+`SnapshotOptions.NormalizedLineEndings` also works here when the final newline does not matter (see
 [`SnapshotLineEndingMode`](#snapshotlineendingmode)).
 
 ### Bootstrapping baselines for a fresh test
