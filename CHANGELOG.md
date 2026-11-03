@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.1] - 2026-11-02: document using existing golden files
+## [0.8.1] - 2026-11-03: document using existing golden files
 
 Patch release. Documentation, the accept guidance in the failure messages and the TUnit dependency floor; no API change.
 
