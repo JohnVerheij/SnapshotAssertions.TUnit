@@ -112,46 +112,50 @@ public sealed record SnapshotResult
     public void WriteDescription(TextWriter writer)
     {
         System.ArgumentNullException.ThrowIfNull(writer);
-        switch (Outcome)
+        // An if/else chain rather than a switch: a switch over the enum compiles to a jump table with an
+        // out-of-range branch that no SnapshotMatchOutcome value can reach.
+        if (Outcome is SnapshotMatchOutcome.Matched)
         {
-            case SnapshotMatchOutcome.Matched:
-                writer.Write("Snapshot matched: ");
-                writer.WriteLine(ExpectedFilePath);
-                break;
-            case SnapshotMatchOutcome.Accepted:
-                writer.Write("Snapshot accepted (SNAPSHOT_ACCEPT=1): ");
-                writer.WriteLine(ExpectedFilePath);
-                break;
-            case SnapshotMatchOutcome.NoBaseline:
-                writer.WriteLine("Snapshot baseline does not exist.");
-                writer.Write("  Expected: ");
-                writer.WriteLine(ExpectedFilePath);
-                writer.Write("  Actual:   ");
-                writer.WriteLine(ActualFilePath);
+            writer.Write("Snapshot matched: ");
+            writer.WriteLine(ExpectedFilePath);
+        }
+        else if (Outcome is SnapshotMatchOutcome.Accepted)
+        {
+            writer.Write("Snapshot accepted (SNAPSHOT_ACCEPT=1): ");
+            writer.WriteLine(ExpectedFilePath);
+        }
+        else if (Outcome is SnapshotMatchOutcome.NoBaseline)
+        {
+            writer.WriteLine("Snapshot baseline does not exist.");
+            writer.Write("  Expected: ");
+            writer.WriteLine(ExpectedFilePath);
+            writer.Write("  Actual:   ");
+            writer.WriteLine(ActualFilePath);
+            writer.WriteLine();
+            writer.WriteLine("To accept it as the baseline, inspect the actual file and copy it to the expected path");
+            writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, to the matching path in the project's Snapshots/ folder instead),");
+            writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
+        }
+        else
+        {
+            // SnapshotMatchOutcome.Mismatched, and the fallback for any value added later.
+            writer.WriteLine("Snapshot did not match the baseline.");
+            writer.Write("  Expected: ");
+            writer.WriteLine(ExpectedFilePath);
+            writer.Write("  Actual:   ");
+            writer.WriteLine(ActualFilePath);
+            if (!string.IsNullOrEmpty(Diff))
+            {
                 writer.WriteLine();
-                writer.WriteLine("To accept it as the baseline, inspect the actual file and copy it to the expected path");
-                writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, to the matching path in the project's Snapshots/ folder instead),");
-                writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
-                break;
-            case SnapshotMatchOutcome.Mismatched:
-                writer.WriteLine("Snapshot did not match the baseline.");
-                writer.Write("  Expected: ");
-                writer.WriteLine(ExpectedFilePath);
-                writer.Write("  Actual:   ");
-                writer.WriteLine(ActualFilePath);
-                if (!string.IsNullOrEmpty(Diff))
-                {
+                writer.Write(Diff);
+                if (!Diff.EndsWith('\n'))
                     writer.WriteLine();
-                    writer.Write(Diff);
-                    if (!Diff.EndsWith('\n'))
-                        writer.WriteLine();
-                    WriteDiffSuggestions(writer, Diff);
-                }
-                writer.WriteLine();
-                writer.WriteLine("To accept the change, copy the actual file over the expected file");
-                writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, over the one at the matching path in the project's Snapshots/ folder),");
-                writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
-                break;
+                WriteDiffSuggestions(writer, Diff);
+            }
+            writer.WriteLine();
+            writer.WriteLine("To accept the change, copy the actual file over the expected file");
+            writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, over the one at the matching path in the project's Snapshots/ folder),");
+            writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
         }
     }
 

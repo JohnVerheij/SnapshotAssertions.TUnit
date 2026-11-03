@@ -8,4 +8,11 @@
     <Right>lib/net10.0/SnapshotAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0016</DiagnosticId>
+    <Target>F:SnapshotAssertions.SnapshotLineEndingMode.IgnoreLineEndings:[T:System.ObsoleteAttribute]</Target>
+    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
 </Suppressions>

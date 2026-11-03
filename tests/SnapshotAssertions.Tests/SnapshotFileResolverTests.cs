@@ -24,6 +24,8 @@ internal sealed class SnapshotFileResolverTests
     private static readonly object?[] ArgsMixedOther = [2, "two", null];
     private static readonly object?[] ArgsCustom = [new CustomArg()];
     private static readonly object?[] ArgsRawToken = ["custom-token"];
+    private static readonly object?[] ArgsNullToString = [new NullToStringArg(text: null)];
+    private static readonly object?[] ArgsEmptyString = [string.Empty];
 
     /// <summary>ResolveByName builds <c>{dir}/{name}.expected.txt</c> and the actual sibling.</summary>
     [Test]
@@ -208,6 +210,37 @@ internal sealed class SnapshotFileResolverTests
 
         // The custom type's ToString returns "custom-token", so it hashes the same as that string arg.
         await Assert.That(withCustom.ExpectedFilePath).IsEqualTo(withRaw.ExpectedFilePath);
+    }
+
+    /// <summary>An argument whose <c>ToString</c> returns <see langword="null"/> hashes as an empty string instead of
+    /// throwing.</summary>
+    [Test]
+    public async Task ResolveByTest_ArgWithNullToString_HashesAsEmptyString(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var withNullToString = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsNullToString);
+        var withEmpty = SnapshotFileResolver.ResolveByTest("snapshots", "C", "M", ArgsEmptyString);
+
+        await Assert.That(withNullToString.ExpectedFilePath).IsEqualTo(withEmpty.ExpectedFilePath);
+    }
+
+    /// <summary>A root path has no parent directory (<c>Path.GetDirectoryName</c> returns <see langword="null"/>), so
+    /// the actual sibling of a root expected path falls back to a relative <c>.actual</c> name instead of
+    /// throwing.</summary>
+    [Test]
+    public async Task ResolveByFile_RootPath_HasNoDirectoryAndFallsBack(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+        var paths = SnapshotFileResolver.ResolveByFile(root);
+
+        await Assert.That(paths.ExpectedFilePath).IsEqualTo(root);
+        await Assert.That(paths.ActualFilePath).IsEqualTo(".actual");
+    }
+
+    private sealed class NullToStringArg(string? text)
+    {
+        public override string? ToString() => text;
     }
 
     private sealed class CustomArg

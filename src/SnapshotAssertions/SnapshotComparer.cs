@@ -111,6 +111,27 @@ public static class SnapshotComparer
         return work;
     }
 
+    /// <summary>
+    /// Returns the form written to the actual file and to an accepted baseline. It equals <see cref="Normalize"/>,
+    /// except that the deprecated mode that removes line breaks keeps them, joined with LF, so a new baseline stays
+    /// readable; the comparison form (<see cref="Normalize"/>) is unchanged and still matches old one-line baselines.
+    /// </summary>
+    /// <param name="content">The content to normalize.</param>
+    /// <param name="options">The options to apply.</param>
+    /// <returns>The normalized content with line breaks kept.</returns>
+    internal static string NormalizeForWrite(string content, SnapshotOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return Normalize(content, IsRemovingLineBreaks(options.LineEndingMode)
+            ? options with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }
+            : options);
+    }
+
+    private static bool IsRemovingLineBreaks(SnapshotLineEndingMode mode)
+        => mode is not (SnapshotLineEndingMode.Ordinal
+            or SnapshotLineEndingMode.NormalizeToLF
+            or SnapshotLineEndingMode.NormalizeToCRLF);
+
     private static string StripBomIfRequested(string content, SnapshotOptions options)
     {
         if (options.BomHandling is SnapshotBomHandling.StripBom && content.Length > 0 && content[0] == Bom)
@@ -226,8 +247,8 @@ public static class SnapshotComparer
     private static string ResolveSeparator(SnapshotLineEndingMode mode) => mode switch
     {
         SnapshotLineEndingMode.NormalizeToCRLF => "\r\n",
-        SnapshotLineEndingMode.IgnoreLineEndings => string.Empty,
-        _ => "\n", // NormalizeToLF; Ordinal never reaches here (handled by JoinPreservingTerminators).
+        SnapshotLineEndingMode.NormalizeToLF => "\n",
+        _ => string.Empty, // The deprecated mode that removes line breaks; Ordinal never reaches here (handled by JoinPreservingTerminators).
     };
 
     private static string ApplyTrailingNewlinePolicy(
@@ -248,7 +269,7 @@ public static class SnapshotComparer
                 // newline on either side fails the comparison and is visible in the written
                 // .actual file or accepted baseline.
                 //
-                // Special case: under SnapshotLineEndingMode.IgnoreLineEndings the separator
+                // Special case: under the deprecated line-ending mode that removes line breaks the separator
                 // is empty, so the natural append-separator path produces no trailing marker.
                 // To preserve the Required semantics in that mode, append a stable LF marker
                 // when the input had a trailing newline. Both sides go through this same path,

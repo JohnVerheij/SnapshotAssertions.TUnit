@@ -27,6 +27,10 @@ public sealed record SnapshotOptions
     /// </summary>
     public static SnapshotOptions Default { get; } = new();
 
+    // The deprecated line-break-removing mode, the member after NormalizeToCRLF. Library code must not name an
+    // obsolete enum member (that would need a CS0618 suppression), so the preset reaches it by position.
+    private const SnapshotLineEndingMode LegacyLineBreakRemoval = SnapshotLineEndingMode.NormalizeToCRLF + 1;
+
     /// <summary>
     /// Convenience preset that ignores line breaks altogether. Sets <see cref="LineEndingMode"/> to
     /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> (line breaks removed, so blank lines and where lines
@@ -38,7 +42,7 @@ public sealed record SnapshotOptions
     /// </summary>
     public static SnapshotOptions NormalizedLineEndings { get; } = new()
     {
-        LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+        LineEndingMode = LegacyLineBreakRemoval,
         TrailingNewline = SnapshotTrailingNewline.Optional,
     };
 

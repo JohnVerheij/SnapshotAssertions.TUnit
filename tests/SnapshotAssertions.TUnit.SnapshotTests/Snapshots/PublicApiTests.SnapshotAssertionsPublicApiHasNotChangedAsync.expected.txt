@@ -81,6 +81,8 @@ namespace SnapshotAssertions
         Ordinal = 0,
         NormalizeToLF = 1,
         NormalizeToCRLF = 2,
+        [System.Obsolete("IgnoreLineEndings also ignores where lines break and blank lines. Use NormalizeTo" +
+            "LF; IgnoreLineEndings will be removed in 0.10.0.")]
         IgnoreLineEndings = 3,
     }
     public enum SnapshotMatchOutcome

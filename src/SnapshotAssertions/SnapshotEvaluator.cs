@@ -75,7 +75,7 @@ public static class SnapshotEvaluator
         // text that the very next comparison normalizes away. Writing the normalized form keeps
         // the committed baseline consistent with what the read path compares against, matching
         // how Verify scrubs before writing its .received file.
-        var normalizedActual = SnapshotComparer.Normalize(actualContent, options);
+        var normalizedActual = SnapshotComparer.NormalizeForWrite(actualContent, options);
 
         if (!File.Exists(expectedPath))
         {
@@ -86,7 +86,7 @@ public static class SnapshotEvaluator
             return SnapshotResult.NoBaseline(expectedPath, actualPath);
         }
 
-        var expectedContent = await File.ReadAllTextAsync(expectedPath, cancellationToken).ConfigureAwait(false);
+        var expectedContent = await BaselineReader.ReadAsync(expectedPath, options.BomHandling, cancellationToken).ConfigureAwait(false);
 
         if (SnapshotComparer.AreEqual(actualContent, expectedContent, options))
         {
@@ -118,7 +118,7 @@ public static class SnapshotEvaluator
     /// <returns>The rendered diff text for <see cref="SnapshotResult.Mismatched"/>.</returns>
     private static string RenderMismatchDiff(string expectedContent, string normalizedActual, SnapshotOptions options)
     {
-        var normalizedExpected = SnapshotComparer.Normalize(expectedContent, options);
+        var normalizedExpected = SnapshotComparer.NormalizeForWrite(expectedContent, options);
         var diff = LineDiffRenderer.Render(normalizedExpected, normalizedActual);
         var policyViolation = SnapshotComparer.DescribeTrailingNewlineViolation(normalizedActual, normalizedExpected, options);
         return policyViolation is null ? diff : diff + policyViolation + Environment.NewLine;

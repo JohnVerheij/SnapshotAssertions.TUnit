@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-04: strict line-ending preset, accept-mode and naming fixes
+
+Minor release. Work in progress.
+
+### Changed
+
+- **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
+
+### Deprecated
+
+- **`SnapshotLineEndingMode.IgnoreLineEndings`** is marked `[Obsolete]`: it also ignores where lines break and blank lines. Use `NormalizeToLF`. It will be removed in 0.10.0.
+
+### Fixed
+
+- **`SnapshotBomHandling.PreserveBom`** now keeps a byte-order mark at the start of the baseline file: the file is read as bytes and a UTF-8, UTF-16 or UTF-32 mark is returned as a leading U+FEFF, so a baseline accepted from an actual that starts with U+FEFF matches on the next run. The mark was consumed by the read, so it never matched. `StripBom` behaves as before, and a file in UTF-16 or UTF-32 is decoded with the encoding its mark declares.
+
 ## [0.8.1] - 2026-11-04: document using existing golden files
 
 Patch release. Documentation, the accept guidance in the failure messages and the TUnit dependency floor; no API change.
@@ -198,7 +214,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...v0.7.1

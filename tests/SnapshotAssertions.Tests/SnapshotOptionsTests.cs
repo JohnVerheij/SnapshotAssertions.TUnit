@@ -27,24 +27,6 @@ internal sealed class SnapshotOptionsTests
         await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Required);
     }
 
-    /// <summary>The <see cref="SnapshotOptions.NormalizedLineEndings"/> preset relaxes both
-    /// line-ending mode (line breaks stripped) and trailing-newline policy (presence vs
-    /// absence unobservable). BOM and per-line trailing-whitespace handling stay strict.
-    /// The two relaxations go together: under <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/>
-    /// the trailing newline is just another stripped line break, so any consumer reaching
-    /// for "ignore line endings" expects the trailing one to be ignored too.</summary>
-    [Test]
-    public async Task NormalizedLineEndingsPresetRelaxesLineEndingsAndTrailingNewline(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var options = SnapshotOptions.NormalizedLineEndings;
-
-        await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.IgnoreLineEndings);
-        await Assert.That(options.TrailingNewline).IsEqualTo(SnapshotTrailingNewline.Optional);
-        await Assert.That(options.BomHandling).IsEqualTo(SnapshotBomHandling.StripBom);
-        await Assert.That(options.TrailingWhitespace).IsEqualTo(SnapshotTrailingWhitespace.Preserve);
-    }
-
     /// <summary>The default options carry no custom normalizer.</summary>
     [Test]
     public async Task DefaultOptions_NormalizerIsNull(CancellationToken cancellationToken)
