@@ -198,7 +198,20 @@ control), set this property in your csproj:
 </PropertyGroup>
 ```
 
-Then add a `<None Include="...">` matching your custom layout.
+Then add a `<None>` item for your layout. It must copy the baselines into the output's `Snapshots/` folder, where
+default-named and `.WithName(...)` baselines are read:
+
+```xml
+<ItemGroup>
+  <None Include="TestData\Snapshots\**\*.expected.txt"
+        Link="Snapshots\%(RecursiveDir)%(Filename)%(Extension)"
+        CopyToOutputDirectory="PreserveNewest" />
+</ItemGroup>
+```
+
+Without `CopyToOutputDirectory` nothing is copied, and without the `Link` the files land under `TestData/Snapshots/`
+in the output instead. Accept mode and the accept guidance in the failure messages still use the project's
+`Snapshots/` folder, so with another source folder, move accepted baselines there yourself.
 
 Recommended `.gitignore` (transient actual files must not be committed; `*.actual.*` also covers custom
 extensions, and `*.actual` a custom path without an extension; the last line keeps an `.expected.txt` baseline whose
