@@ -126,8 +126,9 @@ public static class SnapshotFileResolver
     /// <param name="testClassName">The simple test class name (no namespace).</param>
     /// <param name="testClassArguments">The arguments passed to the test class constructor (for example by a
     /// class-level <c>[Arguments]</c>), or <see langword="null"/>. Only value-like arguments are hashed: a
-    /// <see langword="string"/>, an <see cref="IFormattable"/> (numbers, <see cref="Guid"/>, <see cref="DateTime"/>,
-    /// enums, etc.), <see langword="null"/>, and a collection (<see cref="IEnumerable"/> other than a string) whose
+    /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> (by its
+    /// string form, the full type name), an <see cref="IFormattable"/> (all numeric types, enums,
+    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and a collection (<see cref="IEnumerable"/> other than a string) whose
     /// elements are all value-like, recursively. Every other argument, such as a fixture object injected by
     /// <c>[ClassDataSource]</c>, is skipped, because its <c>ToString</c> is not a stable key; the check uses type
     /// tests only. A collection that contains one non-value-like element is skipped as a whole, so the result never
@@ -198,14 +199,15 @@ public static class SnapshotFileResolver
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
-    /// <see langword="null"/>, a <see langword="string"/>, an <see cref="IFormattable"/>, or a collection whose
-    /// elements are all value-like. Uses type tests only (no reflection).
+    /// <see langword="null"/>, a <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a
+    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or a collection whose elements are all value-like: every
+    /// kind of value an attribute argument can hold. Uses type tests only (no reflection).
     /// </summary>
     /// <param name="arg">The argument to test.</param>
     /// <returns><see langword="true"/> if the argument may be hashed.</returns>
     private static bool IsValueLike(object? arg)
     {
-        if (arg is null or string or IFormattable)
+        if (arg is null or string or bool or char or Type or IFormattable)
             return true;
 
         if (arg is not IEnumerable enumerable)

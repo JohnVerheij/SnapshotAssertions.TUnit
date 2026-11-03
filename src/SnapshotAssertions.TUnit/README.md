@@ -37,7 +37,7 @@ public async Task Public_api_surface_matches_baseline()
 }
 ```
 
-The baseline is read from `Snapshots/{TestClassName}.{TestMethodName}.expected.txt` in the test output directory, where the build copies it from the project's `Snapshots/` folder. On mismatch, `*.actual.txt` is written next to it and the assertion failure includes both paths plus a line-based diff.
+The baseline is read from `Snapshots/{TestClassName}.{TestMethodName}.expected.txt` in the test output directory, where the build copies it from the project's `Snapshots/` folder. On mismatch, `*.actual.txt` is written next to it and the assertion failure includes both paths plus a line-based diff, and a `Project baseline:` line with the baseline's path in the project's `Snapshots/` folder.
 
 ## Existing golden files
 
@@ -59,7 +59,7 @@ Three modes, in order of preference:
 2. **Manual `cp`.** From the test project folder: `cp bin/Debug/net10.0/Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
 3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test` (PowerShell: `$env:SNAPSHOT_ACCEPT = '1'; dotnet test; Remove-Item Env:SNAPSHOT_ACCEPT`). Accept mode is refused while `CI` or `TF_BUILD` (Azure Pipelines) is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently; a step that regenerates baselines on purpose sets `SNAPSHOT_ACCEPT_IN_CI=1`.
 
-Bulk accept writes default-named baselines straight into the **source** `Snapshots/` folder of the test project, so the committed baseline updates in place even under `dotnet test --no-build`. The build targets record the project directory (the runtime option `SnapshotAssertions.ProjectDirectory`), so this also works with `UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`, and F# and Visual Basic projects. If the option is missing, accept falls back to the nearest `*.csproj`, `*.fsproj` or `*.vbproj` above the test binary.
+Bulk accept writes default-named and `.WithName(...)` baselines straight into the **source** `Snapshots/` folder of the test project, so the committed baseline updates in place even under `dotnet test --no-build`. The build targets record the project directory (the runtime option `SnapshotAssertions.ProjectDirectory`), so this also works with `UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`, and F# and Visual Basic projects. If the option is missing, accept falls back to the nearest `*.csproj`, `*.fsproj` or `*.vbproj` above the test binary.
 
 Pipelines leave `SNAPSHOT_ACCEPT` unset, so mismatches fail the build; a step that regenerates baselines on purpose is shown in the [full README](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#accept-changes-workflow).
 
@@ -143,7 +143,7 @@ public async Task Response_per_route_matches(string route, int statusCode)
 }
 ```
 
-Baselines land at `Snapshots/{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`. The hash is `InvariantCulture`-stable so the same arguments produce the same file across developer machines and CI. Collection arguments are expanded element-by-element (since v0.7.0), so rows that differ only inside an array get distinct files. Class-level `[Arguments]` (constructor arguments) are hashed too (since v0.9.0), giving `Snapshots/{TestClassName}.{ClassArgsHash8}.{TestMethodName}[.{ArgsHash8}].expected.txt`; only value-like class arguments count (strings, numbers and other `IFormattable` values, enums, `null`, and collections of these), so a `[ClassDataSource]` fixture is skipped and a class without value-like arguments keeps the name without a class hash. [Full details on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
+Baselines land at `Snapshots/{TestClassName}.{TestMethodName}.{ArgsHash8}.expected.txt`. The hash is `InvariantCulture`-stable so the same arguments produce the same file across developer machines and CI. Collection arguments are expanded element-by-element (since v0.7.0), so rows that differ only inside an array get distinct files. Class-level `[Arguments]` (constructor arguments) are hashed too (since v0.9.0; re-accept class rows that were accepted earlier), giving `Snapshots/{TestClassName}.{ClassArgsHash8}.{TestMethodName}[.{ArgsHash8}].expected.txt`; only value-like class arguments count (strings, booleans, characters, `Type` values, numbers and other `IFormattable` values, enums, `null`, and collections of these), so a `[ClassDataSource]` fixture is skipped and a class without value-like arguments keeps the name without a class hash. [Full details on GitHub.](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#cookbook-common-patterns)
 
 ## Why not Verify
 

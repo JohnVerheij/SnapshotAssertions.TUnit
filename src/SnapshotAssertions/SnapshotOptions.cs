@@ -46,9 +46,9 @@ public sealed record SnapshotOptions
     public SnapshotLineEndingMode LineEndingMode { get; init; } = SnapshotLineEndingMode.Ordinal;
 
     /// <summary>How a leading byte-order mark (U+FEFF) in the content is handled. Defaults to
-    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed from both sides before comparison. When
-    /// <see cref="SnapshotEvaluator"/> reads the baseline file, a byte-order mark at its start is consumed by the read
-    /// and not compared.</summary>
+    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed from both sides before comparison. Under
+    /// <see cref="SnapshotBomHandling.PreserveBom"/> the byte-order mark at the start of the baseline file counts
+    /// as a leading U+FEFF; under <see cref="SnapshotBomHandling.StripBom"/> it is not compared.</summary>
     public SnapshotBomHandling BomHandling { get; init; } = SnapshotBomHandling.StripBom;
 
     /// <summary>How per-line trailing whitespace is treated. Defaults to

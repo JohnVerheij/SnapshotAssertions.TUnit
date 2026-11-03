@@ -135,6 +135,22 @@ internal sealed class SnapshotFileResolverTests
         await Assert.That(NameOf(skippedNested)).IsEqualTo("C.M");
     }
 
+    /// <summary>Class rows that differ only in a bool, a char or a Type get different names, and a collection holding
+    /// a bool is hashed.</summary>
+    [Test]
+    public async Task ResolveByTest_BoolCharTypeClassArguments_DistinguishRows(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string Name(object? value) => NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { value }, "M", null));
+
+        await Assert.That(Name(true)).IsNotEqualTo(Name(false));
+        await Assert.That(Name('a')).IsNotEqualTo(Name('b'));
+        await Assert.That(Name(typeof(string))).IsNotEqualTo(Name(typeof(int)));
+        await Assert.That(Name(true)).Matches("^C\\.[0-9A-F]{8}\\.M$");
+        await Assert.That(Name(new object[] { true })).IsNotEqualTo(Name(new object[] { false }));
+        await Assert.That(Name(new object[] { true })).Matches("^C\\.[0-9A-F]{8}\\.M$");
+    }
+
     /// <summary>The five-parameter overload validates its names like the four-parameter one.</summary>
     [Test]
     public void ResolveByTest_ClassArgumentsOverload_RejectsBadNames(CancellationToken cancellationToken)
