@@ -201,15 +201,19 @@ control), set this property in your csproj:
 Then add a `<None Include="...">` matching your custom layout.
 
 Recommended `.gitignore` (transient actual files must not be committed; `*.actual.*` also covers custom
-extensions, and `*.actual` a custom path without an extension; the last line keeps a baseline whose name contains
-`.actual.`, such as `.WithName("Order.actual")` or, where Git ignores case (the Windows and macOS default), a test
-method named `Actual`):
+extensions, and `*.actual` a custom path without an extension; the last line keeps an `.expected.txt` baseline whose
+name contains `.actual.`, such as `.WithName("Order.actual")` or, where Git ignores case (the Windows and macOS
+default), a test method named `Actual`):
 
 ```gitignore
 *.actual.*
 *.actual
 !*.expected.txt
 ```
+
+These patterns can also match a custom-path baseline, or a folder, whose name contains `.actual` (for example
+`report.actual.json`). For a new baseline, `git check-ignore -v <path>` prints the `.gitignore` line that matches it (a
+line starting with `!` keeps it); add a `!` line for a baseline or folder it ignores, or rename it.
 
 Recommended `.gitattributes` so cross-platform runs don't produce false-positive
 trailing-CRLF diffs against committed baselines:
