@@ -22,6 +22,7 @@ Minor release. Work in progress.
 ### Changed
 
 - **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
+- **Failure message** of a default-named or `.WithName(...)` baseline now ends with one more line, `Project baseline: <path>`, the absolute path the baseline has under the project's `Snapshots/` folder, when the build recorded the project directory. The core message is unchanged, and a baseline set with `AtPath` or `MatchesSnapshotFile` gets no such line.
 
 ### Deprecated
 
@@ -30,6 +31,9 @@ Minor release. Work in progress.
 ### Fixed
 
 - **`SnapshotBomHandling.PreserveBom`** now keeps a byte-order mark at the start of the baseline file: the file is read as bytes and a UTF-8, UTF-16 or UTF-32 mark is returned as a leading U+FEFF, so a baseline accepted from an actual that starts with U+FEFF matches on the next run. The mark was consumed by the read, so it never matched. `StripBom` behaves as before, and a file in UTF-16 or UTF-32 is decoded with the encoding its mark declares.
+- **Accept mode** (`SNAPSHOT_ACCEPT=1`) now writes into the project's `Snapshots/` folder when the build output is outside the project (`UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`). The package's build targets record the project directory in the test assembly's runtime configuration (`SnapshotAssertions.ProjectDirectory`), and accept mode reads it. Before, it wrote beside the test binary or into an unrelated project higher up.
+- **`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`** and the accept-mode fallback now also recognize `*.fsproj` and `*.vbproj`, so accept mode finds the project of an F# or Visual Basic test assembly when the build did not record the project directory.
+- **Build targets** are now packed under `buildTransitive/` (with a one-line forwarding file in `build/`), so a test project that gets the package through another project or package also gets the copy of `Snapshots/**/*.expected.txt` to the output directory. Before, only a direct `PackageReference` did.
 
 ## [0.8.1] - 2026-11-04: document using existing golden files
 

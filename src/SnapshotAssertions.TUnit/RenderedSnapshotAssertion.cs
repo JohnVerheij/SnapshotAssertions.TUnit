@@ -118,8 +118,10 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
         if (content is null)
             return Task.FromResult(AssertionResult.Failed("renderer returned null content"));
 
-        var paths = SnapshotAssertionImpl.ResolvePaths(_explicitPath, _explicitName);
-        return SnapshotAssertionImpl.EvaluateAsync(content, _scrubbers, _options, paths);
+        var resolved = SnapshotAssertionImpl.Resolve(
+            _explicitPath, _explicitName, acceptModeOverride: null, AppContext.BaseDirectory, SnapshotAssertionImpl.GetProjectDirectory());
+        return SnapshotAssertionImpl.EvaluateAsync(
+            content, _scrubbers, _options, resolved.Paths, resolved.ProjectBaselinePath);
     }
 
     /// <inheritdoc/>

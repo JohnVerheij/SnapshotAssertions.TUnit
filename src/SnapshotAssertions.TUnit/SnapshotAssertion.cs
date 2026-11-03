@@ -117,8 +117,10 @@ public sealed class SnapshotAssertion : Assertion<string>
 
         // ResolvePaths intentionally lets InvalidOperationException (no test context) propagate
         // to the test runner rather than downgrading it to AssertionResult.Failed.
-        var paths = SnapshotAssertionImpl.ResolvePaths(_explicitPath, _explicitName);
-        return SnapshotAssertionImpl.EvaluateAsync(content, _scrubbers, _options, paths);
+        var resolved = SnapshotAssertionImpl.Resolve(
+            _explicitPath, _explicitName, acceptModeOverride: null, AppContext.BaseDirectory, SnapshotAssertionImpl.GetProjectDirectory());
+        return SnapshotAssertionImpl.EvaluateAsync(
+            content, _scrubbers, _options, resolved.Paths, resolved.ProjectBaselinePath);
     }
 
     /// <inheritdoc/>

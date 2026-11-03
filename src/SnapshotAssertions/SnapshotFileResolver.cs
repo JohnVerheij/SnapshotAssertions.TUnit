@@ -265,12 +265,13 @@ public static class SnapshotFileResolver
     /// <c>bin/</c> via the package's include glob. The accept write target is resolved by
     /// walking up from <paramref name="startDirectory"/> (typically
     /// <see cref="AppContext.BaseDirectory"/>) to the nearest ancestor that contains a
-    /// <c>*.csproj</c> file (<c>*.fsproj</c> and <c>*.vbproj</c> are not recognized), then appending
+    /// <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file, then appending
     /// <see cref="DefaultSnapshotsFolder"/>. With the default output
     /// layout (<c>bin/</c> under the project), that ancestor is the test project, the directory the build's
     /// include glob is relative to, so the accept write lands in the exact folder the next build copies back
     /// into <c>bin/</c>. An output directory outside the project folder (for example
-    /// <c>UseArtifactsOutput</c>) finds no project or an unrelated one higher up.
+    /// <c>UseArtifactsOutput</c>) finds no project or an unrelated one higher up; the TUnit adapter therefore
+    /// prefers the project directory its build targets record and uses this walk only as the fallback.
     /// </para>
     /// <para>
     /// When no ancestor project file can be found (for example, a single-file publish where the
@@ -296,7 +297,7 @@ public static class SnapshotFileResolver
 
     /// <summary>
     /// Walks up from <paramref name="startDirectory"/> and returns the first ancestor directory
-    /// (inclusive) that contains at least one <c>*.csproj</c> file, or <see langword="null"/>
+    /// (inclusive) that contains at least one <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file, or <see langword="null"/>
     /// if the filesystem root is reached without finding one.
     /// </summary>
     /// <param name="startDirectory">The directory to begin the search from.</param>
@@ -306,11 +307,7 @@ public static class SnapshotFileResolver
         var current = new DirectoryInfo(Path.GetFullPath(startDirectory));
         while (current is not null)
         {
-            // EnumerateFiles is lazy: it stops at the first match instead of materializing the
-            // whole listing, so the common case (a project file in the first ancestor that has
-            // one) touches the directory once and returns immediately.
-            using var matches = current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).GetEnumerator();
-            if (matches.MoveNext())
+            if (ContainsProjectFile(current))
                 return current.FullName;
 
             current = current.Parent;
@@ -318,4 +315,26 @@ public static class SnapshotFileResolver
 
         return null;
     }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="directory"/> directly contains a C#, F# or
+    /// Visual Basic project file.
+    /// </summary>
+    /// <param name="directory">The directory to inspect (top level only).</param>
+    /// <returns><see langword="true"/> if a <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file exists.</returns>
+    private static bool ContainsProjectFile(DirectoryInfo directory)
+    {
+        foreach (var pattern in ProjectFilePatterns)
+        {
+            // EnumerateFiles is lazy: it stops at the first match instead of materializing the listing.
+            using var matches = directory.EnumerateFiles(pattern, SearchOption.TopDirectoryOnly).GetEnumerator();
+            if (matches.MoveNext())
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The project-file patterns that mark a project directory.</summary>
+    private static readonly string[] ProjectFilePatterns = ["*.csproj", "*.fsproj", "*.vbproj"];
 }

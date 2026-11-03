@@ -276,6 +276,32 @@ internal sealed class SnapshotFileResolverTests
         }
     }
 
+    /// <summary>TryResolveSourceSnapshotsDirectory recognizes F# and Visual Basic project files as well as C#
+    /// ones, so accept mode finds the project of an F# or Visual Basic test assembly.</summary>
+    [Test]
+    [Arguments("MyProj.fsproj")]
+    [Arguments("MyProj.vbproj")]
+    public async Task TryResolveSourceSnapshotsDirectory_NonCSharpProjectFile_FindsProjectAncestor(string projectFileName, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = CreateTempDirectory();
+        try
+        {
+            var projectDir = Path.Combine(root, "Proj");
+            var binDir = Path.Combine(projectDir, "bin", "Release", "net10.0");
+            Directory.CreateDirectory(binDir);
+            await File.WriteAllTextAsync(Path.Combine(projectDir, projectFileName), "<Project/>", cancellationToken).ConfigureAwait(false);
+
+            var resolved = SnapshotFileResolver.TryResolveSourceSnapshotsDirectory(binDir);
+
+            await Assert.That(resolved).IsEqualTo(Path.GetFullPath(Path.Combine(projectDir, "Snapshots")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     /// <summary>TryResolveSourceSnapshotsDirectory returns null when no ancestor project file
     /// exists, so accept-mode can fall back to the runtime directory rather than fabricating a
     /// bogus source path.</summary>

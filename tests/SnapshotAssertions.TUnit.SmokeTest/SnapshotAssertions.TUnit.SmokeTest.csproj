@@ -65,6 +65,14 @@
     <SmokePackageVersion Condition="'$(SmokePackageVersion)' == ''">*-*</SmokePackageVersion>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Build output deliberately OUTSIDE the project folder (like UseArtifactsOutput or dotnet test -o), so
+         the packed build targets' SnapshotAssertions.ProjectDirectory runtime option is the only way accept mode
+         can find this project's Snapshots/ folder: the walk-up from the output directory cannot. The folder name
+         is covered by the repository's [Oo]ut/ ignore rule. -->
+    <OutputPath>$(MSBuildThisFileDirectory)../../out/smoke/</OutputPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.78.0" />
   </ItemGroup>
