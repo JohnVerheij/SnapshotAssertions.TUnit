@@ -28,8 +28,8 @@ public static class SnapshotFileResolver
     public const string ActualExtension = ".actual.txt";
 
     /// <summary>The default subdirectory, relative to the test binary's directory, where baselines are read
-    /// from and actual files are written. Accept mode writes baselines to the source-tree folder of the same
-    /// name instead (<see cref="TryResolveSourceSnapshotsDirectory"/>).</summary>
+    /// from and actual files are written. The TUnit adapter's accept mode writes baselines to the source-tree folder
+    /// of the same name instead (<see cref="TryResolveSourceSnapshotsDirectory"/>).</summary>
     public const string DefaultSnapshotsFolder = "Snapshots";
 
     /// <summary>
@@ -254,7 +254,7 @@ public static class SnapshotFileResolver
     /// <summary>
     /// Resolves the <em>source-tree</em> snapshots directory: the committable
     /// <c>Snapshots/</c> folder that lives next to the test project file, rather than the
-    /// runtime copy under <c>bin/</c>. Used by accept-mode so that an accepted baseline is
+    /// runtime copy under <c>bin/</c>. Used by the TUnit adapter's accept mode so that an accepted baseline is
     /// written where it is committed and read from, not into the build output where it is
     /// discarded on the next clean.
     /// </summary>
@@ -265,7 +265,8 @@ public static class SnapshotFileResolver
     /// <c>bin/</c> via the package's include glob. The accept write target is resolved by
     /// walking up from <paramref name="startDirectory"/> (typically
     /// <see cref="AppContext.BaseDirectory"/>) to the nearest ancestor that contains a
-    /// <c>*.csproj</c> file, then appending <see cref="DefaultSnapshotsFolder"/>. With the default output
+    /// <c>*.csproj</c> file (<c>*.fsproj</c> and <c>*.vbproj</c> are not recognized), then appending
+    /// <see cref="DefaultSnapshotsFolder"/>. With the default output
     /// layout (<c>bin/</c> under the project), that ancestor is the test project, the directory the build's
     /// include glob is relative to, so the accept write lands in the exact folder the next build copies back
     /// into <c>bin/</c>. An output directory outside the project folder (for example
@@ -273,9 +274,9 @@ public static class SnapshotFileResolver
     /// </para>
     /// <para>
     /// When no ancestor project file can be found (for example, a single-file publish where the
-    /// source tree is not present), the method returns <see langword="null"/>: the caller falls
-    /// back to the runtime directory so accept-mode still produces a file, even if it is not in
-    /// the source tree.
+    /// source tree is not present), the method returns <see langword="null"/>: the TUnit adapter falls
+    /// back to the <c>Snapshots/</c> folder in <see cref="AppContext.BaseDirectory"/> so accept-mode still produces
+    /// a file, even if it is not in the source tree.
     /// </para>
     /// </remarks>
     /// <param name="startDirectory">The directory to start the upward search from (typically

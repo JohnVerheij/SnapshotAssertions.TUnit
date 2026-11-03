@@ -13,7 +13,8 @@ namespace SnapshotAssertions;
 /// (<see cref="BomHandling"/> defaults to <see cref="SnapshotBomHandling.StripBom"/>). All
 /// other content: line endings, per-line trailing whitespace, end-of-file trailing-newline
 /// state: is preserved. Cross-platform false positives (LF vs CRLF) are real but should be
-/// opted into via <see cref="NormalizedLineEndings"/> rather than silently normalized away.
+/// opted into via <see cref="LineEndingMode"/> (for example
+/// <see cref="SnapshotLineEndingMode.NormalizeToLF"/>) rather than silently normalized away.
 /// This matches the family-wide convention of explicit <c>StringComparison</c> on
 /// string-matching APIs.
 /// </remarks>
@@ -47,8 +48,9 @@ public sealed record SnapshotOptions
     public SnapshotLineEndingMode LineEndingMode { get; init; } = SnapshotLineEndingMode.Ordinal;
 
     /// <summary>How a leading byte-order mark (U+FEFF) in the content is handled. Defaults to
-    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed before comparison. A byte-order mark at the start
-    /// of the baseline file is consumed when the file is read and never compared.</summary>
+    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed from both sides before comparison. When
+    /// <see cref="SnapshotEvaluator"/> reads the baseline file, a byte-order mark at its start is consumed by the read
+    /// and not compared.</summary>
     public SnapshotBomHandling BomHandling { get; init; } = SnapshotBomHandling.StripBom;
 
     /// <summary>How per-line trailing whitespace is treated. Defaults to

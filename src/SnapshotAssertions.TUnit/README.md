@@ -57,9 +57,9 @@ Three modes, in order of preference:
 
 1. **IDE diff-and-merge.** Compare the `.actual.txt` file with the baseline in your IDE (Rider and VS Code compare two selected files) and merge the change into the project's `Snapshots/` folder.
 2. **Manual `cp`.** From the test project folder: `cp bin/Debug/net10.0/Snapshots/MyTest.actual.txt Snapshots/MyTest.expected.txt`.
-3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test`. Accept mode is refused while `CI` is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently (Azure Pipelines does not set `CI`; set `CI=true` there).
+3. **Bulk accept.** `SNAPSHOT_ACCEPT=1 dotnet test` (PowerShell: `$env:SNAPSHOT_ACCEPT = '1'; dotnet test; Remove-Item Env:SNAPSHOT_ACCEPT`). Accept mode is refused while `CI` is `1`, `true` or `yes`, so a slipped pipeline setting does not accept silently (Azure Pipelines does not set `CI`; set `CI=true` there).
 
-As of v0.6.0, bulk accept writes default-named baselines straight into the **source** `Snapshots/` folder next to the nearest `.csproj` above the test binary (`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`), so the committed baseline updates in place even under `dotnet test --no-build`. With an output directory outside the project folder (for example `UseArtifactsOutput`), it writes the test binary's directory, or the folder of an unrelated project higher up, instead.
+As of v0.6.0, bulk accept writes default-named baselines straight into the **source** `Snapshots/` folder next to the nearest `.csproj` above the test binary (`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`; `.fsproj` and `.vbproj` are not recognized), so the committed baseline updates in place even under `dotnet test --no-build`. With an output directory outside the project folder (for example `UseArtifactsOutput`), it writes the `Snapshots/` folder in the test binary's directory, or the `Snapshots/` folder of an unrelated project higher up, instead.
 
 Pipelines leave `SNAPSHOT_ACCEPT` unset, so mismatches fail the build; a step that regenerates baselines on purpose is shown in the [full README](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#accept-changes-workflow).
 

@@ -47,7 +47,7 @@ dotnet add package SnapshotAssertions.TUnit
 
 ## Stability
 
-The public surfaces above follow SemVer; before 1.0, a minor version can contain breaking changes, each marked **BREAKING** in the CHANGELOG. The exact text format of line-based diff output is **not stable** and may gain extra detail or change formatting in any release.
+Before 1.0, a minor version can contain breaking changes, each marked **BREAKING** in the CHANGELOG; renaming or removing one of the intended-stable types listed in the [full README](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#stability-intent-pre-10) would need a major version even before 1.0. The exact text format of line-based diff output is **not stable** and may gain extra detail or change formatting in any release.
 
 ## License
 

@@ -72,7 +72,8 @@ public sealed record SnapshotResult
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.NoBaseline"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to where the expected file would be.</param>
     /// <param name="actualFilePath">Absolute path to the written actual file (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) the
-    /// caller can inspect and copy to the expected path to accept.</param>
+    /// caller can inspect and copy to the expected path to accept (for a path in the build output's
+    /// <c>Snapshots/</c> folder, to the project's <c>Snapshots/</c> folder instead).</param>
     /// <returns>A failing result describing the missing baseline.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotResult NoBaseline(string expectedFilePath, string actualFilePath)
