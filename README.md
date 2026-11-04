@@ -1216,8 +1216,8 @@ Avoid `SnapshotOptions.NormalizedLineEndings` for this: it also ignores where li
 The first run of a new `MatchesSnapshot()` test fails with "no baseline" because there's no
 committed `.expected.txt` yet. Two ways to bootstrap:
 
-1. Run once. The failure writes `.actual.txt`. Rename it to `.expected.txt`, copy back to your
-   source `Snapshots/` folder, commit.
+1. Run once. The failure writes `.actual.txt` in the output's `Snapshots/` folder. Copy it to your source
+   `Snapshots/` folder, with `.expected.txt` in place of `.actual.txt` in the name, and commit it.
 2. Run with `SNAPSHOT_ACCEPT=1 dotnet test` (locally, never in CI). The baseline is written into the
    `Snapshots/` folder next to the nearest `.csproj` above the test binary, normally your source folder (see
    [Accept-changes workflow](#accept-changes-workflow), also for output directories outside the project);
