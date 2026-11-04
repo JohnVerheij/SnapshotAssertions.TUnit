@@ -15,10 +15,11 @@ namespace SnapshotAssertions.TUnit;
 /// </summary>
 /// <remarks>
 /// <para>
-/// On mismatch or missing baseline, the actual content is written to a sibling
-/// <c>.actual.txt</c> file and the assertion fails with both paths and a line-based diff in
+/// On mismatch or missing baseline, the actual content is written to a sibling actual file
+/// (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) and
+/// the assertion fails with both paths and a line-based diff in
 /// the failure message. When the <c>SNAPSHOT_ACCEPT</c> environment variable is set to a
-/// truthy value (and the <c>CI</c> environment variable is not set), the actual content is
+/// truthy value (and the <c>CI</c> environment variable is not <c>1</c>, <see langword="true"/> or <c>yes</c>), the actual content is
 /// instead written over the expected baseline and the assertion passes; this is the
 /// accept-mode used to bulk-update snapshots after intentional changes.
 /// </para>

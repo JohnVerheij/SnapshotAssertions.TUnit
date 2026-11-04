@@ -92,8 +92,8 @@ internal static class SnapshotAssertionImpl
     /// Picks the snapshots directory used for name- and test-context-derived resolution. The
     /// read path uses the runtime copy under <c>bin/</c> (<see cref="AppContext.BaseDirectory"/>);
     /// accept-mode instead targets the source-tree <c>Snapshots/</c> folder so the accepted
-    /// baseline lands where it is committed. Falls back to the runtime directory when the
-    /// source tree cannot be located (e.g. a single-file publish).
+    /// baseline lands where it is committed. Falls back to the runtime <c>Snapshots/</c> folder when
+    /// the source tree cannot be located (e.g. a single-file publish).
     /// </summary>
     /// <param name="acceptModeOverride">Optional accept-mode override; <see langword="null"/>
     /// consults the live environment.</param>

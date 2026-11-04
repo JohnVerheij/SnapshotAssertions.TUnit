@@ -16,9 +16,10 @@ Framework-agnostic core for text-snapshot assertions.
 
 ## What's in this package
 
-- **`SnapshotComparer`**: string-against-file comparison with line-ending, BOM, trailing-whitespace, and trailing-newline options.
-- **`SnapshotFileResolver`**: TestContext-aware default file naming (`Snapshots/{TestClass}.{TestMethod}.expected.txt`) and explicit-path resolution.
-- **`SnapshotAcceptMode`**: env-var-driven accept logic (`SNAPSHOT_ACCEPT=1` writes the actual content over the expected baseline) with a `CI=true` guard so accidental pipeline acceptance is impossible.
+- **`SnapshotComparer`**: string-against-string comparison with line-ending, BOM, trailing-whitespace, and trailing-newline options.
+- **`SnapshotEvaluator`**: reads the baseline file, compares, and writes the actual file (or, in accept mode, the baseline).
+- **`SnapshotFileResolver`**: default file naming from the test class and method names (`Snapshots/{TestClass}.{TestMethod}.expected.txt`) and explicit-path resolution. A baseline is the plain expected text with no header or metadata, so an explicit path can point at an existing golden file with any name and extension.
+- **`SnapshotAcceptMode`**: decides whether accept mode is on: `SNAPSHOT_ACCEPT` is `1`, `true` or `yes`, and `CI` is not one of those values (the guard against accepting in a pipeline that sets `CI=true`); an unset `CI` or `CI=false` allows it.
 - **`SnapshotOptions`**: line-ending, BOM, whitespace, and trailing-newline configuration with strict defaults, plus a caller-supplied `WithNormalizer(Func<string, string>)` pre-comparison transform *(v0.5.0+)*.
 - **`LineDiffRenderer`**: terminal line-based diff display, truncated to the first 20 differing lines for very large diffs (`LineDiffRenderer.MaxDifferingLines = 20`).
 - **`SnapshotScrubber` + `Scrubbers` factory** *(v0.2.0+)*: text-transform pipeline that replaces volatile substrings (GUIDs, ISO 8601 timestamps, Unix-epoch-millis numbers, custom regex matches) with stable indexed tokens before comparison. Built-ins (`Scrubbers.Guid`, `Scrubbers.Iso8601Timestamp`, `Scrubbers.UnixEpochMillis`, plus `Scrubbers.GuidN` and `Scrubbers.ElapsedMs` *(v0.4.0+)*), curated chains (`Scrubbers.Default` for the v0.2.0 three-pattern set, `Scrubbers.Common` *(v0.4.0+)* for the extended five-pattern set), two `Scrubbers.Pattern` overloads for custom regex (flat literal token) plus two `Scrubbers.IndexedPattern` overloads *(v0.5.0+)* for the indexed `<kind:N>` counterpart that keeps recurring matched values correlated, and `SnapshotScrubberState` for stable indexed-token assignment across recurring values. `Scrubbers.Combine(params SnapshotScrubber[])` *(v0.3.0+)* assembles an array of scrubbers into a single composite for reusable bundles.
@@ -30,11 +31,8 @@ Framework-agnostic core for text-snapshot assertions.
 | Package | Test framework | Status |
 |---|---|---|
 | [`SnapshotAssertions.TUnit`](https://www.nuget.org/packages/SnapshotAssertions.TUnit/) | TUnit | Available now |
-| `SnapshotAssertions.NUnit` | NUnit | Possible if there is demand |
-| `SnapshotAssertions.xUnit` | xUnit | Possible if there is demand |
-| `SnapshotAssertions.MSTest` | MSTest | Possible if there is demand |
 
-If you'd find a non-TUnit adapter useful, [open a feature request](https://github.com/JohnVerheij/SnapshotAssertions.TUnit/issues/new?template=feature_request.yml): adapters are not built proactively.
+Adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned; the family targets TUnit.
 
 ## Installation
 
@@ -46,7 +44,7 @@ dotnet add package SnapshotAssertions.TUnit
 
 ## Stability
 
-The public surfaces above are semver-bound. Breaking changes require a major version bump. The exact text format of line-based diff output is **not stable** and may gain extra detail or change formatting in any release.
+Before 1.0, a minor version can contain breaking changes, each marked **BREAKING** in the CHANGELOG; renaming or removing one of the intended-stable types listed in the [full README](https://github.com/JohnVerheij/SnapshotAssertions.TUnit#stability-intent-pre-10) would need a major version even before 1.0. The exact text format of line-based diff output is **not stable** and may gain extra detail or change formatting in any release.
 
 ## License
 

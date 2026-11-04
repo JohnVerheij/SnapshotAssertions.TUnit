@@ -15,6 +15,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-04: document using existing golden files
+
+Patch release. Documentation, the accept guidance in the failure messages and the TUnit dependency floor; no API change.
+
+### Changed
+
+- **`MatchesSnapshotFile`** documentation now says a baseline is the plain expected text in any file, so the golden files a suite already keeps work as they are (UTF-8, or the encoding a leading byte-order mark declares). A new README section, "Using existing golden files", maps a hand-rolled golden helper to the package (a fixture folder in the source tree, comparison after line-ending normalization, an update flag, a missing-golden error, an actual file on failure). The package READMEs and the `SnapshotAssertions.TUnit` description say the same.
+- **`SnapshotOptions.NormalizedLineEndings`** and **`SnapshotLineEndingMode.IgnoreLineEndings`** documentation now says line breaks are removed before comparing, so blank lines and where lines break are ignored. `IgnoreLineEndings` keeps a final newline as one LF unless the trailing-newline policy is `Optional`; the preset sets `Optional`, so its written actual file and accepted baseline have no line breaks.
+- **`SnapshotLineEndingMode.NormalizeToLF`** is now what the cross-platform recipes in the cookbook and troubleshooting use (`SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.NormalizeToLF }`), instead of `SnapshotOptions.NormalizedLineEndings`.
+- **`SnapshotLineEndingMode.Ordinal`** documentation now says that under `SnapshotTrailingNewline.Optional` the final line's ending is not compared.
+- **`SnapshotBomHandling`** and **`SnapshotOptions.Default`** documentation now says a byte-order mark at the start of the baseline file is consumed when the file is read and never compared, and that `BomHandling` applies to a leading U+FEFF on both compared sides. It previously said the default preserves the BOM or compares everything as-is, and that `PreserveBom` makes a file's BOM count.
+- **`SnapshotFileResolver.ResolveByFile`** XML docs now name the actual file for a custom path (`.actual` inserted before the extension, or appended when there is none; the `.expected.txt` match is case-sensitive) instead of always `.actual.txt`; the `SnapshotResult`, `SnapshotAssertion`, `SnapshotEvaluator` and `SnapshotFileResolver` docs refer to it.
+- **`.gitignore`** recommendation in the README now ignores `*.actual.*` and `*.actual` instead of `*.actual.txt`, so the actual files of custom paths are ignored too, and keeps `*.expected.txt`, so an `.expected.txt` baseline whose name contains `.actual.` (such as `.WithName("Order.actual")`) is still committed. The broader patterns can also match a custom-path baseline or folder whose name contains `.actual`; the README shows how to check with `git check-ignore -v`.
+- **`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`** documentation now gives the rule accept mode uses to find the source `Snapshots/` folder: the nearest folder above the test binary that contains a `.csproj` file (`.fsproj` and `.vbproj` are not recognized), so an output directory outside the project folder (for example `UseArtifactsOutput`) writes elsewhere. The README previously said the source location was compiled in.
+- **`SNAPSHOT_ACCEPT`** documentation now says accept mode writes the normalized content as UTF-8 and also creates missing baselines, describes the CI guard as `CI` being `1`, `true` or `yes` (Azure Pipelines does not set it), and shows how a pipeline step that regenerates baselines on purpose sets `CI` to a non-truthy value for that step only. The bulk accept also shows the PowerShell form.
+- **`SNAPSHOT_ACCEPT`** bootstrapping guidance in the README now says a new test's default-named baseline is written into the `Snapshots/` folder next to the nearest `.csproj` above the test binary, normally the source folder. It previously said to move the file back from the test binary's directory.
+- **`SnapshotAssertions.TUnit.targets`** guidance in the README now says NuGet imports the build targets by default only into a project that references `SnapshotAssertions.TUnit` directly, and to add a direct `PackageReference` when the test project gets the package through another project.
+- **`.gitattributes`** guidance in the README now includes converting baselines that are already committed and checked out.
+- **`.gitattributes`** guidance in the README now limits the `text eol=lf` rule to UTF-8 files: Git converts line endings byte by byte, so a UTF-16 or UTF-32 file is converted to UTF-8 first or kept out of the rule.
+- **`SnapshotAssertionsAutoIncludeSnapshots`** opt-out in the README now shows the full `<None>` item: `CopyToOutputDirectory`, and a `Link` into the output's `Snapshots/` folder where default-named baselines are read. It also says accept mode still writes to the project's `Snapshots/` folder. It previously said to add a `<None Include>` without either.
+- **`[Arguments]`** documentation now says class-level (constructor) arguments are not part of the hash in the snapshot file name, so rows that differ only in those arguments share one baseline file. To separate them, pass `.WithName(...)` a name built from the class and method names, the class arguments and any method arguments, because an explicit name replaces the whole default name.
+- **`SnapshotAssertions`** package README now describes `SnapshotComparer`, `SnapshotEvaluator`, `SnapshotFileResolver` and `SnapshotAcceptMode` as they behave.
+- **`SnapshotAssertions`** package README stability note now says a minor version before 1.0 can contain breaking changes, while renaming or removing one of the intended-stable types listed in the main README needs a major version, as the main README says.
+- **`SnapshotAssertions`** package README, its NuGet description and the main README now say adapters for other test frameworks (NUnit, xUnit, MSTest) are not planned. The package README and the NuGet description previously listed them as possible if there was demand, and the main README invited a feature request for one.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.77.0 to 1.78.0.
+
+### Fixed
+
+- **`SnapshotResult.Describe`**: the accept guidance in the failure messages now says to copy the actual file to the expected path and, for an `.expected.txt` file in the build output's `Snapshots/` folder, to the matching path in the project's `Snapshots/` folder. The no-baseline message said to rename the actual file to `.expected.txt`, which does not create a baseline at a custom path with another extension (such as `insert-line.golden.txt`), and for a default-named snapshot both messages pointed at the copy in the build output, which left the committed baseline unchanged.
+
 ## [0.8.0] - 2026-11-01: Forbidden trailing-newline policy enforced
 
 Minor release. `SnapshotTrailingNewline.Forbidden` now enforces the check its documentation described, and the TUnit dependency floor moves to 1.77.0. No public API shape change.
@@ -168,7 +198,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.6.2...v0.7.0

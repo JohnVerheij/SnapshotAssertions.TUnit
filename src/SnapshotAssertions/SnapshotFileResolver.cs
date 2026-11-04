@@ -11,11 +11,12 @@ namespace SnapshotAssertions;
 /// <summary>
 /// Path resolution for snapshot files. Computes the expected file path given a directory and
 /// either an explicit name or a (test class, test method) pair, plus the matching
-/// <c>.actual.txt</c> sibling path.
+/// sibling path of the actual file (<c>.actual.txt</c>; <see cref="ResolveByFile(string)"/> names it for a custom path).
 /// </summary>
 /// <remarks>
-/// All paths returned are absolute. The resolver does not touch the filesystem; the caller is
-/// responsible for ensuring the directory exists when writing the actual file.
+/// All paths returned are absolute. Only <see cref="TryResolveSourceSnapshotsDirectory"/> reads the filesystem
+/// (it looks for a project file); the caller is responsible for ensuring the directory exists when writing the
+/// actual file.
 /// </remarks>
 public static class SnapshotFileResolver
 {
@@ -26,8 +27,9 @@ public static class SnapshotFileResolver
     /// no-baseline.</summary>
     public const string ActualExtension = ".actual.txt";
 
-    /// <summary>The default subdirectory (relative to the test binary's directory) where
-    /// snapshot files are read from and written to.</summary>
+    /// <summary>The default subdirectory, relative to the test binary's directory, where baselines are read
+    /// from and actual files are written. The TUnit adapter's accept mode writes baselines to the source-tree folder
+    /// of the same name instead (<see cref="TryResolveSourceSnapshotsDirectory"/>).</summary>
     public const string DefaultSnapshotsFolder = "Snapshots";
 
     /// <summary>
@@ -96,7 +98,8 @@ public static class SnapshotFileResolver
     /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
     /// machines for the same argument values, so each parameterized variant gets its own distinct
     /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
-    /// snapshot file.</param>
+    /// snapshot file. Only the arguments passed here are hashed: the TUnit adapter passes the test method's
+    /// arguments, not class-level (constructor) arguments.</param>
     /// <returns>The expected and actual paths.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
@@ -202,9 +205,10 @@ public static class SnapshotFileResolver
     /// </summary>
     /// <param name="expectedFilePath">The path to the expected file (absolute or relative).</param>
     /// <returns>The expected and actual paths. The actual path is the expected path with the
-    /// <see cref="ExpectedExtension"/> suffix replaced by <see cref="ActualExtension"/>; if
-    /// the path does not end in the expected extension, <see cref="ActualExtension"/> is
-    /// appended to the expected path's stem.</returns>
+    /// <see cref="ExpectedExtension"/> suffix (matched case-sensitively) replaced by <see cref="ActualExtension"/>; if
+    /// the path does not end in the expected extension, <c>.actual</c> is inserted before its
+    /// final extension (<c>payload.json</c> becomes <c>payload.actual.json</c>), or appended when
+    /// it has none (<c>payload</c> becomes <c>payload.actual</c>).</returns>
     /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
     public static SnapshotPaths ResolveByFile(string expectedFilePath)
     {
@@ -250,7 +254,7 @@ public static class SnapshotFileResolver
     /// <summary>
     /// Resolves the <em>source-tree</em> snapshots directory: the committable
     /// <c>Snapshots/</c> folder that lives next to the test project file, rather than the
-    /// runtime copy under <c>bin/</c>. Used by accept-mode so that an accepted baseline is
+    /// runtime copy under <c>bin/</c>. Used by the TUnit adapter's accept mode so that an accepted baseline is
     /// written where it is committed and read from, not into the build output where it is
     /// discarded on the next clean.
     /// </summary>
@@ -261,15 +265,18 @@ public static class SnapshotFileResolver
     /// <c>bin/</c> via the package's include glob. The accept write target is resolved by
     /// walking up from <paramref name="startDirectory"/> (typically
     /// <see cref="AppContext.BaseDirectory"/>) to the nearest ancestor that contains a
-    /// <c>*.csproj</c> file, then appending <see cref="DefaultSnapshotsFolder"/>. That ancestor
-    /// is the directory the build's include glob is relative to, so the accept write lands in
-    /// the exact folder the next build copies back into <c>bin/</c>.
+    /// <c>*.csproj</c> file (<c>*.fsproj</c> and <c>*.vbproj</c> are not recognized), then appending
+    /// <see cref="DefaultSnapshotsFolder"/>. With the default output
+    /// layout (<c>bin/</c> under the project), that ancestor is the test project, the directory the build's
+    /// include glob is relative to, so the accept write lands in the exact folder the next build copies back
+    /// into <c>bin/</c>. An output directory outside the project folder (for example
+    /// <c>UseArtifactsOutput</c>) finds no project or an unrelated one higher up.
     /// </para>
     /// <para>
     /// When no ancestor project file can be found (for example, a single-file publish where the
-    /// source tree is not present), the method returns <see langword="null"/>: the caller falls
-    /// back to the runtime directory so accept-mode still produces a file, even if it is not in
-    /// the source tree.
+    /// source tree is not present), the method returns <see langword="null"/>: the TUnit adapter falls
+    /// back to the <c>Snapshots/</c> folder in <see cref="AppContext.BaseDirectory"/> so accept-mode still produces
+    /// a file, even if it is not in the source tree.
     /// </para>
     /// </remarks>
     /// <param name="startDirectory">The directory to start the upward search from (typically

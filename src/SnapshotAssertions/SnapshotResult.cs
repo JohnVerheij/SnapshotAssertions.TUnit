@@ -29,7 +29,7 @@ public sealed record SnapshotResult
     /// <summary>Absolute path to the expected baseline file. Always populated.</summary>
     public string ExpectedFilePath { get; }
 
-    /// <summary>Absolute path to the written <c>.actual.txt</c> file when
+    /// <summary>Absolute path to the written actual file (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) when
     /// <see cref="Outcome"/> is <see cref="SnapshotMatchOutcome.Mismatched"/> or
     /// <see cref="SnapshotMatchOutcome.NoBaseline"/>; <see langword="null"/> otherwise.</summary>
     public string? ActualFilePath { get; }
@@ -57,7 +57,7 @@ public sealed record SnapshotResult
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.Mismatched"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to the expected file.</param>
-    /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file.</param>
+    /// <param name="actualFilePath">Absolute path to the written actual file (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path).</param>
     /// <param name="diff">Rendered line-based diff for failure-message display.</param>
     /// <returns>A failing result describing the mismatch.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
@@ -71,8 +71,10 @@ public sealed record SnapshotResult
 
     /// <summary>Constructs a <see cref="SnapshotMatchOutcome.NoBaseline"/> result.</summary>
     /// <param name="expectedFilePath">Absolute path to where the expected file would be.</param>
-    /// <param name="actualFilePath">Absolute path to the written <c>.actual.txt</c> file the
-    /// caller can inspect and rename to <c>.expected.txt</c> to accept.</param>
+    /// <param name="actualFilePath">Absolute path to the written actual file (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) the
+    /// caller can inspect and copy to the expected path to accept (for an <c>.expected.txt</c> file in the build
+    /// output's <c>Snapshots/</c> folder, to the matching path in the project's <c>Snapshots/</c> folder
+    /// instead).</param>
     /// <returns>A failing result describing the missing baseline.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     public static SnapshotResult NoBaseline(string expectedFilePath, string actualFilePath)
@@ -127,7 +129,8 @@ public sealed record SnapshotResult
                 writer.Write("  Actual:   ");
                 writer.WriteLine(ActualFilePath);
                 writer.WriteLine();
-                writer.WriteLine("Inspect the actual file and rename it to .expected.txt to accept it as the baseline,");
+                writer.WriteLine("To accept it as the baseline, inspect the actual file and copy it to the expected path");
+                writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, to the matching path in the project's Snapshots/ folder instead),");
                 writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
                 break;
             case SnapshotMatchOutcome.Mismatched:
@@ -145,7 +148,8 @@ public sealed record SnapshotResult
                     WriteDiffSuggestions(writer, Diff);
                 }
                 writer.WriteLine();
-                writer.WriteLine("To accept the change, rename the actual file over the expected file,");
+                writer.WriteLine("To accept the change, copy the actual file over the expected file");
+                writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, over the one at the matching path in the project's Snapshots/ folder),");
                 writer.WriteLine("or set SNAPSHOT_ACCEPT=1 (in a non-CI shell) to accept automatically.");
                 break;
         }

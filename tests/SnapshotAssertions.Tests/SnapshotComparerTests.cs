@@ -255,6 +255,36 @@ internal sealed class SnapshotComparerTests
         await Assert.That(SnapshotComparer.AreEqual("a\nb\n", "a\r\nb", options)).IsFalse();
     }
 
+    /// <summary>The normalized form under <c>IgnoreLineEndings</c>, which the evaluator writes to the actual file and an
+    /// accepted baseline: line breaks and blank lines are removed, a final newline is kept as one LF under the default
+    /// <see cref="SnapshotTrailingNewline.Required"/>, and the <see cref="SnapshotOptions.NormalizedLineEndings"/>
+    /// preset (<see cref="SnapshotTrailingNewline.Optional"/>) drops it. The README and the
+    /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> docs describe these exact forms.</summary>
+    [Test]
+    public async Task IgnoreLineEndings_NormalizedForm_KeepsFinalNewlineUnlessOptional(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var required = SnapshotOptions.Default with { LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings };
+        await Assert.That(SnapshotComparer.Normalize("a\nb\n", required)).IsEqualTo("ab\n");
+        await Assert.That(SnapshotComparer.Normalize("a\r\nb\n\nc\r\n", required)).IsEqualTo("abc\n");
+        await Assert.That(SnapshotComparer.Normalize("a\nb", required)).IsEqualTo("ab");
+        await Assert.That(SnapshotComparer.Normalize("a\r\nb\n\nc\r\n", SnapshotOptions.NormalizedLineEndings)).IsEqualTo("abc");
+    }
+
+    /// <summary><see cref="SnapshotBomHandling"/> applies to both operands: <c>StripBom</c> also removes a leading
+    /// U+FEFF from the expected side, and <c>PreserveBom</c> keeps it on both sides, so two contents that both
+    /// start with one match.</summary>
+    [Test]
+    public async Task BomHandling_AppliesToBothOperands(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Assert.That(SnapshotComparer.AreEqual("hello\n", Bom + "hello\n", SnapshotOptions.Default)).IsTrue();
+        var preserve = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+        await Assert.That(SnapshotComparer.Normalize(Bom + "hello\n", preserve)).IsEqualTo(Bom + "hello\n");
+        await Assert.That(SnapshotComparer.AreEqual(Bom + "hello\n", Bom + "hello\n", preserve)).IsTrue();
+        await Assert.That(SnapshotComparer.AreEqual("hello\n", Bom + "hello\n", preserve)).IsFalse();
+    }
+
     /// <summary>An invalid enum value for <c>TrailingNewline</c> falls through the switch
     /// statement to the default branch, throwing <see cref="ArgumentOutOfRangeException"/>.
     /// Covers the defensive default arm.</summary>
