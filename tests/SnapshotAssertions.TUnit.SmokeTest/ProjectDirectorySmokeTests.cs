@@ -6,7 +6,8 @@ namespace Smoke.Consumer;
 /// folder (see its <c>OutputPath</c>), the layout where the old walk-up from the output directory could not find
 /// the project. Accept mode itself cannot run here: it needs <c>SNAPSHOT_ACCEPT</c> in the process environment
 /// (not settable without leaking into parallel tests) and is refused when <c>CI</c> is set, so this test
-/// asserts the option the accept path reads, in the managed run and in the Native AOT run alike.
+/// asserts the option the accept path reads, in the managed run and in the Native AOT run alike, and the failure
+/// message line that names the baseline in the project's <c>Snapshots/</c> folder.
 /// </summary>
 [Category("ConsumerSurface")]
 [Timeout(15_000)]
@@ -34,9 +35,38 @@ internal sealed class ProjectDirectorySmokeTests
     public async Task BuildOutput_IsOutsideTheRecordedProjectDirectory(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var projectDirectory = Path.GetFullPath((AppContext.GetData(ProjectDirectoryKey) as string)!);
+        var projectDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath((AppContext.GetData(ProjectDirectoryKey) as string)!));
         var outputDirectory = Path.GetFullPath(AppContext.BaseDirectory);
 
-        await Assert.That(outputDirectory.StartsWith(projectDirectory, StringComparison.OrdinalIgnoreCase)).IsFalse();
+        // Compare with a trailing separator, so a sibling folder whose name starts with the project's is not inside it.
+        await Assert.That(outputDirectory.StartsWith(projectDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)).IsFalse();
+    }
+
+    /// <summary>A <c>.WithName(...)</c> snapshot without a baseline fails with a message that names the baseline's path
+    /// in the recorded project's <c>Snapshots/</c> folder, for the string and the renderer assertion alike.</summary>
+    [Test]
+    public async Task FailureMessage_NamesTheProjectBaseline(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var projectDirectory = Path.GetFullPath((AppContext.GetData(ProjectDirectoryKey) as string)!);
+        var name = "ProjectBaselineSmoke_" + Guid.NewGuid().ToString("N");
+        var expectedLine = "Project baseline: " + Path.Combine(projectDirectory, "Snapshots", name + ".expected.txt");
+        var actualPath = Path.Combine(AppContext.BaseDirectory, "Snapshots", name + ".actual.txt");
+        var content = "no baseline\n";
+        var value = 1;
+        try
+        {
+            var text = await Assert.That(async () => await Assert.That(content).MatchesSnapshot().WithName(name))
+                .Throws<TUnit.Assertions.Exceptions.AssertionException>();
+            var rendered = await Assert.That(async () => await Assert.That(value).MatchesSnapshot(static _ => "value\n").WithName(name))
+                .Throws<TUnit.Assertions.Exceptions.AssertionException>();
+
+            await Assert.That(text!.Message).Contains(expectedLine);
+            await Assert.That(rendered!.Message).Contains(expectedLine);
+        }
+        finally
+        {
+            File.Delete(actualPath);
+        }
     }
 }

@@ -406,6 +406,34 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
     }
 
+    /// <summary>An empty golden file, or one shorter than the byte-order mark it starts like, is read as UTF-8 (an
+    /// incomplete sequence decodes as U+FFFD); a file that is only a mark reads as empty under StripBom and as a lone
+    /// U+FEFF under PreserveBom. <c>FF FE 00 00</c> is the UTF-32 little-endian mark, not UTF-16 followed by U+0000.</summary>
+    [Test]
+    [Arguments("", "", "")]
+    [Arguments("FF", "\uFFFD", "\uFFFD")]
+    [Arguments("EFBB", "\uFFFD", "\uFFFD")]
+    [Arguments("EFBBBF", "", "\uFEFF")]
+    [Arguments("FFFE", "", "\uFEFF")]
+    [Arguments("FEFF", "", "\uFEFF")]
+    [Arguments("FFFE0000", "", "\uFEFF")]
+    [Arguments("0000FEFF", "", "\uFEFF")]
+    public async Task ShortOrMarkOnlyGolden_IsReadWithoutError(string hex, string stripped, string preserved, CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(Path.Combine(dir, "short.expected.txt"), Path.Combine(dir, "short.actual.txt"));
+        await File.WriteAllBytesAsync(paths.ExpectedFilePath, Convert.FromHexString(hex), cancellationToken).ConfigureAwait(false);
+        var preserve = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var strippedResult = await SnapshotEvaluator.EvaluateAsync(stripped, paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var preservedResult = await SnapshotEvaluator.EvaluateAsync(preserved, paths, preserve,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(strippedResult.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+        await Assert.That(preservedResult.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
     /// <summary>A golden file in UTF-16 or UTF-32 (either byte order) with its byte-order mark is decoded with that
     /// encoding: the mark is consumed under StripBom, and counts as a leading U+FEFF under PreserveBom.</summary>
     [Test]

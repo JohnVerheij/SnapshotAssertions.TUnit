@@ -96,11 +96,17 @@ public static class SnapshotFileResolver
     /// expanded element-by-element as <c>[item1,item2,...]</c> (recursively, so nested collections
     /// expand too), and any other type falls back to
     /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
-    /// machines for the same argument values, so each parameterized variant gets its own distinct
-    /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
-    /// snapshot file. This overload hashes only the method arguments; to include class-level (constructor)
-    /// arguments use the overload that takes <c>testClassArguments</c>, which the TUnit adapter calls.</param>
+    /// machines for the same argument values, so parameterized variants with different argument texts get
+    /// distinct snapshot files; changing a collection argument's elements changes the hash, and therefore the
+    /// snapshot file.</param>
     /// <returns>The expected and actual paths.</returns>
+    /// <remarks>
+    /// This overload hashes only the method arguments; to include class-level (constructor) arguments, use the
+    /// overload that takes <c>testClassArguments</c>, which the TUnit adapter calls.
+    /// The argument texts are joined without escaping, so two rows whose texts are equal share one name, for
+    /// example <see langword="null"/> and the string <c>"null"</c>, or the rows <c>("a|b", "c")</c> and
+    /// <c>("a", "b|c")</c>; resolve such rows with <see cref="ResolveByName"/> and a name of your own.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
@@ -128,10 +134,11 @@ public static class SnapshotFileResolver
     /// class-level <c>[Arguments]</c>), or <see langword="null"/>. Only value-like arguments are hashed: a
     /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> (by its
     /// string form, the full type name), an <see cref="IFormattable"/> (all numeric types, enums,
-    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and a collection (<see cref="IEnumerable"/> other than a string) whose
-    /// elements are all value-like, recursively. Every other argument, such as a fixture object injected by
-    /// <c>[ClassDataSource]</c>, is skipped, because its <c>ToString</c> is not a stable key; the check uses type
-    /// tests only. A collection that contains one non-value-like element is skipped as a whole, so the result never
+    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and an array or other
+    /// <see cref="ICollection"/> (such as a <see cref="List{T}"/>) whose elements are all value-like, recursively.
+    /// Every other argument, such as a fixture object injected by <c>[ClassDataSource]</c> or a sequence that only
+    /// implements <see cref="IEnumerable"/>, is skipped without being enumerated, because its <c>ToString</c> is
+    /// not a stable key. A collection that contains one non-value-like element is skipped as a whole, so the result never
     /// depends on how much of a collection happens to be hashable. The hashed arguments are stringified like method
     /// arguments (see <paramref name="testMethodArguments"/>), joined with <c>"|"</c>, hashed with SHA-256, and
     /// the first 8 hex characters are used.</param>
@@ -145,6 +152,11 @@ public static class SnapshotFileResolver
     /// <see cref="IEnumerable"/> is expanded element-by-element as <c>[item1,item2,...]</c> (recursively), and
     /// any other type falls back to <see cref="Convert.ToString(object?, IFormatProvider?)"/>.</param>
     /// <returns>The expected and actual paths.</returns>
+    /// <remarks>
+    /// The argument texts are joined without escaping, so two rows whose texts are equal share one name, for
+    /// example <see langword="null"/> and the string <c>"null"</c>, or the rows <c>("a|b", "c")</c> and
+    /// <c>("a", "b|c")</c>; resolve such rows with <see cref="ResolveByName"/> and a name of your own.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
@@ -200,8 +212,10 @@ public static class SnapshotFileResolver
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
     /// <see langword="null"/>, a <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a
-    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or a collection whose elements are all value-like: every
-    /// kind of value an attribute argument can hold. Uses type tests only (no reflection).
+    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or an array or other <see cref="ICollection"/> whose
+    /// elements are all value-like: every kind of value an attribute argument can hold. Uses type tests and, for a
+    /// collection, one pass over its elements (no reflection); a sequence that only implements
+    /// <see cref="IEnumerable"/> is not enumerated.
     /// </summary>
     /// <param name="arg">The argument to test.</param>
     /// <returns><see langword="true"/> if the argument may be hashed.</returns>
@@ -210,10 +224,10 @@ public static class SnapshotFileResolver
         if (arg is null or string or bool or char or Type or IFormattable)
             return true;
 
-        if (arg is not IEnumerable enumerable)
+        if (arg is not ICollection collection)
             return false;
 
-        foreach (var item in enumerable)
+        foreach (var item in collection)
         {
             if (!IsValueLike(item))
                 return false;

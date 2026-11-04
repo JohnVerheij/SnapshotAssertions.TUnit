@@ -1,4 +1,7 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -149,6 +152,54 @@ internal sealed class SnapshotFileResolverTests
         await Assert.That(Name(true)).Matches("^C\\.[0-9A-F]{8}\\.M$");
         await Assert.That(Name(new object[] { true })).IsNotEqualTo(Name(new object[] { false }));
         await Assert.That(Name(new object[] { true })).Matches("^C\\.[0-9A-F]{8}\\.M$");
+    }
+
+    /// <summary>The names are pinned literally: the first 8 hex characters of the SHA-256 of the argument text, so a
+    /// change to the key would rename every baseline and must fail here.</summary>
+    [Test]
+    public async Task ResolveByTest_ClassAndMethodHashes_LiteralNamesPinned(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await Assert.That(NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { "alpha" }, "M", null)))
+            .IsEqualTo("C.8ED3F6AD.M");
+        await Assert.That(NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", "M", MethodArgsFive)))
+            .IsEqualTo("C.M.EF2D127D");
+    }
+
+    /// <summary>Class and method arguments are formatted with the invariant culture: under nl-NL, whose decimal
+    /// separator is a comma, 1.5 still hashes as "1.5".</summary>
+    [Test]
+    public async Task ResolveByTest_ClassAndMethodHashes_IgnoreCurrentCulture(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
+        try
+        {
+            var paths = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { 1.5m }, "M", new object?[] { 1.5d });
+
+            await Assert.That(NameOf(paths)).IsEqualTo("C.9F29A130.M.9F29A130");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    /// <summary>A class argument that only implements <see cref="IEnumerable"/> (a fixture or a lazy sequence) is
+    /// skipped without being enumerated, while a list is hashed by content like an array.</summary>
+    [Test]
+    public async Task ResolveByTest_SequenceClassArgument_SkippedWithoutEnumerating(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var sequence = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new SequenceFixture() }, "M", null);
+        var list = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new List<int> { 1, 2 } }, "M", null);
+        var array = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", ArgsOneTwo, "M", null);
+
+        await Assert.That(NameOf(sequence)).IsEqualTo("C.M");
+        await Assert.That(list.ExpectedFilePath).IsEqualTo(array.ExpectedFilePath);
+        await Assert.That(NameOf(list)).Matches("^C\\.[0-9A-F]{8}\\.M$");
     }
 
     /// <summary>The five-parameter overload validates its names like the four-parameter one.</summary>
@@ -367,6 +418,14 @@ internal sealed class SnapshotFileResolverTests
     private sealed class CustomArg
     {
         public override string ToString() => "custom-token";
+    }
+
+    /// <summary>A fixture that is a sequence: enumerating it fails the test.</summary>
+    private sealed class SequenceFixture : IEnumerable
+    {
+        /// <inheritdoc/>
+        public IEnumerator GetEnumerator() =>
+            throw new InvalidOperationException("A class argument that only implements IEnumerable must not be enumerated.");
     }
 
     /// <summary>TryResolveSourceSnapshotsDirectory walks up from a bin-like runtime directory to
