@@ -338,7 +338,7 @@ internal sealed class ScrubbersTests
     public async Task Combine_EmptyArray_Apply_NullInputThrowsArgumentNull(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        // Pins that the identity-scrubber returned for an empty array honours the
+        // Pins that the identity-scrubber returned for an empty array honors the
         // SnapshotScrubber.Apply non-null contract on its input argument; the input null-check
         // branch in IdentityScrubber.Apply is otherwise unreachable from valid client code.
         var scrubber = Scrubbers.Combine();

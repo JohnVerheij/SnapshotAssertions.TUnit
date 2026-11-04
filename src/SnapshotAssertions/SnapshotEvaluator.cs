@@ -170,7 +170,7 @@ public static class SnapshotEvaluator
         finally
         {
             // On success the temp was renamed away and this is a no-op; on any failure (a throwing or
-            // cancelled write, or a failed move) it removes the leftover temp so the snapshots directory
+            // canceled write, or a failed move) it removes the leftover temp so the snapshots directory
             // is never littered.
             DeleteIfExists(tempPath);
         }

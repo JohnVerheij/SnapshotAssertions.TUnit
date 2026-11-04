@@ -33,7 +33,7 @@ public sealed class SnapshotAssertion : Assertion<string>
     private SnapshotOptions _options = SnapshotOptions.Default;
     private List<SnapshotScrubber>? _scrubbers;
 
-    /// <summary>Initialises the assertion. Called by the TUnit source generator.</summary>
+    /// <summary>Initializes the assertion. Called by the TUnit source generator.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     public SnapshotAssertion(AssertionContext<string> context) : base(context) { }
 

@@ -13,7 +13,7 @@ namespace SnapshotAssertions.Tests;
 [Timeout(5_000)]
 internal sealed class SnapshotAcceptModeTests
 {
-    /// <summary>Recognised truthy strings activate accept-mode.</summary>
+    /// <summary>Recognized truthy strings activate accept-mode.</summary>
     [Test]
     [Arguments("1")]
     [Arguments("true")]
@@ -22,7 +22,7 @@ internal sealed class SnapshotAcceptModeTests
     [Arguments("yes")]
     [Arguments("Yes")]
     [Arguments(" 1 ")]
-    public async Task TruthyStrings_AreRecognised(string value, CancellationToken cancellationToken)
+    public async Task TruthyStrings_AreRecognized(string value, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         await Assert.That(SnapshotAcceptMode.IsTruthy(value)).IsTrue();

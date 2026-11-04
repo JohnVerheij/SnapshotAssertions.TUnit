@@ -83,7 +83,7 @@ public static class SnapshotAcceptMode
         => IsTruthy(snapshotAcceptValue)
             && (IsTruthy(allowInCiValue) || !(IsTruthy(ciValue) || IsTruthy(azurePipelinesValue)));
 
-    /// <summary>Whether <paramref name="value"/> is one of the recognised truthy strings
+    /// <summary>Whether <paramref name="value"/> is one of the recognized truthy strings
     /// (<c>1</c>, <see langword="true"/>, <c>yes</c>; case-insensitive). <see langword="null"/> and empty
     /// strings are falsy.</summary>
     /// <param name="value">The value to classify.</param>

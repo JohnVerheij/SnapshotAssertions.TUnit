@@ -700,7 +700,7 @@ public async Task Public_api_surface_matches_baseline()
 }
 ```
 
-**Pin a rendered-text artefact (e.g., audit log, generated SQL, formatted report):**
+**Pin a rendered-text artifact (e.g., audit log, generated SQL, formatted report):**
 
 ```csharp
 [Test]
@@ -1024,7 +1024,7 @@ internal sealed partial class PortScrubber : SnapshotScrubber
 }
 ```
 
-*Example 4 (parameterised variant): `NumericTokenScrubber`* (constructor-captured prefix, dynamic kind name). Useful for monotonic counters like `CycleId=42`, `SampleId=7`, `OrderId=1001`. The prefix is captured in a constructor field so multiple instances with different prefixes do not share an index space.
+*Example 4 (parameterized variant): `NumericTokenScrubber`* (constructor-captured prefix, dynamic kind name). Useful for monotonic counters like `CycleId=42`, `SampleId=7`, `OrderId=1001`. The prefix is captured in a constructor field so multiple instances with different prefixes do not share an index space.
 
 ```csharp
 internal sealed class NumericTokenScrubber : SnapshotScrubber
@@ -1318,7 +1318,7 @@ For per-package release notes:
 - **[`MathAssertions.TUnit`](https://www.nuget.org/packages/MathAssertions.TUnit/)**:
   tolerance-aware numeric and geometric assertions over the BCL and `System.Numerics` types.
   Mixes freely with snapshot assertions in multi-assertion tests for numerically-rich
-  rendered artefacts.
+  rendered artifacts.
 - **[`JsonAssertions.TUnit`](https://www.nuget.org/packages/JsonAssertions.TUnit/)**:
   fluent JSON assertions over `System.Text.Json`, HTTP response bodies (including RFC 7807
   ProblemDetails), and source-generated `JsonSerializerContext` registration.

@@ -78,7 +78,7 @@ internal static class SnapshotAssertionImpl
     }
 
     /// <summary>
-    /// Resolves the expected / actual file paths for a snapshot. Honours an explicit file
+    /// Resolves the expected / actual file paths for a snapshot. Honors an explicit file
     /// path or explicit name; otherwise derives the name from the active TUnit test context.
     /// </summary>
     /// <remarks>

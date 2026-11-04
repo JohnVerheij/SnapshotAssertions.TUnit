@@ -26,7 +26,7 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
     private SnapshotOptions _options = SnapshotOptions.Default;
     private List<SnapshotScrubber>? _scrubbers;
 
-    /// <summary>Initialises the renderer-projected assertion.</summary>
+    /// <summary>Initializes the renderer-projected assertion.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     /// <param name="renderer">The renderer projecting <typeparamref name="T"/> to a
     /// canonical string. Must not be <see langword="null"/>.</param>

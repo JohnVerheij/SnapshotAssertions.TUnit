@@ -8,7 +8,7 @@ namespace SnapshotAssertions;
 /// explicitly via the convenience presets or by mutating the properties directly.
 /// </summary>
 /// <remarks>
-/// The default options preserve the captured artefact as-is, with one minor exception: a
+/// The default options preserve the captured artifact as-is, with one minor exception: a
 /// leading byte-order mark is ignored
 /// (<see cref="BomHandling"/> defaults to <see cref="SnapshotBomHandling.StripBom"/>). All
 /// other content: line endings, per-line trailing whitespace, end-of-file trailing-newline

@@ -166,7 +166,7 @@ internal sealed class MatchesSnapshotRendererTests
 
     /// <summary>Source func that throws: the renderer-projected assertion's <c>CheckAsync</c>
     /// short-circuits to an <c>AssertionResult.Failed</c> that names the thrown type, mirroring
-    /// the string-source <c>SnapshotAssertion</c> behaviour. Pins the exception-from-source
+    /// the string-source <c>SnapshotAssertion</c> behavior. Pins the exception-from-source
     /// branch of <c>RenderedSnapshotAssertion.CheckAsync</c>.</summary>
     [Test]
     public async Task RendererOverload_SourceThrows_FailsWithThrownExceptionTypeInMessage(CancellationToken cancellationToken)

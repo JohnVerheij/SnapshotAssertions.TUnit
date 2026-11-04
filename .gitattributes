@@ -1,4 +1,4 @@
-# Default behaviour: normalize text files to LF on commit, restore native on checkout
+# Default behavior: normalize text files to LF on commit, restore native on checkout
 * text=auto eol=lf
 
 # Explicit text files (always normalize)
