@@ -43,11 +43,13 @@ internal sealed class ProjectDirectorySmokeTests
     }
 
     /// <summary>A <c>.WithName(...)</c> snapshot without a baseline fails with a message that names the baseline's path
-    /// in the recorded project's <c>Snapshots/</c> folder, for the string and the renderer assertion alike.</summary>
+    /// in the recorded project's <c>Snapshots/</c> folder, for the string and the renderer assertion alike. Skipped
+    /// when accept mode is on, because a missing baseline is then written into the project instead of failing.</summary>
     [Test]
     public async Task FailureMessage_NamesTheProjectBaseline(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Skip.When(SnapshotAssertions.SnapshotAcceptMode.IsActive(), "Accept mode would write the baseline into the project.");
         var projectDirectory = Path.GetFullPath((AppContext.GetData(ProjectDirectoryKey) as string)!);
         var name = "ProjectBaselineSmoke_" + Guid.NewGuid().ToString("N");
         var expectedLine = "Project baseline: " + Path.Combine(projectDirectory, "Snapshots", name + ".expected.txt");
@@ -56,13 +58,13 @@ internal sealed class ProjectDirectorySmokeTests
         var value = 1;
         try
         {
-            var text = await Assert.That(async () => await Assert.That(content).MatchesSnapshot().WithName(name))
+            var stringFailure = await Assert.That(async () => await Assert.That(content).MatchesSnapshot().WithName(name))
                 .Throws<TUnit.Assertions.Exceptions.AssertionException>();
-            var rendered = await Assert.That(async () => await Assert.That(value).MatchesSnapshot(static _ => "value\n").WithName(name))
+            var rendererFailure = await Assert.That(async () => await Assert.That(value).MatchesSnapshot(static _ => "value\n").WithName(name))
                 .Throws<TUnit.Assertions.Exceptions.AssertionException>();
 
-            await Assert.That(text!.Message).Contains(expectedLine);
-            await Assert.That(rendered!.Message).Contains(expectedLine);
+            await Assert.That(stringFailure!.Message).Contains(expectedLine);
+            await Assert.That(rendererFailure!.Message).Contains(expectedLine);
         }
         finally
         {

@@ -202,6 +202,27 @@ internal sealed class SnapshotFileResolverTests
         await Assert.That(NameOf(list)).Matches("^C\\.[0-9A-F]{8}\\.M$");
     }
 
+    /// <summary>A <see cref="HashSet{T}"/> implements only the generic <see cref="ICollection{T}"/>, so it is skipped
+    /// like a lazy sequence; a dictionary with entries is skipped as a whole, because its entries are not value-like;
+    /// an array that holds a lazy sequence is skipped without enumerating that sequence; an empty array is hashed as
+    /// the text <c>[]</c>.</summary>
+    [Test]
+    public async Task ResolveByTest_SetDictionaryAndEmptyClassArguments_PinnedNames(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var set = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { new HashSet<int> { 1 } }, "M", null);
+        var dictionary = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C",
+            new object?[] { new Dictionary<string, int>(StringComparer.Ordinal) { ["a"] = 1 } }, "M", null);
+        var arrayWithSequence = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C",
+            new object?[] { new object?[] { 1, new SequenceFixture() } }, "M", null);
+        var empty = SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { Array.Empty<int>() }, "M", null);
+
+        await Assert.That(NameOf(set)).IsEqualTo("C.M");
+        await Assert.That(NameOf(dictionary)).IsEqualTo("C.M");
+        await Assert.That(NameOf(arrayWithSequence)).IsEqualTo("C.M");
+        await Assert.That(NameOf(empty)).IsEqualTo("C.4F53CDA1.M");
+    }
+
     /// <summary>The five-parameter overload validates its names like the four-parameter one.</summary>
     [Test]
     public void ResolveByTest_ClassArgumentsOverload_RejectsBadNames(CancellationToken cancellationToken)

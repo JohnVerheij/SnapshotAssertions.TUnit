@@ -134,11 +134,13 @@ public static class SnapshotFileResolver
     /// class-level <c>[Arguments]</c>), or <see langword="null"/>. Only value-like arguments are hashed: a
     /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> (by its
     /// string form, the full type name), an <see cref="IFormattable"/> (all numeric types, enums,
-    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and an array or other
-    /// <see cref="ICollection"/> (such as a <see cref="List{T}"/>) whose elements are all value-like, recursively.
-    /// Every other argument, such as a fixture object injected by <c>[ClassDataSource]</c> or a sequence that only
-    /// implements <see cref="IEnumerable"/>, is skipped without being enumerated, because its <c>ToString</c> is
-    /// not a stable key. A collection that contains one non-value-like element is skipped as a whole, so the result never
+    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and an array or other collection
+    /// that implements the non-generic <see cref="ICollection"/> (such as a <see cref="List{T}"/>) whose elements are
+    /// all value-like, recursively. Every other argument, such as a fixture object injected by
+    /// <c>[ClassDataSource]</c>, a sequence that only implements <see cref="IEnumerable"/>, or a
+    /// <see cref="HashSet{T}"/> (it implements only the generic <see cref="ICollection{T}"/>), is skipped without
+    /// being enumerated, because its <c>ToString</c> is not a stable key. A collection that contains one
+    /// non-value-like element, such as a dictionary with entries, is skipped as a whole, so the result never
     /// depends on how much of a collection happens to be hashable. The hashed arguments are stringified like method
     /// arguments (see <paramref name="testMethodArguments"/>), joined with <c>"|"</c>, hashed with SHA-256, and
     /// the first 8 hex characters are used.</param>
@@ -212,8 +214,8 @@ public static class SnapshotFileResolver
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
     /// <see langword="null"/>, a <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a
-    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or an array or other <see cref="ICollection"/> whose
-    /// elements are all value-like: every kind of value an attribute argument can hold. Uses type tests and, for a
+    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or an array or other collection that implements the
+    /// non-generic <see cref="ICollection"/> whose elements are all value-like: every kind of value an attribute argument can hold. Uses type tests and, for a
     /// collection, one pass over its elements (no reflection); a sequence that only implements
     /// <see cref="IEnumerable"/> is not enumerated.
     /// </summary>
