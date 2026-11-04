@@ -215,9 +215,9 @@ public static class SnapshotFileResolver
     /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
     /// <see langword="null"/>, a <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a
     /// <see cref="Type"/>, an <see cref="IFormattable"/>, or an array or other collection that implements the
-    /// non-generic <see cref="ICollection"/> whose elements are all value-like: every kind of value an attribute argument can hold. Uses type tests and, for a
-    /// collection, one pass over its elements (no reflection); a sequence that only implements
-    /// <see cref="IEnumerable"/> is not enumerated.
+    /// non-generic <see cref="ICollection"/> whose elements are all value-like: every kind of value an attribute
+    /// argument can hold. Uses type tests and, for a collection, one pass over its elements (no reflection); a
+    /// sequence that only implements <see cref="IEnumerable"/> is not enumerated.
     /// </summary>
     /// <param name="arg">The argument to test.</param>
     /// <returns><see langword="true"/> if the argument may be hashed.</returns>
