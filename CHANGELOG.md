@@ -31,6 +31,7 @@ Minor release. `SnapshotOptions.NormalizedLineEndings` now means "CRLF and CR be
 - **BREAKING:** The default-named baselines of class-level `[Arguments]` rows now include a hash of the class arguments in the name (`{Class}.{ClassArgsHash8}.{Method}`), so each row gets its own file; they used to share one. A class whose only constructor argument is a fixture object, and method-only `[Arguments]` rows, keep their names. The `.WithName(...)` workaround from 0.8.1 is now optional.
 - **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
 - **Failure message** of a default-named or `.WithName(...)` baseline now ends with one more line, `Project baseline: <path>`, the absolute path the baseline has under the project's `Snapshots/` folder, when the build recorded the project directory and that folder still exists. The core message is unchanged, and a baseline set with `AtPath` or `MatchesSnapshotFile` gets no such line.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.78.0 to 1.80.0.
 
 ### Deprecated
 
