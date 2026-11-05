@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-11-04: line-ending preset, class-argument naming and accept-mode fixes
+## [0.9.0] - 2026-11-06: line-ending preset, class-argument naming and accept-mode fixes
 
 Minor release. `SnapshotOptions.NormalizedLineEndings` now means "CRLF and CR become LF, the final newline is ignored" instead of removing line breaks, and class-level `[Arguments]` rows get their own default-named baseline files; both are breaking for the baselines they affect, and each entry says how to migrate. `SnapshotLineEndingMode.IgnoreLineEndings` is deprecated and its written form keeps line breaks. The accept-mode CI guard also reads `TF_BUILD` and honors `SNAPSHOT_ACCEPT_IN_CI`, accept mode writes into the project's `Snapshots/` folder when the output is elsewhere, `PreserveBom` now keeps the baseline's byte-order mark, the accept-mode fallback and `TryResolveSourceSnapshotsDirectory` now recognize `.fsproj` and `.vbproj`, the build targets are packed under `buildTransitive/`, and the failure message names the project-side baseline.
 
