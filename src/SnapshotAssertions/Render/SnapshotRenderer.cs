@@ -23,13 +23,13 @@ namespace SnapshotAssertions.Render;
 /// </remarks>
 public abstract class SnapshotRenderer<T>
 {
-    /// <summary>Initialises a new renderer instance.</summary>
+    /// <summary>Initializes a new renderer instance.</summary>
     protected SnapshotRenderer() { }
 
     /// <summary>Renders <paramref name="value"/> as a canonical string suitable for snapshot
     /// comparison.</summary>
     /// <param name="value">The value to render. Implementations should document their
-    /// behaviour for <see langword="null"/> inputs (typically: throw <see cref="System.ArgumentNullException"/>
+    /// behavior for <see langword="null"/> inputs (typically: throw <see cref="System.ArgumentNullException"/>
     /// or return a sentinel like <c>"&lt;null&gt;"</c>).</param>
     /// <returns>The canonical string rendering.</returns>
     public abstract string Render(T value);

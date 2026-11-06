@@ -38,9 +38,12 @@ namespace SnapshotAssertions
     public static class SnapshotAcceptMode
     {
         public const string AcceptVariableName = "SNAPSHOT_ACCEPT";
+        public const string AllowInCiVariableName = "SNAPSHOT_ACCEPT_IN_CI";
+        public const string AzurePipelinesVariableName = "TF_BUILD";
         public const string CiVariableName = "CI";
         public static bool IsActive() { }
         public static bool IsActive(string? snapshotAcceptValue, string? ciValue) { }
+        public static bool IsActive(string? snapshotAcceptValue, string? ciValue, string? azurePipelinesValue, string? allowInCiValue) { }
         public static bool IsTruthy(string? value) { }
     }
     public enum SnapshotBomHandling
@@ -74,6 +77,7 @@ namespace SnapshotAssertions
         public static SnapshotAssertions.SnapshotPaths ResolveByFile(string expectedFilePath) { }
         public static SnapshotAssertions.SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName) { }
         public static SnapshotAssertions.SnapshotPaths ResolveByTest(string snapshotsDirectory, string testClassName, string testMethodName, System.Collections.Generic.IReadOnlyList<object?>? testMethodArguments = null) { }
+        public static SnapshotAssertions.SnapshotPaths ResolveByTest(string snapshotsDirectory, string testClassName, System.Collections.Generic.IReadOnlyList<object?>? testClassArguments, string testMethodName, System.Collections.Generic.IReadOnlyList<object?>? testMethodArguments) { }
         public static string? TryResolveSourceSnapshotsDirectory(string startDirectory) { }
     }
     public enum SnapshotLineEndingMode
@@ -81,6 +85,8 @@ namespace SnapshotAssertions
         Ordinal = 0,
         NormalizeToLF = 1,
         NormalizeToCRLF = 2,
+        [System.Obsolete("IgnoreLineEndings also ignores where lines break and blank lines. Use NormalizeTo" +
+            "LF; IgnoreLineEndings will be removed in 0.10.0.")]
         IgnoreLineEndings = 3,
     }
     public enum SnapshotMatchOutcome

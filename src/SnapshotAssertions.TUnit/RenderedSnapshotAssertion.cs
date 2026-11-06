@@ -26,7 +26,7 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
     private SnapshotOptions _options = SnapshotOptions.Default;
     private List<SnapshotScrubber>? _scrubbers;
 
-    /// <summary>Initialises the renderer-projected assertion.</summary>
+    /// <summary>Initializes the renderer-projected assertion.</summary>
     /// <param name="context">The assertion context supplied by TUnit.</param>
     /// <param name="renderer">The renderer projecting <typeparamref name="T"/> to a
     /// canonical string. Must not be <see langword="null"/>.</param>
@@ -118,8 +118,10 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
         if (content is null)
             return Task.FromResult(AssertionResult.Failed("renderer returned null content"));
 
-        var paths = SnapshotAssertionImpl.ResolvePaths(_explicitPath, _explicitName);
-        return SnapshotAssertionImpl.EvaluateAsync(content, _scrubbers, _options, paths);
+        var resolved = SnapshotAssertionImpl.Resolve(
+            _explicitPath, _explicitName, acceptModeOverride: null, AppContext.BaseDirectory, SnapshotAssertionImpl.GetProjectDirectory());
+        return SnapshotAssertionImpl.EvaluateAsync(
+            content, _scrubbers, _options, resolved.Paths, resolved.ProjectBaselinePath);
     }
 
     /// <inheritdoc/>

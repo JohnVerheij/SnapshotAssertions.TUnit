@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SnapshotAssertions;
@@ -345,6 +346,130 @@ internal sealed class SnapshotEvaluatorTests
             acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
+    /// <summary>PreserveBom: an actual that starts with U+FEFF is accepted as a baseline whose file starts with the
+    /// UTF-8 byte-order mark, and the re-run reads that mark back as U+FEFF, so it matches.</summary>
+    [Test]
+    public async Task PreserveBom_BomActualAcceptedThenRerun_Matches(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(Path.Combine(dir, "bom.expected.txt"), Path.Combine(dir, "bom.actual.txt"));
+        var options = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var accepted = await SnapshotEvaluator.EvaluateAsync("\uFEFFhello\n", paths, options,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await Assert.That(accepted.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        var bytes = await File.ReadAllBytesAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false);
+        await Assert.That(bytes.AsSpan(0, 3).SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF })).IsTrue();
+
+        var rerun = await SnapshotEvaluator.EvaluateAsync("\uFEFFhello\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await Assert.That(rerun.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
+    /// <summary>PreserveBom: a golden file with a UTF-8 byte-order mark does not match an actual without one.</summary>
+    [Test]
+    public async Task PreserveBom_BomGoldenVsBomlessActual_Mismatches(CancellationToken cancellationToken)
+    {
+        var paths = await CreateEncodedScenarioAsync(new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), "hello\n", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Mismatched);
+    }
+
+    /// <summary>StripBom: the same golden file with a byte-order mark matches an actual without one.</summary>
+    [Test]
+    public async Task StripBom_BomGoldenVsBomlessActual_Matches(CancellationToken cancellationToken)
+    {
+        var paths = await CreateEncodedScenarioAsync(new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), "hello\n", cancellationToken).ConfigureAwait(false);
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
+    /// <summary>A golden file without a byte-order mark is read as UTF-8, also under PreserveBom.</summary>
+    [Test]
+    public async Task PreserveBom_GoldenWithoutBom_ReadsAsUtf8(CancellationToken cancellationToken)
+    {
+        var paths = await CreateEncodedScenarioAsync(new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), "héllo\n", cancellationToken).ConfigureAwait(false);
+        var options = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var result = await SnapshotEvaluator.EvaluateAsync("héllo\n", paths, options,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
+    /// <summary>An empty golden file, or one shorter than the byte-order mark it starts like, is read as UTF-8 (an
+    /// incomplete sequence decodes as U+FFFD); a file that is only a mark reads as empty under StripBom and as a lone
+    /// U+FEFF under PreserveBom. <c>FF FE 00 00</c> is the UTF-32 little-endian mark, not UTF-16 followed by U+0000.</summary>
+    [Test]
+    [Arguments("", "", "")]
+    [Arguments("FF", "\uFFFD", "\uFFFD")]
+    [Arguments("EFBB", "\uFFFD", "\uFFFD")]
+    [Arguments("EFBBBF", "", "\uFEFF")]
+    [Arguments("FFFE", "", "\uFEFF")]
+    [Arguments("FEFF", "", "\uFEFF")]
+    [Arguments("FFFE0000", "", "\uFEFF")]
+    [Arguments("0000FEFF", "", "\uFEFF")]
+    public async Task ShortOrMarkOnlyGolden_IsReadWithoutError(string hex, string stripped, string preserved, CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(Path.Combine(dir, "short.expected.txt"), Path.Combine(dir, "short.actual.txt"));
+        await File.WriteAllBytesAsync(paths.ExpectedFilePath, Convert.FromHexString(hex), cancellationToken).ConfigureAwait(false);
+        var preserve = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var strippedResult = await SnapshotEvaluator.EvaluateAsync(stripped, paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var preservedResult = await SnapshotEvaluator.EvaluateAsync(preserved, paths, preserve,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(strippedResult.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+        await Assert.That(preservedResult.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
+    /// <summary>A golden file in UTF-16 or UTF-32 (either byte order) with its byte-order mark is decoded with that
+    /// encoding: the mark is consumed under StripBom, and counts as a leading U+FEFF under PreserveBom.</summary>
+    [Test]
+    [Arguments("Utf16LittleEndian", 0)]
+    [Arguments("Utf16BigEndian", 1)]
+    [Arguments("Utf32LittleEndian", 2)]
+    [Arguments("Utf32BigEndian", 3)]
+    public async Task GoldenWithEncodingMark_IsDecodedWithThatEncoding(string encodingName, int encodingIndex, CancellationToken cancellationToken)
+    {
+        Encoding[] encodings =
+        [
+            new UnicodeEncoding(bigEndian: false, byteOrderMark: true),
+            new UnicodeEncoding(bigEndian: true, byteOrderMark: true),
+            new UTF32Encoding(bigEndian: false, byteOrderMark: true),
+            new UTF32Encoding(bigEndian: true, byteOrderMark: true),
+        ];
+        var paths = await CreateEncodedScenarioAsync(encodings[encodingIndex], "héllo\n", cancellationToken).ConfigureAwait(false);
+        var preserve = SnapshotOptions.Default with { BomHandling = SnapshotBomHandling.PreserveBom };
+
+        var stripped = await SnapshotEvaluator.EvaluateAsync("héllo\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var preserved = await SnapshotEvaluator.EvaluateAsync("\uFEFFhéllo\n", paths, preserve,
+            acceptModeOverride: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(stripped.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched).Because(encodingName);
+        await Assert.That(preserved.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched).Because(encodingName);
+    }
+
+    private static async Task<SnapshotPaths> CreateEncodedScenarioAsync(Encoding encoding, string content, CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var paths = new SnapshotPaths(Path.Combine(dir, "enc.expected.txt"), Path.Combine(dir, "enc.actual.txt"));
+        byte[] preamble = encoding.GetPreamble();
+        byte[] body = encoding.GetBytes(content);
+        await File.WriteAllBytesAsync(paths.ExpectedFilePath, [.. preamble, .. body], cancellationToken).ConfigureAwait(false);
+        return paths;
     }
 
     private static async Task<(SnapshotPaths Paths, string Directory)> CreateScenarioAsync(

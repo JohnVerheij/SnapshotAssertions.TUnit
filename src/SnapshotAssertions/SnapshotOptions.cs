@@ -8,7 +8,7 @@ namespace SnapshotAssertions;
 /// explicitly via the convenience presets or by mutating the properties directly.
 /// </summary>
 /// <remarks>
-/// The default options preserve the captured artefact as-is, with one minor exception: a
+/// The default options preserve the captured artifact as-is, with one minor exception: a
 /// leading byte-order mark is ignored
 /// (<see cref="BomHandling"/> defaults to <see cref="SnapshotBomHandling.StripBom"/>). All
 /// other content: line endings, per-line trailing whitespace, end-of-file trailing-newline
@@ -28,17 +28,15 @@ public sealed record SnapshotOptions
     public static SnapshotOptions Default { get; } = new();
 
     /// <summary>
-    /// Convenience preset that ignores line breaks altogether. Sets <see cref="LineEndingMode"/> to
-    /// <see cref="SnapshotLineEndingMode.IgnoreLineEndings"/> (line breaks removed, so blank lines and where lines
-    /// break are not compared, and the written actual file and an accepted baseline have no line breaks) and
-    /// <see cref="TrailingNewline"/> to <see cref="SnapshotTrailingNewline.Optional"/> (presence vs absence of a
-    /// final newline is unobservable). BOM and per-line trailing-whitespace handling remain at their strict
-    /// defaults. For cross-platform tests that should only ignore CRLF versus LF, use <see cref="Default"/> with
-    /// <see cref="LineEndingMode"/> set to <see cref="SnapshotLineEndingMode.NormalizeToLF"/>.
+    /// Convenience preset for cross-platform tests: CRLF and CR become LF
+    /// (<see cref="LineEndingMode"/> is <see cref="SnapshotLineEndingMode.NormalizeToLF"/>) and the final newline is
+    /// ignored (<see cref="TrailingNewline"/> is <see cref="SnapshotTrailingNewline.Optional"/>). Every line break
+    /// still counts, so blank lines and where lines break are compared. BOM and per-line trailing-whitespace
+    /// handling remain at their strict defaults. Before 0.9.0 the preset removed line breaks altogether.
     /// </summary>
     public static SnapshotOptions NormalizedLineEndings { get; } = new()
     {
-        LineEndingMode = SnapshotLineEndingMode.IgnoreLineEndings,
+        LineEndingMode = SnapshotLineEndingMode.NormalizeToLF,
         TrailingNewline = SnapshotTrailingNewline.Optional,
     };
 
@@ -48,9 +46,9 @@ public sealed record SnapshotOptions
     public SnapshotLineEndingMode LineEndingMode { get; init; } = SnapshotLineEndingMode.Ordinal;
 
     /// <summary>How a leading byte-order mark (U+FEFF) in the content is handled. Defaults to
-    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed from both sides before comparison. When
-    /// <see cref="SnapshotEvaluator"/> reads the baseline file, a byte-order mark at its start is consumed by the read
-    /// and not compared.</summary>
+    /// <see cref="SnapshotBomHandling.StripBom"/>: it is removed from both sides before comparison. Under
+    /// <see cref="SnapshotBomHandling.PreserveBom"/> the byte-order mark at the start of the baseline file counts
+    /// as a leading U+FEFF; under <see cref="SnapshotBomHandling.StripBom"/> it is not compared.</summary>
     public SnapshotBomHandling BomHandling { get; init; } = SnapshotBomHandling.StripBom;
 
     /// <summary>How per-line trailing whitespace is treated. Defaults to

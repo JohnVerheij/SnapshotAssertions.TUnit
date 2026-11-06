@@ -23,7 +23,9 @@ jobs:
     uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@f7b3fdc470bba7b00e7333aeccae17e0377e6e15 # v1.3.0
     with:
       package: SnapshotAssertions
-      expected-package-files: build/SnapshotAssertions.TUnit.targets
+      expected-package-files: |
+        build/SnapshotAssertions.TUnit.targets
+        buildTransitive/SnapshotAssertions.TUnit.targets
     permissions:
       contents: read
       id-token: write   # Codecov upload through OIDC

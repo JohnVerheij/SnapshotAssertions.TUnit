@@ -11,8 +11,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>SnapshotAssertions.TUnit</PackageId>
     <ProductName>SnapshotAssertions.TUnit</ProductName>
-    <Version>0.8.1</Version>
-    <PackageValidationBaselineVersion>0.8.0</PackageValidationBaselineVersion>
+    <Version>0.9.0</Version>
+    <PackageValidationBaselineVersion>0.8.1</PackageValidationBaselineVersion>
     <Authors>John Verheij</Authors>
     <Copyright>Copyright (c) 2026 John Verheij</Copyright>
     <Description>TUnit-native text-snapshot assertions using [AssertionExtension]. Provides Assert.That(actual).MatchesSnapshot() / .MatchesSnapshotFile() with line-based diff display, accept-via-environment-variable workflow, and CI guard. Baselines are plain-text files at any path, so existing golden files work as they are. AOT-compatible, trimmable, no reflection. Designed for API-surface verification and small text snapshots; coexists with Verify for object-graph cases.</Description>
@@ -27,7 +27,7 @@
     <PackageReleaseNotes>$(RepositoryUrl)/releases/tag/v$(Version)</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-    <!-- Keep the packed build/SnapshotAssertions.TUnit.targets in the .nupkg. DotNetProjectFile.Analyzers
+    <!-- Keep the packed build/ and buildTransitive/ SnapshotAssertions.TUnit.targets in the .nupkg. DotNetProjectFile.Analyzers
          1.15.0 and later add a SonarQube content glob over **/*.targets marked Pack=false, which silently
          overrides this package's own Pack=true build-targets item below and drops the file from the
          package - the cause of the 0.7.0 regression where every consumer snapshot baseline stopped copying
@@ -110,11 +110,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- NuGet auto-imports the build folder targets file from the consuming project. The
-         shipped file auto-includes the consumer's Snapshots/*.expected.txt with
-         CopyToOutputDirectory=PreserveNewest, so consumers do not write any csproj wiring
-         to enable the snapshot file layout: install plus write tests, no MSBuild ceremony. -->
+    <!-- NuGet auto-imports the build folder targets file named after the package for a direct reference and
+         the buildTransitive folder one for direct and transitive references. The real targets
+         (the Snapshots/*.expected.txt copy to output and the project-directory runtime option) ship under
+         buildTransitive/, so a consumer reaching the package through a helper project gets them too.
+         build/ ships a one-line forwarding file that imports the buildTransitive copy, so a direct reference
+         does not evaluate it twice. Consumers write no csproj wiring. -->
     <None Include="build/SnapshotAssertions.TUnit.targets" Pack="true" PackagePath="build/" />
+    <None Include="buildTransitive/SnapshotAssertions.TUnit.targets" Pack="true" PackagePath="buildTransitive/" />
   </ItemGroup>
 
 </Project>

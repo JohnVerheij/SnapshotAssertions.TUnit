@@ -15,6 +15,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-06: line-ending preset, class-argument naming and accept-mode fixes
+
+Minor release. `SnapshotOptions.NormalizedLineEndings` now means "CRLF and CR become LF, the final newline is ignored" instead of removing line breaks, and class-level `[Arguments]` rows get their own default-named baseline files; both are breaking for the baselines they affect, and each entry says how to migrate. `SnapshotLineEndingMode.IgnoreLineEndings` is deprecated and its written form keeps line breaks. The accept-mode CI guard also reads `TF_BUILD` and honors `SNAPSHOT_ACCEPT_IN_CI`, accept mode writes into the project's `Snapshots/` folder when the output is elsewhere, `PreserveBom` now keeps the baseline's byte-order mark, the accept-mode fallback and `TryResolveSourceSnapshotsDirectory` now recognize `.fsproj` and `.vbproj`, the build targets are packed under `buildTransitive/`, and the failure message names the project-side baseline.
+
+### Added
+
+- **`SnapshotFileResolver.ResolveByTest(string, string, IReadOnlyList<object?>?, string, IReadOnlyList<object?>?)`** also hashes the value-like class-level (constructor) arguments into the name: `{Class}.{ClassArgsHash8}.{Method}[.{MethodArgsHash8}]`. Value-like means `null`, a string, a `bool`, a `char`, a `Type`, an `IFormattable` (all numeric types, `Guid`, `DateTime`, enums), or an array or other collection that implements the non-generic `ICollection` (such as `List<T>`) of these (recursively); any other argument, such as a `[ClassDataSource]` fixture, a lazy sequence or a `HashSet<T>` (it implements only the generic `ICollection<T>`), is skipped without being enumerated, and a collection with one non-value-like element, such as a dictionary with entries, is skipped as a whole. With no value-like class argument the name is exactly the four-parameter overload's, which stays unchanged. The TUnit adapter uses the new overload for default-named snapshots.
+- **`SnapshotAcceptMode.AzurePipelinesVariableName`** (`TF_BUILD`) and **`SnapshotAcceptMode.AllowInCiVariableName`** (`SNAPSHOT_ACCEPT_IN_CI`) are the names of the two new variables the CI guard reads.
+- **`SnapshotAcceptMode.IsActive(string?, string?, string?, string?)`** is the pure four-variable form (`SNAPSHOT_ACCEPT`, `CI`, `TF_BUILD`, `SNAPSHOT_ACCEPT_IN_CI`) that `IsActive()` now uses. A truthy `SNAPSHOT_ACCEPT_IN_CI` lifts the CI guard, so a pipeline step that regenerates baselines on purpose sets it instead of overriding `CI`. The two-variable overload keeps its meaning.
+
+### Changed
+
+- **BREAKING:** `SnapshotOptions.NormalizedLineEndings` is now `LineEndingMode = NormalizeToLF` with `TrailingNewline = Optional`: CRLF and CR become LF, the final newline is ignored, and every line break still counts. It used to remove line breaks altogether, so `"a\nb"` equalled `"ab"`.
+- **BREAKING:** The default-named baselines of class-level `[Arguments]` rows now include a hash of the class arguments in the name (`{Class}.{ClassArgsHash8}.{Method}`), so each row gets its own file; they used to share one. A class whose only constructor argument is a fixture object, and method-only `[Arguments]` rows, keep their names. The `.WithName(...)` workaround from 0.8.1 is now optional.
+- **`SnapshotLineEndingMode.IgnoreLineEndings`** written form (the actual file and an accepted baseline) now keeps the line breaks, joined with LF, instead of one flattened line. Its comparison is unchanged, so a baseline accepted earlier as one line still matches.
+- **Failure message** of a default-named or `.WithName(...)` baseline now ends with one more line, `Project baseline: <path>`, the absolute path the baseline has under the project's `Snapshots/` folder, when the build recorded the project directory and that folder still exists. The core message is unchanged, and a baseline set with `AtPath` or `MatchesSnapshotFile` gets no such line.
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.78.0 to 1.80.0.
+
+### Deprecated
+
+- **`SnapshotLineEndingMode.IgnoreLineEndings`** is marked `[Obsolete]`: it also ignores where lines break and blank lines. Use `NormalizeToLF`. It will be removed in 0.10.0.
+
+### Fixed
+
+- **Accept mode** now counts a truthy `TF_BUILD` (Azure Pipelines sets `True`) as CI, so a stray `SNAPSHOT_ACCEPT=1` on an Azure Pipelines agent is refused like it is where `CI` is set. Before, only `CI` was read, and Azure Pipelines does not set it, so accept mode ran there.
+- **`SnapshotBomHandling.PreserveBom`** now keeps a byte-order mark at the start of the baseline file: the file is read as bytes and a UTF-8, UTF-16 or UTF-32 mark is returned as a leading U+FEFF, so a baseline accepted from an actual that starts with U+FEFF matches on the next run. The mark was consumed by the read, so it never matched. `StripBom` behaves as before, and a file in UTF-16 or UTF-32 is decoded with the encoding its mark declares.
+- **Accept mode** (`SNAPSHOT_ACCEPT=1`) now writes into the project's `Snapshots/` folder when the build output is outside the project (`UseArtifactsOutput`, `dotnet test -o`, a custom `OutputPath`). The package's build targets record the project directory in the test assembly's runtime configuration (`SnapshotAssertions.ProjectDirectory`), and accept mode reads it. Before, it wrote beside the test binary or into an unrelated project higher up.
+- **`SnapshotFileResolver.TryResolveSourceSnapshotsDirectory`** and the accept-mode fallback now also recognize `*.fsproj` and `*.vbproj`, so accept mode finds the project of an F# or Visual Basic test assembly when the build did not record the project directory.
+- **Build targets** are now packed under `buildTransitive/` (with a one-line forwarding file in `build/`), so a test project that gets the package through another project or package also gets the copy of `Snapshots/**/*.expected.txt` to the output directory, unless the intermediate reference sets `PrivateAssets="all"` or excludes the build assets. Before, only a direct `PackageReference` did.
+
+**Upgrade:** Re-accept (`SNAPSHOT_ACCEPT=1`) a baseline that was accepted under the old `NormalizedLineEndings` preset: it is a single line. A multi-line baseline written by hand keeps matching when its line structure matches the output. Re-accept class-level `[Arguments]` rows too: they now get their own files, where they used to share one. Fixture-only classes and method-only `[Arguments]` rows keep their names, so their baselines need no change.
+
 ## [0.8.1] - 2026-11-04: document using existing golden files
 
 Patch release. Documentation, the accept guidance in the failure messages and the TUnit dependency floor; no API change.
@@ -198,7 +230,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.0...v0.7.1

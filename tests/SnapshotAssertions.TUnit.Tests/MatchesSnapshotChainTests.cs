@@ -196,8 +196,8 @@ internal sealed class MatchesSnapshotChainTests
     /// <summary>Multiple <c>.WithScrubber</c> calls compose left-to-right and share state, so
     /// recurring values keep stable indexed tokens across the whole chain. Pins both the chain
     /// composition and the second-call branch of <c>WithScrubber</c> (the <c>_scrubbers ??=
-    /// []</c> initialiser path is hit on the first call; the second call hits the
-    /// already-initialised path).</summary>
+    /// []</c> initializer path is hit on the first call; the second call hits the
+    /// already-initialized path).</summary>
     [Test]
     public async Task WithScrubber_TwoScrubbersChained_BothApplied(CancellationToken cancellationToken)
     {

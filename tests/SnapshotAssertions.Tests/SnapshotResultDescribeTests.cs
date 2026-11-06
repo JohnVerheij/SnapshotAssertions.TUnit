@@ -179,7 +179,7 @@ internal sealed class SnapshotResultDescribeTests
     }
 
     /// <summary>Mismatched + diff with four patterns: top-3 bullet lines plus the
-    /// "... and N more" rollup pointing to Scrubbers.Common. Pins the cap behaviour.</summary>
+    /// "... and N more" rollup pointing to Scrubbers.Common. Pins the cap behavior.</summary>
     [Test]
     public async Task Mismatched_FourPatterns_TopThreeBulletsPlusRollup(CancellationToken ct)
     {
@@ -216,7 +216,7 @@ internal sealed class SnapshotResultDescribeTests
 
     /// <summary>Mismatched + diff with one pattern that has TWO hits: header reports
     /// total-hits count using plural form ("differences" not "difference"). Pins the
-    /// pluralisation branch in WriteHeaderLine.</summary>
+    /// pluralization branch in WriteHeaderLine.</summary>
     [Test]
     public async Task Mismatched_SinglePatternMultipleHits_PluralHeader(CancellationToken ct)
     {

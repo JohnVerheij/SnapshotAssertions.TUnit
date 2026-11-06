@@ -75,7 +75,7 @@ public static class SnapshotEvaluator
         // text that the very next comparison normalizes away. Writing the normalized form keeps
         // the committed baseline consistent with what the read path compares against, matching
         // how Verify scrubs before writing its .received file.
-        var normalizedActual = SnapshotComparer.Normalize(actualContent, options);
+        var normalizedActual = SnapshotComparer.NormalizeForWrite(actualContent, options);
 
         if (!File.Exists(expectedPath))
         {
@@ -86,7 +86,7 @@ public static class SnapshotEvaluator
             return SnapshotResult.NoBaseline(expectedPath, actualPath);
         }
 
-        var expectedContent = await File.ReadAllTextAsync(expectedPath, cancellationToken).ConfigureAwait(false);
+        var expectedContent = await BaselineReader.ReadAsync(expectedPath, options.BomHandling, cancellationToken).ConfigureAwait(false);
 
         if (SnapshotComparer.AreEqual(actualContent, expectedContent, options))
         {
@@ -118,7 +118,7 @@ public static class SnapshotEvaluator
     /// <returns>The rendered diff text for <see cref="SnapshotResult.Mismatched"/>.</returns>
     private static string RenderMismatchDiff(string expectedContent, string normalizedActual, SnapshotOptions options)
     {
-        var normalizedExpected = SnapshotComparer.Normalize(expectedContent, options);
+        var normalizedExpected = SnapshotComparer.NormalizeForWrite(expectedContent, options);
         var diff = LineDiffRenderer.Render(normalizedExpected, normalizedActual);
         var policyViolation = SnapshotComparer.DescribeTrailingNewlineViolation(normalizedActual, normalizedExpected, options);
         return policyViolation is null ? diff : diff + policyViolation + Environment.NewLine;
@@ -155,8 +155,7 @@ public static class SnapshotEvaluator
     /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
     /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
     /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
-    /// files (class-level arguments are not part of the hash, so the rows of a class with constructor
-    /// arguments share a file unless they pass distinct names).
+    /// files (value-like class-level arguments are hashed too).
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {
@@ -171,7 +170,7 @@ public static class SnapshotEvaluator
         finally
         {
             // On success the temp was renamed away and this is a no-op; on any failure (a throwing or
-            // cancelled write, or a failed move) it removes the leftover temp so the snapshots directory
+            // canceled write, or a failed move) it removes the leftover temp so the snapshots directory
             // is never littered.
             DeleteIfExists(tempPath);
         }

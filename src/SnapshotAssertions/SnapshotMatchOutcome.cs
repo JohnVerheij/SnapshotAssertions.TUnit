@@ -17,7 +17,7 @@ public enum SnapshotMatchOutcome
     NoBaseline,
 
     /// <summary>The actual content did not match or no baseline existed, but accept-mode was active
-    /// (<c>SNAPSHOT_ACCEPT=1</c> in a non-CI environment), so the normalized actual content was written
+    /// (<c>SNAPSHOT_ACCEPT=1</c> in a non-CI environment, or with <c>SNAPSHOT_ACCEPT_IN_CI=1</c>), so the normalized actual content was written
     /// as the expected baseline and the comparison treats this as a pass.</summary>
     Accepted,
 }

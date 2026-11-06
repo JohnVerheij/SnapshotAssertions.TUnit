@@ -7,7 +7,7 @@
     public-API testing also works for the package itself, with no Verify dependency.
 
     Why a separate project from SnapshotAssertions.TUnit.Tests:
-      - Keeps the public-API surface check architecturally separate from behaviour tests.
+      - Keeps the public-API surface check architecturally separate from behavior tests.
       - Mirrors the LogAssertions / TimeAssertions layout (each repo has a dedicated
         *.SnapshotTests project) so the family is consistent.
 

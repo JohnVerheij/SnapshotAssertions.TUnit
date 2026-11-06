@@ -114,7 +114,7 @@ internal sealed class SnapshotAssertionImplTests
         try
         {
             var resolved = SnapshotAssertionImpl.ResolveSnapshotsDirectory(
-                acceptModeOverride: true, baseDirectory: baseDirectory);
+                acceptModeOverride: true, baseDirectory: baseDirectory, projectDirectory: null);
 
             var expectedRuntimeDir = Path.GetFullPath(Path.Combine(baseDirectory, "Snapshots"));
             await Assert.That(resolved).IsEqualTo(expectedRuntimeDir);
@@ -123,5 +123,243 @@ internal sealed class SnapshotAssertionImplTests
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Accept mode with a known project directory writes into that project's <c>Snapshots/</c> folder even
+    /// when the base directory (the build output) is outside it and has no project file above it, as with
+    /// <c>UseArtifactsOutput</c> or <c>dotnet test -o</c>.
+    /// </summary>
+    [Test]
+    public async Task ResolveSnapshotsDirectory_AcceptModeOn_KnownProjectDirectory_UsesProjectSnapshots(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var project = Path.Combine(root, "proj");
+            var output = Path.Combine(root, "out", "bin");
+            Directory.CreateDirectory(project);
+            Directory.CreateDirectory(output);
+
+            var resolved = SnapshotAssertionImpl.ResolveSnapshotsDirectory(true, output, project);
+
+            await Assert.That(resolved).IsEqualTo(Path.GetFullPath(Path.Combine(project, "Snapshots")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Without accept mode the project directory is ignored: the read path stays the runtime copy.
+    /// </summary>
+    [Test]
+    public async Task ResolveSnapshotsDirectory_AcceptModeOff_KnownProjectDirectory_UsesRuntimeDirectory(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var project = Path.Combine(root, "proj");
+            var output = Path.Combine(root, "out");
+            Directory.CreateDirectory(project);
+            Directory.CreateDirectory(output);
+
+            var resolved = SnapshotAssertionImpl.ResolveSnapshotsDirectory(false, output, project);
+
+            await Assert.That(resolved).IsEqualTo(Path.GetFullPath(Path.Combine(output, "Snapshots")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A recorded project directory that does not exist (a build from another machine, a moved checkout)
+    /// is treated as unknown: accept mode falls back to the walk-up, which finds an F# project file.
+    /// </summary>
+    [Test]
+    public async Task ResolveSnapshotsDirectory_AcceptModeOn_MissingProjectDirectory_FallsBackToWalkUp(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var project = Path.Combine(root, "fsproj-dir");
+            var output = Path.Combine(project, "bin", "Debug");
+            Directory.CreateDirectory(output);
+            await File.WriteAllTextAsync(Path.Combine(project, "Tests.fsproj"), "<Project/>", ct).ConfigureAwait(false);
+            var missing = Path.Combine(root, "does-not-exist");
+
+            var resolved = SnapshotAssertionImpl.ResolveSnapshotsDirectory(true, output, missing);
+
+            await Assert.That(resolved).IsEqualTo(Path.GetFullPath(Path.Combine(project, "Snapshots")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A default-named baseline with a known project folder reports the project-side path, derived the same
+    /// way as the build-output path (class, method and argument hash).
+    /// </summary>
+    [Test]
+    public async Task Resolve_DefaultName_KnownProject_ReportsProjectBaseline(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var resolved = SnapshotAssertionImpl.Resolve(null, null, false, root, root);
+
+            var expectedFileName = Path.GetFileName(resolved.Paths.ExpectedFilePath);
+            await Assert.That(resolved.ProjectBaselinePath)
+                .IsEqualTo(Path.GetFullPath(Path.Combine(root, "Snapshots", expectedFileName)));
+            await Assert.That(expectedFileName).StartsWith(nameof(SnapshotAssertionImplTests) + ".");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>A <c>.WithName(...)</c> baseline with a known project folder reports the project-side path.</summary>
+    [Test]
+    public async Task Resolve_ExplicitName_KnownProject_ReportsProjectBaseline(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var output = Path.Combine(root, "out");
+            Directory.CreateDirectory(output);
+            var project = Path.Combine(root, "proj");
+            Directory.CreateDirectory(project);
+
+            var resolved = SnapshotAssertionImpl.Resolve(null, "named", false, output, project);
+
+            await Assert.That(resolved.ProjectBaselinePath)
+                .IsEqualTo(Path.GetFullPath(Path.Combine(project, "Snapshots", "named.expected.txt")));
+            await Assert.That(resolved.Paths.ExpectedFilePath)
+                .IsEqualTo(Path.GetFullPath(Path.Combine(output, "Snapshots", "named.expected.txt")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>An explicit file path (<c>AtPath</c> / <c>MatchesSnapshotFile</c>) has no project baseline line.</summary>
+    [Test]
+    public async Task Resolve_ExplicitPath_KnownProject_HasNoProjectBaseline(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var explicitPath = Path.Combine(root, "golden.expected.txt");
+
+            var resolved = SnapshotAssertionImpl.Resolve(explicitPath, null, false, root, root);
+
+            await Assert.That(resolved.ProjectBaselinePath).IsNull();
+            await Assert.That(resolved.Paths.ExpectedFilePath).IsEqualTo(Path.GetFullPath(explicitPath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>With an unknown (null) or non-existent project folder there is no project baseline line.</summary>
+    [Test]
+    [Arguments(null)]
+    [Arguments("does-not-exist-project-dir")]
+    public async Task Resolve_UnknownProject_HasNoProjectBaseline(string? projectDirectory, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var project = projectDirectory is null ? null : Path.Combine(root, projectDirectory);
+
+            var resolved = SnapshotAssertionImpl.Resolve(null, "named", false, root, project);
+
+            await Assert.That(resolved.ProjectBaselinePath).IsNull();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The failure message is the core description followed by exactly one <c>Project baseline:</c> line.
+    /// </summary>
+    [Test]
+    public async Task EvaluateAsync_Mismatch_WithProjectBaseline_AppendsOneLineAfterCoreMessage(CancellationToken ct)
+    {
+        var (root, paths) = await CreateMismatchAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var core = await SnapshotAssertionImpl.EvaluateAsync(
+                "actual\n", null, SnapshotOptions.Default, paths, null, ct).ConfigureAwait(false);
+            var projectPath = Path.Combine(root, "proj", "Snapshots", "x.expected.txt");
+
+            var result = await SnapshotAssertionImpl.EvaluateAsync(
+                "actual\n", null, SnapshotOptions.Default, paths, projectPath, ct).ConfigureAwait(false);
+
+            await Assert.That(core.IsPassed).IsFalse();
+            await Assert.That(core.Message).DoesNotContain("Project baseline:");
+            await Assert.That(result.Message).IsEqualTo(core.Message + "Project baseline: " + projectPath + Environment.NewLine);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>A passing evaluation produces no failure, whatever the project baseline.</summary>
+    [Test]
+    public async Task EvaluateAsync_Match_WithProjectBaseline_Passes(CancellationToken ct)
+    {
+        var (root, paths) = await CreateMismatchAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var result = await SnapshotAssertionImpl.EvaluateAsync(
+                "expected\n", null, SnapshotOptions.Default, paths, "ignored", ct).ConfigureAwait(false);
+
+            await Assert.That(result.IsPassed).IsTrue();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task<(string Root, SnapshotPaths Paths)> CreateMismatchAsync(CancellationToken ct)
+    {
+        var root = CreateTempDirectory();
+        var expected = Path.Combine(root, "x.expected.txt");
+        await File.WriteAllTextAsync(expected, "expected\n", ct).ConfigureAwait(false);
+        return (root, SnapshotFileResolver.ResolveByFile(expected));
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "snapshot-impl-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
     }
 }

@@ -15,25 +15,25 @@ namespace SnapshotAssertions;
 /// </remarks>
 public sealed class SnapshotException : Exception
 {
-    /// <summary>Initialises an exception with no result. Provided for the .NET exception
+    /// <summary>Initializes an exception with no result. Provided for the .NET exception
     /// constructor pattern (CA1032); production code should use
     /// <see cref="SnapshotException(SnapshotResult)"/>.</summary>
     public SnapshotException() : base("Snapshot comparison failed.") { }
 
-    /// <summary>Initialises an exception with a custom message. Provided for the .NET
+    /// <summary>Initializes an exception with a custom message. Provided for the .NET
     /// exception constructor pattern (CA1032); production code should use
     /// <see cref="SnapshotException(SnapshotResult)"/> instead.</summary>
     /// <param name="message">The human-readable failure message.</param>
     public SnapshotException(string message) : base(message) { }
 
-    /// <summary>Initialises an exception with a custom message and inner exception. Provided
+    /// <summary>Initializes an exception with a custom message and inner exception. Provided
     /// for the .NET exception constructor pattern (CA1032); production code should use
     /// <see cref="SnapshotException(SnapshotResult)"/> instead.</summary>
     /// <param name="message">The human-readable failure message.</param>
     /// <param name="innerException">The cause exception.</param>
     public SnapshotException(string message, Exception innerException) : base(message, innerException) { }
 
-    /// <summary>Initialises an exception describing a failed snapshot comparison.</summary>
+    /// <summary>Initializes an exception describing a failed snapshot comparison.</summary>
     /// <param name="result">The failed comparison result. Must not be a passing outcome.</param>
     /// <exception cref="ArgumentNullException"><paramref name="result"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="result"/> represents a passing

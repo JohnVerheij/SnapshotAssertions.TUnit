@@ -80,7 +80,7 @@ public static class SnapshotFileResolver
     /// for parameterized tests. The base name is constructed as
     /// <c>{testClassName}.{testMethodName}</c> when <paramref name="testMethodArguments"/> is
     /// <see langword="null"/> or empty, or <c>{testClassName}.{testMethodName}.{argsHash}</c>
-    /// otherwise.
+    /// otherwise. Behaves exactly as it did before 0.9.0 and ignores class-level arguments.
     /// </summary>
     /// <param name="snapshotsDirectory">The absolute path to the directory containing snapshot
     /// files.</param>
@@ -96,11 +96,17 @@ public static class SnapshotFileResolver
     /// expanded element-by-element as <c>[item1,item2,...]</c> (recursively, so nested collections
     /// expand too), and any other type falls back to
     /// <see cref="Convert.ToString(object?, IFormatProvider?)"/>. The hash is stable across runs and
-    /// machines for the same argument values, so each parameterized variant gets its own distinct
-    /// snapshot file; changing a collection argument's elements changes the hash, and therefore the
-    /// snapshot file. Only the arguments passed here are hashed: the TUnit adapter passes the test method's
-    /// arguments, not class-level (constructor) arguments.</param>
+    /// machines for the same argument values, so parameterized variants with different argument texts get
+    /// distinct snapshot files; changing a collection argument's elements changes the hash, and therefore the
+    /// snapshot file.</param>
     /// <returns>The expected and actual paths.</returns>
+    /// <remarks>
+    /// This overload hashes only the method arguments; to include class-level (constructor) arguments, use the
+    /// overload that takes <c>testClassArguments</c>, which the TUnit adapter calls.
+    /// The argument texts are joined without escaping, so two rows whose texts are equal share one name, for
+    /// example <see langword="null"/> and the string <c>"null"</c>, or the rows <c>("a|b", "c")</c> and
+    /// <c>("a", "b|c")</c>; resolve such rows with <see cref="ResolveByName"/> and a name of your own.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
@@ -111,6 +117,59 @@ public static class SnapshotFileResolver
         string testClassName,
         string testMethodName,
         IReadOnlyList<object?>? testMethodArguments = null)
+        => ResolveByTest(snapshotsDirectory, testClassName, testClassArguments: null, testMethodName, testMethodArguments);
+
+    /// <summary>
+    /// Resolves the expected and actual file paths for a snapshot identified by a (test class,
+    /// test method) pair, augmented with a hash of the value-like class-level (constructor) arguments and a hash
+    /// of the test method's arguments. The base name is <c>{testClassName}.{classArgsHash}.{testMethodName}</c>
+    /// when at least one class argument is value-like, otherwise <c>{testClassName}.{testMethodName}</c>; in both
+    /// cases <c>.{methodArgsHash}</c> is appended when <paramref name="testMethodArguments"/> is not empty. With no
+    /// value-like class argument the name equals the name the four-parameter overload returns.
+    /// </summary>
+    /// <param name="snapshotsDirectory">The absolute path to the directory containing snapshot
+    /// files.</param>
+    /// <param name="testClassName">The simple test class name (no namespace).</param>
+    /// <param name="testClassArguments">The arguments passed to the test class constructor (for example by a
+    /// class-level <c>[Arguments]</c>), or <see langword="null"/>. Only value-like arguments are hashed: a
+    /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> (by its
+    /// string form, the full type name), an <see cref="IFormattable"/> (all numeric types, enums,
+    /// <see cref="Guid"/>, <see cref="DateTime"/>, etc.), <see langword="null"/>, and an array or other collection
+    /// that implements the non-generic <see cref="ICollection"/> (such as a <see cref="List{T}"/>) whose elements are
+    /// all value-like, recursively. Every other argument, such as a fixture object injected by
+    /// <c>[ClassDataSource]</c>, a sequence that only implements <see cref="IEnumerable"/>, or a
+    /// <see cref="HashSet{T}"/> (it implements only the generic <see cref="ICollection{T}"/>), is skipped without
+    /// being enumerated, because its <c>ToString</c> is not a stable key. A collection that contains one
+    /// non-value-like element, such as a dictionary with entries, is skipped as a whole, so the result never
+    /// depends on how much of a collection happens to be hashable. The hashed arguments are stringified like method
+    /// arguments (see <paramref name="testMethodArguments"/>), joined with <c>"|"</c>, hashed with SHA-256, and
+    /// the first 8 hex characters are used.</param>
+    /// <param name="testMethodName">The test method name.</param>
+    /// <param name="testMethodArguments">The arguments passed to the parameterized test
+    /// invocation, or <see langword="null"/> for non-parameterized tests. Each argument is
+    /// stringified, the results joined with <c>"|"</c>, and hashed with SHA-256; the first 8 hex
+    /// characters of the hash are appended to the base name. Stringification routes by type so the
+    /// key stays stable and culture-independent: a <see langword="string"/> is taken verbatim, an
+    /// <see cref="IFormattable"/> is formatted with <see cref="CultureInfo.InvariantCulture"/>, an
+    /// <see cref="IEnumerable"/> is expanded element-by-element as <c>[item1,item2,...]</c> (recursively), and
+    /// any other type falls back to <see cref="Convert.ToString(object?, IFormatProvider?)"/>.</param>
+    /// <returns>The expected and actual paths.</returns>
+    /// <remarks>
+    /// The argument texts are joined without escaping, so two rows whose texts are equal share one name, for
+    /// example <see langword="null"/> and the string <c>"null"</c>, or the rows <c>("a|b", "c")</c> and
+    /// <c>("a", "b|c")</c>; resolve such rows with <see cref="ResolveByName"/> and a name of your own.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
+    /// invalid file-name characters.
+    /// </exception>
+    public static SnapshotPaths ResolveByTest(
+        string snapshotsDirectory,
+        string testClassName,
+        IReadOnlyList<object?>? testClassArguments,
+        string testMethodName,
+        IReadOnlyList<object?>? testMethodArguments)
     {
         ArgumentNullException.ThrowIfNull(testClassName);
         ArgumentNullException.ThrowIfNull(testMethodName);
@@ -120,15 +179,63 @@ public static class SnapshotFileResolver
         if (string.IsNullOrWhiteSpace(testMethodName))
             throw new ArgumentException("Test method name must be non-empty.", nameof(testMethodName));
 
-        var name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", testClassName, testMethodName);
+        var name = testClassName;
+
+        var valueLikeClassArguments = SelectValueLike(testClassArguments);
+        if (valueLikeClassArguments.Count > 0)
+            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, HashArguments(valueLikeClassArguments));
+
+        name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, testMethodName);
 
         if (testMethodArguments is { Count: > 0 })
-        {
-            var hash = HashArguments(testMethodArguments);
-            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, hash);
-        }
+            name = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", name, HashArguments(testMethodArguments));
 
         return ResolveByName(snapshotsDirectory, name);
+    }
+
+    /// <summary>Returns the value-like arguments of <paramref name="arguments"/>, in order.</summary>
+    /// <param name="arguments">The class arguments, or <see langword="null"/>.</param>
+    /// <returns>The arguments for which <see cref="IsValueLike"/> holds; empty when there are none.</returns>
+    private static List<object?> SelectValueLike(IReadOnlyList<object?>? arguments)
+    {
+        var result = new List<object?>();
+        if (arguments is null)
+            return result;
+
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            if (IsValueLike(arguments[i]))
+                result.Add(arguments[i]);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="arg"/> has a stable, value-based string form:
+    /// <see langword="null"/>, a <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a
+    /// <see cref="Type"/>, an <see cref="IFormattable"/>, or an array or other collection that implements the
+    /// non-generic <see cref="ICollection"/> whose elements are all value-like: every kind of value an attribute
+    /// argument can hold. Uses type tests and, for a collection, one pass over its elements (no reflection); a
+    /// sequence that only implements <see cref="IEnumerable"/> is not enumerated.
+    /// </summary>
+    /// <param name="arg">The argument to test.</param>
+    /// <returns><see langword="true"/> if the argument may be hashed.</returns>
+    private static bool IsValueLike(object? arg)
+    {
+        if (arg is null or string or bool or char or Type or IFormattable)
+            return true;
+
+        if (arg is not ICollection collection)
+            return false;
+
+        foreach (var item in collection)
+        {
+            if (!IsValueLike(item))
+                return false;
+        }
+
+        return true;
     }
 
     private static string HashArguments(IReadOnlyList<object?> args)
@@ -265,12 +372,13 @@ public static class SnapshotFileResolver
     /// <c>bin/</c> via the package's include glob. The accept write target is resolved by
     /// walking up from <paramref name="startDirectory"/> (typically
     /// <see cref="AppContext.BaseDirectory"/>) to the nearest ancestor that contains a
-    /// <c>*.csproj</c> file (<c>*.fsproj</c> and <c>*.vbproj</c> are not recognized), then appending
+    /// <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file, then appending
     /// <see cref="DefaultSnapshotsFolder"/>. With the default output
     /// layout (<c>bin/</c> under the project), that ancestor is the test project, the directory the build's
     /// include glob is relative to, so the accept write lands in the exact folder the next build copies back
     /// into <c>bin/</c>. An output directory outside the project folder (for example
-    /// <c>UseArtifactsOutput</c>) finds no project or an unrelated one higher up.
+    /// <c>UseArtifactsOutput</c>) finds no project or an unrelated one higher up; the TUnit adapter therefore
+    /// prefers the project directory its build targets record and uses this walk only as the fallback.
     /// </para>
     /// <para>
     /// When no ancestor project file can be found (for example, a single-file publish where the
@@ -296,7 +404,7 @@ public static class SnapshotFileResolver
 
     /// <summary>
     /// Walks up from <paramref name="startDirectory"/> and returns the first ancestor directory
-    /// (inclusive) that contains at least one <c>*.csproj</c> file, or <see langword="null"/>
+    /// (inclusive) that contains at least one <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file, or <see langword="null"/>
     /// if the filesystem root is reached without finding one.
     /// </summary>
     /// <param name="startDirectory">The directory to begin the search from.</param>
@@ -306,11 +414,7 @@ public static class SnapshotFileResolver
         var current = new DirectoryInfo(Path.GetFullPath(startDirectory));
         while (current is not null)
         {
-            // EnumerateFiles is lazy: it stops at the first match instead of materializing the
-            // whole listing, so the common case (a project file in the first ancestor that has
-            // one) touches the directory once and returns immediately.
-            using var matches = current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).GetEnumerator();
-            if (matches.MoveNext())
+            if (ContainsProjectFile(current))
                 return current.FullName;
 
             current = current.Parent;
@@ -318,4 +422,26 @@ public static class SnapshotFileResolver
 
         return null;
     }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="directory"/> directly contains a C#, F# or
+    /// Visual Basic project file.
+    /// </summary>
+    /// <param name="directory">The directory to inspect (top level only).</param>
+    /// <returns><see langword="true"/> if a <c>*.csproj</c>, <c>*.fsproj</c> or <c>*.vbproj</c> file exists.</returns>
+    private static bool ContainsProjectFile(DirectoryInfo directory)
+    {
+        foreach (var pattern in ProjectFilePatterns)
+        {
+            // EnumerateFiles is lazy: it stops at the first match instead of materializing the listing.
+            using var matches = directory.EnumerateFiles(pattern, SearchOption.TopDirectoryOnly).GetEnumerator();
+            if (matches.MoveNext())
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The project-file patterns that mark a project directory.</summary>
+    private static readonly string[] ProjectFilePatterns = ["*.csproj", "*.fsproj", "*.vbproj"];
 }
