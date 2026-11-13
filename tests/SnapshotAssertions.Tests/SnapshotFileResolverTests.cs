@@ -144,7 +144,7 @@ internal sealed class SnapshotFileResolverTests
     public async Task ResolveByTest_BoolCharTypeClassArguments_DistinguishRows(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string Name(object? value) => NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { value }, "M", null));
+        static string Name(object? value) => NameOf(SnapshotFileResolver.ResolveByTest(ClassArgsDir, "C", new object?[] { value }, "M", null));
 
         await Assert.That(Name(true)).IsNotEqualTo(Name(false));
         await Assert.That(Name('a')).IsNotEqualTo(Name('b'));
