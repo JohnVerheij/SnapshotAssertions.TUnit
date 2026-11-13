@@ -15,59 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  codeql:
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-codeql.yml@e11f599294bf72e9492a8bb9f04e99475770dd50 # v1.4.0
     permissions:
-      contents: read           # checkout + build (job-level perms override workflow-level)
+      contents: read           # checkout + build
       security-events: write   # upload CodeQL results to code scanning
       actions: read            # read workflow run metadata during analysis
-
-    strategy:
-      fail-fast: false
-      matrix:
-        # csharp is built (manual build-mode below); actions is the GitHub Actions
-        # workflow analysis pack, which is interpreted and needs no build (build-mode: none).
-        include:
-          - language: csharp
-            build-mode: manual
-          - language: actions
-            build-mode: none
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup .NET
-        if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-        with:
-          global-json-file: global.json
-
-      - name: Initialize CodeQL
-        # security-extended (instead of security-and-quality) keeps thorough security
-        # coverage but drops the noisy quality query pack, which generates many
-        # false-positive findings against generated code and stylistic concerns
-        # already covered by the in-build analyzer pack (Meziantou, Sonar, Roslynator,
-        # dpfa). config-file restricts scanning to code we own and ship - generated
-        # code in obj/ and test code in tests/** are excluded so remaining findings
-        # all reflect production-code issues we can act on.
-        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-          queries: security-extended
-          config-file: ./.github/codeql/codeql-config.yml
-
-      - name: Build
-        # Only the csharp row needs a build; the actions row is analyzed build-free.
-        if: matrix.language == 'csharp'
-        run: dotnet build --configuration Release
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
-        with:
-          category: /language:${{ matrix.language }}

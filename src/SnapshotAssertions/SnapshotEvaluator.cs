@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,7 +91,7 @@ public static class SnapshotEvaluator
 
         if (SnapshotComparer.AreEqual(actualContent, expectedContent, options))
         {
-            DeleteIfExists(actualPath);
+            await DeleteIfExistsAsync(actualPath, cancellationToken).ConfigureAwait(false);
             return SnapshotResult.Matched(expectedPath);
         }
 
@@ -142,7 +143,7 @@ public static class SnapshotEvaluator
         CancellationToken cancellationToken)
     {
         await WriteAtomicAsync(expectedPath, normalizedContent, cancellationToken).ConfigureAwait(false);
-        DeleteIfExists(actualPath);
+        await DeleteIfExistsAsync(actualPath, cancellationToken).ConfigureAwait(false);
         return SnapshotResult.Accepted(expectedPath);
     }
 
@@ -152,27 +153,26 @@ public static class SnapshotEvaluator
     /// partial or interrupted write lands on the temp, not the target, so a reader never observes a
     /// half-written baseline (the move publishes either the old or the new content, never a torn mix).
     /// The per-write temp name also lets parallel writers to <em>different</em> snapshot files run
-    /// without colliding on a shared temp. It does not make concurrent writes to the <em>same</em>
-    /// target safe (Windows throws on a concurrent replace-move), but that does not arise: each test
-    /// owns its snapshot file, and the argument hash keeps distinct parameterized variants on distinct
-    /// files (value-like class-level arguments are hashed too).
+    /// without colliding on a shared temp. Parallel writers to the <em>same</em> target (the test processes of
+    /// two target frameworks accepting one project baseline, or tests that share a default name) can meet a
+    /// transient sharing failure on Windows, which the move rides out by trying again; the last writer wins.
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {
-        var directory = Path.GetDirectoryName(path) ?? string.Empty;
-        var tempPath = Path.Combine(directory, Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
         try
         {
             await File.WriteAllTextAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
-            File.Move(tempPath, path, overwrite: true);
+            await RetryTransientAsync(() => File.Move(tempPath, path, overwrite: true), path, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             // On success the temp was renamed away and this is a no-op; on any failure (a throwing or
             // canceled write, or a failed move) it removes the leftover temp so the snapshots directory
             // is never littered.
-            DeleteIfExists(tempPath);
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
         }
     }
 
@@ -183,9 +183,90 @@ public static class SnapshotEvaluator
             Directory.CreateDirectory(directory);
     }
 
-    private static void DeleteIfExists(string path)
+    private static Task DeleteIfExistsAsync(string path, CancellationToken cancellationToken)
+        => RetryTransientAsync(
+            () =>
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            },
+            path,
+            cancellationToken);
+
+    /// <summary>
+    /// Runs a file operation on <paramref name="path"/> and repeats it when it fails because another evaluation of the
+    /// same snapshot is replacing, reading or deleting that file at that moment. On Windows that shows as an
+    /// <see cref="IOException"/> (sharing violation) or an <see cref="UnauthorizedAccessException"/> (the file is pending
+    /// deletion or being replaced), and it passes within milliseconds. Two evaluations meet on one file when the test
+    /// processes of two target frameworks accept the same project baseline, or when tests share a default name. The
+    /// operation is repeated a bounded number of times (about one second in all), so a file that stays inaccessible, such as a
+    /// read-only baseline, still fails promptly. A failure that remains is rethrown as an exception of the same kind
+    /// with the path in its message, which the operating system's own text may leave out.
+    /// </summary>
+    /// <param name="operation">The file operation to run.</param>
+    /// <param name="path">The file the operation changes.</param>
+    /// <param name="cancellationToken">Cancels the wait between attempts.</param>
+    /// <returns>A task that completes when the operation succeeded.</returns>
+    private static async Task RetryTransientAsync(Action operation, string path, CancellationToken cancellationToken)
     {
-        if (File.Exists(path))
-            File.Delete(path);
+        var attempt = 1;
+        while (true)
+        {
+            var failure = TryRun(operation);
+            if (failure is null)
+                return;
+
+            if (attempt >= MaxFileAttempts)
+                throw ToPathNamingException(failure, path);
+
+            attempt++;
+            await Task.Delay(TimeSpan.FromMilliseconds(RetryDelayMilliseconds), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+        }
     }
+
+    /// <summary>Runs <paramref name="operation"/> and returns the transient file failure it threw, if any.</summary>
+    /// <param name="operation">The file operation.</param>
+    /// <returns>The <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/>, or <see langword="null"/> on success.</returns>
+    private static Exception? TryRun(Action operation)
+    {
+        try
+        {
+            operation();
+            return null;
+        }
+        catch (IOException exception)
+        {
+            return exception;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return exception;
+        }
+    }
+
+    /// <summary>Wraps a failure that outlasted the attempts in an exception of the same kind whose message names the file.</summary>
+    /// <param name="failure">The last failure.</param>
+    /// <param name="path">The file the operation changes.</param>
+    /// <returns>The exception to throw, with <paramref name="failure"/> as its inner exception.</returns>
+    private static Exception ToPathNamingException(Exception failure, string path)
+    {
+        var message = string.Format(
+            CultureInfo.InvariantCulture,
+            "Access to the snapshot file '{0}' failed after repeated attempts: {1} The file may be read-only or locked by another process.",
+            path,
+            failure.Message);
+        return failure is UnauthorizedAccessException
+            ? new UnauthorizedAccessException(message, failure)
+            : new IOException(message, failure);
+    }
+
+    // Declared after the methods on purpose: the compiler numbers the async state machines (<EvaluateAsync>d__N) by member
+    // position, and the public EvaluateAsync records its state machine type in an attribute that package validation
+    // compares with the previous release. A member declared before it renames that type and fails the comparison.
+
+    /// <summary>How often a file operation is tried when another evaluation holds the file at that moment.</summary>
+    private const int MaxFileAttempts = 50;
+
+    /// <summary>The wait in milliseconds between two attempts of a file operation.</summary>
+    private const int RetryDelayMilliseconds = 20;
 }

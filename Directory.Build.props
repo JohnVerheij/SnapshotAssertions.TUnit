@@ -1,8 +1,9 @@
 <Project>
 
   <PropertyGroup>
-    <!-- Language + nullability (explicit version per dpfa Proj0048; C# 14 ships with .NET 10) -->
-    <LangVersion>14.0</LangVersion>
+    <!-- Language + nullability (explicit version per dpfa Proj0048). C# 15 ships with the .NET 11 SDK, which the family
+         builds with since it targets net10.0 and net11.0; a repository adopts this template with that SDK. -->
+    <LangVersion>15.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
 

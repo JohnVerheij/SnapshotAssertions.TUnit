@@ -52,7 +52,10 @@ internal static class SnapshotAssertionImpl
             var state = new SnapshotScrubberState();
             for (var i = 0; i < scrubbers.Count; i++)
             {
-                content = scrubbers[i].Apply(content, state);
+                var scrubber = scrubbers[i];
+                content = scrubber.Apply(content, state)
+                    ?? throw new InvalidOperationException(
+                        $"The scrubber {scrubber.GetType().Name} returned null; a scrubber must return a string.");
             }
         }
 

@@ -148,7 +148,7 @@ public sealed record SnapshotResult
             {
                 writer.WriteLine();
                 writer.Write(Diff);
-                if (!Diff.EndsWith('\n'))
+                if (Diff[^1] != '\n')
                     writer.WriteLine();
                 WriteDiffSuggestions(writer, Diff);
             }

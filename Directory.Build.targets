@@ -59,7 +59,6 @@
             Notes = body;
         }
         Found = true;
-        return true;
       ]]>
       </Code>
     </Task>

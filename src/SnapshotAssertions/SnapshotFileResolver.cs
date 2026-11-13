@@ -222,13 +222,21 @@ public static class SnapshotFileResolver
     /// <param name="arg">The argument to test.</param>
     /// <returns><see langword="true"/> if the argument may be hashed.</returns>
     private static bool IsValueLike(object? arg)
+        => IsScalar(arg) || (arg is ICollection collection && AllValueLike(collection));
+
+    /// <summary>Whether <paramref name="arg"/> is a single value with a stable string form: <see langword="null"/>, a
+    /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> or an
+    /// <see cref="IFormattable"/>.</summary>
+    /// <param name="arg">The argument to test.</param>
+    /// <returns><see langword="true"/> for a scalar value.</returns>
+    private static bool IsScalar(object? arg)
+        => arg is null or string or bool or char or Type or IFormattable;
+
+    /// <summary>Whether every element of <paramref name="collection"/> is value-like, recursively.</summary>
+    /// <param name="collection">The collection to enumerate once.</param>
+    /// <returns><see langword="true"/> when no element is rejected.</returns>
+    private static bool AllValueLike(ICollection collection)
     {
-        if (arg is null or string or bool or char or Type or IFormattable)
-            return true;
-
-        if (arg is not ICollection collection)
-            return false;
-
         foreach (var item in collection)
         {
             if (!IsValueLike(item))

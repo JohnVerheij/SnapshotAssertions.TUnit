@@ -37,12 +37,11 @@
         <Source>.*[/\\]obj[/\\].*</Source>
       </Exclude>
     </Sources>
-    <!-- Exclude generated / explicitly-opted-out code via attribute. -->
+    <!-- Exclude generated code only. CompilerGeneratedAttribute is deliberately not listed: it would hide async state
+         machines and lambdas, which are production code. -->
     <Attributes>
       <Exclude>
-        <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
         <Attribute>^System\.CodeDom\.Compiler\.GeneratedCodeAttribute$</Attribute>
-        <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
       </Exclude>
     </Attributes>
     <!-- MTP default is false (VSTest default was true). Explicit for clarity. -->

@@ -10,16 +10,6 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Test the lint gate
-        run: python3 .github/test_family_lint.py
-
-      - name: Lint CHANGELOG + PackageTags
-        run: python3 .github/family-lint.py
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-lint.yml@e11f599294bf72e9492a8bb9f04e99475770dd50 # v1.4.0
+    permissions:
+      contents: read   # checkout only

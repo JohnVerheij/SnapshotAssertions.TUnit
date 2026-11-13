@@ -1,7 +1,6 @@
 [assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/SnapshotAssertions.TUnit")]
-[assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
 namespace SnapshotAssertions
 {
     public sealed class DiffSuggestion : System.IEquatable<SnapshotAssertions.DiffSuggestion>
@@ -85,9 +84,6 @@ namespace SnapshotAssertions
         Ordinal = 0,
         NormalizeToLF = 1,
         NormalizeToCRLF = 2,
-        [System.Obsolete("IgnoreLineEndings also ignores where lines break and blank lines. Use NormalizeTo" +
-            "LF; IgnoreLineEndings will be removed in 0.10.0.")]
-        IgnoreLineEndings = 3,
     }
     public enum SnapshotMatchOutcome
     {

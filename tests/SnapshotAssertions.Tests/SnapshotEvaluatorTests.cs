@@ -31,6 +31,18 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(File.Exists(paths.ActualFilePath)).IsFalse();
     }
 
+    /// <summary>Without an accept-mode override the evaluator consults the environment. Matching content gives the same
+    /// outcome whatever the environment says, so this pins the default path without depending on the host.</summary>
+    [Test]
+    public async Task MatchingContent_NoAcceptOverride_ReturnsMatched(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync("hello\n", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, SnapshotOptions.Default, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
+    }
+
     /// <summary>Mismatched content produces a Mismatched outcome with the actual file
     /// written and a non-empty diff.</summary>
     [Test]
