@@ -221,4 +221,15 @@ internal sealed class DiffSuggestionAnalyzerTests
         await Assert.That(result[0].PatternName).IsEqualTo("GUID");
         await Assert.That(result[0].Count).IsEqualTo(1);
     }
+
+    /// <summary>The scan joins the differing lines with line feeds, so a number that ends one differing line must not
+    /// pair with a word <c>ms</c> that starts the next one and count as an elapsed time.</summary>
+    [Test]
+    public async Task DiffWithNumberAtLineEndThenMsAtNextLineStart_NoElapsedSuggestion(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var diff = "-retries 3\n+retries 4\n+ms: shown here\n";
+        var result = DiffSuggestionAnalyzer.Analyze(diff);
+        await Assert.That(result.Count).IsEqualTo(0);
+    }
 }

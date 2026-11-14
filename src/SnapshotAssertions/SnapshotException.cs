@@ -3,15 +3,17 @@ using System;
 namespace SnapshotAssertions;
 
 /// <summary>
-/// Exception thrown by snapshot-assertion entry points when a comparison fails (mismatch or
-/// missing baseline). Carries the underlying <see cref="SnapshotResult"/> for programmatic
+/// Exception for a test-framework adapter or a caller of <see cref="SnapshotEvaluator"/> to throw when a comparison
+/// fails (mismatch or missing baseline). Carries the underlying <see cref="SnapshotResult"/> for programmatic
 /// access; the <see cref="Exception.Message"/> is the same human-readable form rendered by
 /// <see cref="SnapshotResult.Describe"/>.
 /// </summary>
 /// <remarks>
-/// Not marked <c>[Serializable]</c>: legacy <c>BinaryFormatter</c> serialization is deprecated
+/// <para>Nothing in these packages throws it: the TUnit adapter reports a failed comparison as a failed TUnit
+/// assertion (an <c>AssertionException</c> with the same description), not as a <see cref="SnapshotException"/>.</para>
+/// <para>Not marked <c>[Serializable]</c>: legacy <c>BinaryFormatter</c> serialization is deprecated
 /// since .NET 5 and unsupported in modern .NET; cross-AppDomain transfer of the underlying
-/// <see cref="SnapshotResult"/> is not a supported scenario for this exception.
+/// <see cref="SnapshotResult"/> is not a supported scenario for this exception.</para>
 /// </remarks>
 public sealed class SnapshotException : Exception
 {

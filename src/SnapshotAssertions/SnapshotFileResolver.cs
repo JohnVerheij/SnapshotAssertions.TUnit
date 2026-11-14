@@ -44,7 +44,8 @@ public static class SnapshotFileResolver
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or
-    /// <paramref name="snapshotName"/> contains a path separator or is empty / whitespace.
+    /// <paramref name="snapshotName"/> is empty / whitespace or contains a path separator or a character that is
+    /// not valid in a file name.
     /// </exception>
     public static SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName)
     {
@@ -109,8 +110,8 @@ public static class SnapshotFileResolver
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
-    /// invalid file-name characters.
+    /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or <paramref name="testClassName"/> or
+    /// <paramref name="testMethodName"/> is empty or contains invalid file-name characters.
     /// </exception>
     public static SnapshotPaths ResolveByTest(
         string snapshotsDirectory,
@@ -161,8 +162,8 @@ public static class SnapshotFileResolver
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
-    /// invalid file-name characters.
+    /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or <paramref name="testClassName"/> or
+    /// <paramref name="testMethodName"/> is empty or contains invalid file-name characters.
     /// </exception>
     public static SnapshotPaths ResolveByTest(
         string snapshotsDirectory,
@@ -222,13 +223,21 @@ public static class SnapshotFileResolver
     /// <param name="arg">The argument to test.</param>
     /// <returns><see langword="true"/> if the argument may be hashed.</returns>
     private static bool IsValueLike(object? arg)
+        => IsScalar(arg) || (arg is ICollection collection && AllValueLike(collection));
+
+    /// <summary>Whether <paramref name="arg"/> is a single value with a stable string form: <see langword="null"/>, a
+    /// <see langword="string"/>, a <see langword="bool"/>, a <see langword="char"/>, a <see cref="Type"/> or an
+    /// <see cref="IFormattable"/>.</summary>
+    /// <param name="arg">The argument to test.</param>
+    /// <returns><see langword="true"/> for a scalar value.</returns>
+    private static bool IsScalar(object? arg)
+        => arg is null or string or bool or char or Type or IFormattable;
+
+    /// <summary>Whether every element of <paramref name="collection"/> is value-like, recursively.</summary>
+    /// <param name="collection">The collection to enumerate once.</param>
+    /// <returns><see langword="true"/> when no element is rejected.</returns>
+    private static bool AllValueLike(ICollection collection)
     {
-        if (arg is null or string or bool or char or Type or IFormattable)
-            return true;
-
-        if (arg is not ICollection collection)
-            return false;
-
         foreach (var item in collection)
         {
             if (!IsValueLike(item))
@@ -317,6 +326,8 @@ public static class SnapshotFileResolver
     /// final extension (<c>payload.json</c> becomes <c>payload.actual.json</c>), or appended when
     /// it has none (<c>payload</c> becomes <c>payload.actual</c>).</returns>
     /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="expectedFilePath"/> is empty or contains a null
+    /// character.</exception>
     public static SnapshotPaths ResolveByFile(string expectedFilePath)
     {
         ArgumentNullException.ThrowIfNull(expectedFilePath);

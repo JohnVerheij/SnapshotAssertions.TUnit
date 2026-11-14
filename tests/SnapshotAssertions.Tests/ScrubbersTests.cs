@@ -319,6 +319,20 @@ internal sealed class ScrubbersTests
             .Throws<ArgumentException>();
     }
 
+    /// <summary>The string overloads compile with <see cref="RegexOptions.NonBacktracking"/>, which has no lookaround: such a
+    /// pattern throws the <see cref="NotSupportedException"/> the factories document, while the <see cref="Regex"/>
+    /// overloads accept it.</summary>
+    [Test]
+    public async Task PatternFactories_LookaroundString_ThrowsNotSupported_RegexOverloadAccepts(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        await Assert.That(() => Scrubbers.Pattern("(?=a)a", "x")).Throws<NotSupportedException>();
+        await Assert.That(() => Scrubbers.IndexedPattern("(?=a)a", "kind")).Throws<NotSupportedException>();
+
+        var lookahead = new Regex("(?=a)a", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
+        await Assert.That(Scrubbers.Pattern(lookahead, "x").Apply("a-a", new SnapshotScrubberState())).IsEqualTo("x-x");
+    }
+
     [Test]
     public async Task Combine_DefensiveCopy_LaterMutationDoesNotAffectResult(CancellationToken ct)
     {
@@ -483,6 +497,24 @@ internal sealed class ScrubbersTests
         var state = new SnapshotScrubberState();
         var output = Scrubbers.ElapsedMs.Apply("first=42ms second=42ms", state);
         await Assert.That(output).IsEqualTo("first=<elapsed-ms:0> second=<elapsed-ms:0>");
+    }
+
+    /// <summary>A tab between the number and the unit still matches; a line break does not, so a number that ends a
+    /// line is not joined to a word <c>ms</c> that starts the next line.</summary>
+    [Test]
+    public async Task ElapsedMs_TabBeforeUnit_Replaced_LineBreakBeforeUnit_NotReplaced(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var state = new SnapshotScrubberState();
+
+        await Assert.That(Scrubbers.ElapsedMs.Apply("took 42\tms", state)).IsEqualTo("took <elapsed-ms:0>");
+
+        // Any white space on the same line still separates the number from its unit, a no-break space included.
+        var noBreakSpace = char.ConvertFromUtf32(0x00A0);
+        await Assert.That(Scrubbers.ElapsedMs.Apply("took 43" + noBreakSpace + "ms", state)).IsEqualTo("took <elapsed-ms:1>");
+
+        const string split = "retries 3\nms: shown here\r\nretries 4\r\nms: and here\rretries 5\rms: and here";
+        await Assert.That(Scrubbers.ElapsedMs.Apply(split, state)).IsEqualTo(split);
     }
 
     [Test]

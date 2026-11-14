@@ -284,6 +284,16 @@ internal sealed class SnapshotFileResolverTests
         await Assert.That(paths.ActualFilePath).IsEqualTo(Path.Combine(dir, "Custom.actual"));
     }
 
+    /// <summary>An empty expected path and one with a null character throw an <see cref="ArgumentException"/>, as the
+    /// method documents, instead of resolving to some other path.</summary>
+    [Test]
+    public void ResolveByFile_EmptyOrNullCharacterPath_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByFile(string.Empty));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByFile("a\0b.expected.txt"));
+    }
+
     /// <summary>Path-traversal characters in the snapshot name throw.</summary>
     [Test]
     public void ResolveByName_PathSeparator_Throws(CancellationToken cancellationToken)
@@ -333,6 +343,16 @@ internal sealed class SnapshotFileResolverTests
         cancellationToken.ThrowIfCancellationRequested();
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", string.Empty, "M"));
         Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("snapshots", "   ", "M"));
+    }
+
+    /// <summary>An empty or whitespace snapshots directory throws from both <c>ResolveByTest</c> overloads, as they
+    /// document.</summary>
+    [Test]
+    public void ResolveByTest_EmptyDirectory_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest(string.Empty, "C", "M"));
+        Assert.Throws<ArgumentException>(() => SnapshotFileResolver.ResolveByTest("   ", "C", null, "M", null));
     }
 
     /// <summary>Empty / whitespace test-method name throws.</summary>

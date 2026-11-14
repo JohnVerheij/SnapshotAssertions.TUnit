@@ -31,6 +31,15 @@ namespace SnapshotAssertions.TUnit.SnapshotTests;
 internal sealed class PublicApiTests
 {
     /// <summary>
+    /// Generator options shared by both snapshots. The target framework attribute is excluded so one baseline
+    /// serves every target framework of the test project (it is the only line that differs between them).
+    /// </summary>
+    private static readonly ApiGeneratorOptions PublicApiOptions = new()
+    {
+        ExcludeAttributes = ["System.Runtime.Versioning.TargetFrameworkAttribute"],
+    };
+
+    /// <summary>
     /// Pins the public surface of the framework-agnostic <c>SnapshotAssertions</c> assembly:
     /// <c>SnapshotComparer</c>, <c>SnapshotEvaluator</c>, <c>SnapshotFileResolver</c>,
     /// <c>SnapshotAcceptMode</c>, <c>SnapshotOptions</c> and the four enum types,
@@ -48,7 +57,7 @@ internal sealed class PublicApiTests
         // platform's native EOL while the committed .expected.txt baseline is always LF
         // (per .gitattributes), and Windows local runs would diff against the CI-accepted
         // baseline.
-        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
+        var publicApi = assembly.GeneratePublicApi(PublicApiOptions).ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }
@@ -69,7 +78,7 @@ internal sealed class PublicApiTests
         // platform's native EOL while the committed .expected.txt baseline is always LF
         // (per .gitattributes), and Windows local runs would diff against the CI-accepted
         // baseline.
-        var publicApi = assembly.GeneratePublicApi().ReplaceLineEndings("\n");
+        var publicApi = assembly.GeneratePublicApi(PublicApiOptions).ReplaceLineEndings("\n");
 
         await Assert.That(publicApi).MatchesSnapshot();
     }

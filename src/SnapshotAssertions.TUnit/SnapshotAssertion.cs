@@ -17,12 +17,20 @@ namespace SnapshotAssertions.TUnit;
 /// <para>
 /// On mismatch or missing baseline, the actual content is written to a sibling actual file
 /// (<c>.actual.txt</c>; <see cref="SnapshotFileResolver.ResolveByFile(string)"/> names it for a custom path) and
-/// the assertion fails with both paths and a line-based diff in
-/// the failure message. When the <c>SNAPSHOT_ACCEPT</c> environment variable is set to a
+/// the assertion fails with both paths in the failure message, and with a line-based diff when a baseline exists.
+/// When the <c>SNAPSHOT_ACCEPT</c> environment variable is set to a
 /// truthy value (and the process is not in CI: <c>CI</c> and <c>TF_BUILD</c> are not <c>1</c>, <see langword="true"/> or <c>yes</c>,
 /// unless <c>SNAPSHOT_ACCEPT_IN_CI</c> is truthy), the actual content is
 /// instead written over the expected baseline and the assertion passes; this is the
 /// accept-mode used to bulk-update snapshots after intentional changes.
+/// </para>
+/// <para>
+/// A misuse or a file problem is not reported as a failed assertion: it propagates as its own exception when the
+/// assertion is awaited. That is an <see cref="InvalidOperationException"/> when no name or path is set and no TUnit test
+/// is running, an <see cref="ArgumentException"/> for an empty <see cref="WithName"/> name or one that holds a path
+/// separator or another character a file name cannot hold, and an <see cref="System.IO.IOException"/> or
+/// <see cref="UnauthorizedAccessException"/> when a file cannot be read or written (see
+/// <see cref="SnapshotEvaluator.EvaluateAsync"/>).
 /// </para>
 /// </remarks>
 [AssertionExtension("MatchesSnapshot")]
@@ -49,7 +57,7 @@ public sealed class SnapshotAssertion : Assertion<string>
     {
         ArgumentNullException.ThrowIfNull(snapshotName);
         _explicitName = snapshotName;
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithName(\"{snapshotName}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithName(\"{MessageText.EscapeLineBreaks(snapshotName)}\")");
         return this;
     }
 
@@ -64,7 +72,7 @@ public sealed class SnapshotAssertion : Assertion<string>
     {
         ArgumentNullException.ThrowIfNull(filePath);
         _explicitPath = filePath;
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtPath(\"{filePath}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtPath(\"{MessageText.EscapeLineBreaks(filePath)}\")");
         return this;
     }
 

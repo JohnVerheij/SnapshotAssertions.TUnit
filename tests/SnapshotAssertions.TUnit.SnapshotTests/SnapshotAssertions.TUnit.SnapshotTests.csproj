@@ -22,7 +22,7 @@
     here rather than relying on the package targets file.
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>SnapshotAssertions.TUnit.SnapshotTests</RootNamespace>
     <AssemblyName>SnapshotAssertions.TUnit.SnapshotTests</AssemblyName>
 

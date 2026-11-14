@@ -46,7 +46,8 @@ public static partial class Scrubbers
     public static SnapshotScrubber GuidN { get; } = new GuidNScrubber();
 
     /// <summary>Replaces all elapsed-millisecond values (e.g. <c>42ms</c>,
-    /// <c>42 ms</c>, <c>42.5ms</c>, <c>1234.567 ms</c>) with
+    /// <c>42 ms</c>, <c>42.5ms</c>, <c>1234.567 ms</c>; the space may be any white space, such as a tab or a no-break
+    /// space, but never a line break) with
     /// <c>&lt;elapsed-ms:N&gt;</c>. Recurring elapsed values share an index. Pattern is
     /// case-sensitive on the <c>ms</c> suffix (uppercase <c>MS</c> is not matched); use
     /// <see cref="Pattern(string, string)"/> for case-insensitive needs.</summary>
@@ -145,6 +146,9 @@ public static partial class Scrubbers
     /// <returns>A pattern scrubber.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="pattern"/> is not a valid regex.</exception>
+    /// <exception cref="NotSupportedException"><paramref name="pattern"/> uses a construct that
+    /// <see cref="RegexOptions.NonBacktracking"/> does not support, such as a lookaround or a backreference. Pass a
+    /// <see cref="Regex"/> to <see cref="Pattern(Regex, string)"/> to choose the options yourself.</exception>
     public static SnapshotScrubber Pattern(string pattern, string token)
     {
         ArgumentNullException.ThrowIfNull(pattern);
@@ -185,6 +189,9 @@ public static partial class Scrubbers
     /// <returns>An indexed-pattern scrubber.</returns>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="pattern"/> is not a valid regex.</exception>
+    /// <exception cref="NotSupportedException"><paramref name="pattern"/> uses a construct that
+    /// <see cref="RegexOptions.NonBacktracking"/> does not support, such as a lookaround or a backreference. Pass a
+    /// <see cref="Regex"/> to <see cref="IndexedPattern(Regex, string)"/> to choose the options yourself.</exception>
     public static SnapshotScrubber IndexedPattern(string pattern, string kind)
     {
         ArgumentNullException.ThrowIfNull(pattern);
@@ -264,14 +271,16 @@ public static partial class Scrubbers
             });
         }
 
-        // Integer or fixed-point number, optional whitespace, literal "ms", at word
+        // Integer or fixed-point number, optional white space other than CR and LF (never a line break: a number that ends a
+        // line must not pull in a word "ms" that starts the next line, and the diff analyzer runs this same
+        // pattern over differing lines joined by line feeds), literal "ms", at word
         // boundaries. The leading \b prevents matching a digit sequence that's the tail of
         // a longer numeric token (e.g. "1234.567" inside "v1234.567ms" would still match
         // because the \b sits before the digit run; for v0.4.0 we accept this minor case as
         // out-of-scope. Consumers needing tighter matching use Scrubbers.Pattern.). The
         // trailing \b after "ms" prevents matching "msdb" or "mscorlib" tokens.
         [GeneratedRegex(
-            @"\b\d+(?:\.\d+)?\s*ms\b",
+            @"\b\d+(?:\.\d+)?[^\S\r\n]*ms\b",
             RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
         private static partial Regex ElapsedMsRegex();
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -29,6 +30,18 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
         await Assert.That(result.IsPass).IsTrue();
         await Assert.That(File.Exists(paths.ActualFilePath)).IsFalse();
+    }
+
+    /// <summary>Without an accept-mode override the evaluator consults the environment. Matching content gives the same
+    /// outcome whatever the environment says, so this pins the default path without depending on the host.</summary>
+    [Test]
+    public async Task MatchingContent_NoAcceptOverride_ReturnsMatched(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync("hello\n", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, SnapshotOptions.Default, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
     }
 
     /// <summary>Mismatched content produces a Mismatched outcome with the actual file
@@ -213,6 +226,27 @@ internal sealed class SnapshotEvaluatorTests
 
         await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.NoBaseline);
         await Assert.That(await File.ReadAllTextAsync(paths.ActualFilePath, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo("payload\n");
+        await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
+    }
+
+    /// <summary>A baseline whose file name is close to the file system's limit for one name (255 characters on NTFS
+    /// and ext4) is accepted: the temporary file has a short name of its own, not the target name plus a suffix that
+    /// would push it past the limit.</summary>
+    [Test]
+    public async Task Accept_TargetNameNearTheNameLengthLimit_IsWritten(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var name = new string('n', 250 - ".expected.txt".Length);
+        var paths = new SnapshotPaths(
+            Path.Combine(dir, name + ".expected.txt"),
+            Path.Combine(dir, name + ".actual.txt"));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("payload\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        await Assert.That(await File.ReadAllTextAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false))
             .IsEqualTo("payload\n");
         await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
     }
@@ -485,10 +519,22 @@ internal sealed class SnapshotEvaluatorTests
         return (new SnapshotPaths(expectedPath, actualPath), dir);
     }
 
+    private static readonly ConcurrentBag<string> TempDirectories = [];
+
+    /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
+    [After(Class)]
+    public static void DeleteTempDirectories(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var directory in TempDirectories)
+            Directory.Delete(directory, recursive: true);
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "snapshot-evaluator-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempDirectories.Add(dir);
         return dir;
     }
 }
