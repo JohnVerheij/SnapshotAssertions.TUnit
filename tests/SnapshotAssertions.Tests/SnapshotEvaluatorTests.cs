@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -497,10 +498,21 @@ internal sealed class SnapshotEvaluatorTests
         return (new SnapshotPaths(expectedPath, actualPath), dir);
     }
 
+    private static readonly ConcurrentBag<string> TempDirectories = [];
+
+    /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
+    [After(Class)]
+    public static void DeleteTempDirectories(CancellationToken cancellationToken)
+    {
+        foreach (var directory in TempDirectories)
+            Directory.Delete(directory, recursive: true);
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "snapshot-evaluator-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempDirectories.Add(dir);
         return dir;
     }
 }

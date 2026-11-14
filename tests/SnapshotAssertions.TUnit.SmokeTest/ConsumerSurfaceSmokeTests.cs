@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Smoke.Consumer;
 
 /// <summary>
@@ -48,10 +50,21 @@ internal sealed class ConsumerSurfaceSmokeTests
         await Assert.That(options.LineEndingMode).IsEqualTo(SnapshotLineEndingMode.Ordinal);
     }
 
+    private static readonly ConcurrentBag<string> TempDirectories = [];
+
+    /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
+    [After(Class)]
+    public static void DeleteTempDirectories()
+    {
+        foreach (var directory in TempDirectories)
+            Directory.Delete(directory, recursive: true);
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "smoke-snapshot-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempDirectories.Add(dir);
         return dir;
     }
 }

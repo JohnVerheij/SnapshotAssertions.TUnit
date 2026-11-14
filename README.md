@@ -864,7 +864,7 @@ internal sealed class MyProtoRenderer : SnapshotRenderer<MyProto>
 await Assert.That(myProto).MatchesSnapshot(new MyProtoRenderer());
 ```
 
-The renderer is invoked once per `CheckAsync` call; its output is fed through any chained scrubbers and then through the standard snapshot pipeline. If the renderer throws, the failure message includes the thrown exception name and message rather than crashing the test runner. If the renderer returns `null`, the assertion fails with `"renderer returned null content"`.
+The renderer is invoked once per `CheckAsync` call; its output is fed through any chained scrubbers and then through the standard snapshot pipeline. If the renderer throws, the failure message includes the thrown exception name and message (line breaks in the message are shown as `\r` and `\n`) rather than crashing the test runner. If the renderer returns `null`, the assertion fails with `"renderer returned null content"`.
 
 **Compose sibling family packages via the delegate overload (v0.4.0):**
 

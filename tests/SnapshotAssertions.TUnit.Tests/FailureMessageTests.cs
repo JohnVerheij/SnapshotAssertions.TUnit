@@ -173,6 +173,72 @@ internal sealed class FailureMessageTests
         }
     }
 
+    /// <summary>
+    /// A project baseline path with a line break (valid in a file name on Linux) is shown escaped on its one line.
+    /// </summary>
+    [Test]
+    public async Task ProjectBaselinePathWithLineBreak_IsEscapedOnItsLine(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var directory = CreateTempDirectory();
+        try
+        {
+            var paths = SnapshotFileResolver.ResolveByFile(Path.Combine(directory, "m.expected.txt"));
+
+            var result = await SnapshotAssertionImpl.EvaluateAsync("a\n", null, SnapshotOptions.Default, paths, "project/p\r\nq.expected.txt", cancellationToken);
+
+            await Assert.That(Lf(result.Message)).EndsWith("\nProject baseline: project/p\\r\\nq.expected.txt\n");
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A renderer that throws a multi-line message ("Cannot access a disposed object.\r\nObject name: 'x'." is typical)
+    /// is reported on the one <c>but renderer threw</c> clause, with the line breaks escaped.
+    /// </summary>
+    [Test]
+    public async Task RendererThrowingMultiLineMessage_IsReportedOnOneClause(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var subject = 1;
+
+        var exception = await Assert.That(async () => await Assert.That(subject)
+                .MatchesSnapshot(static _ => throw new InvalidOperationException("first line\r\nsecond line\nthird line"))
+                .AtPath("unused.expected.txt"))
+            .Throws<AssertionException>();
+
+        await Assert.That(exception!.Message).Contains("renderer threw InvalidOperationException: first line\\r\\nsecond line\\nthird line");
+        await Assert.That(Lf(exception.Message)).DoesNotContain("first line\nsecond line");
+    }
+
+    /// <summary>
+    /// A snapshot name or path with a line break is escaped in the assertion expression TUnit prints, so the expression
+    /// stays on one line.
+    /// </summary>
+    [Test]
+    public async Task NameAndPathWithLineBreak_AreEscapedInTheExpression(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string? nothing = null;
+        int? none = null;
+
+        var named = await Assert.That(async () => await Assert.That(nothing).MatchesSnapshot().WithName("n\r\nm").AtPath("p\nq"))
+            .Throws<AssertionException>();
+        var renderedNamed = await Assert.That(async () => await Assert.That(none).MatchesSnapshot(static _ => "rendered").WithName("n\r\nm").AtPath("p\nq"))
+            .Throws<AssertionException>();
+
+        foreach (var message in new[] { named!.Message, renderedNamed!.Message })
+        {
+            await Assert.That(message).Contains(".WithName(\"n\\r\\nm\").AtPath(\"p\\nq\")");
+            await Assert.That(Lf(message)).DoesNotContain("n\nm");
+            await Assert.That(Lf(message)).DoesNotContain("p\nq");
+        }
+    }
+
     private static string Lf(string text) => text.ReplaceLineEndings("\n");
 
     private static string CreateTempDirectory()

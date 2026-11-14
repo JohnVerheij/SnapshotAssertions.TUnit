@@ -333,6 +333,21 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
         await Assert.That(exception!.Message).Contains("file.txt");
     }
 
+    /// <summary>A path with a line break (valid in a file name on Linux) is named in the exception message with the break
+    /// escaped, so the one-sentence message stays on one line.</summary>
+    [Test]
+    public async Task Retry_PersistentFailure_PathWithLineBreak_IsEscapedInTheMessage(CancellationToken cancellationToken)
+    {
+        var exception = await Assert.That(async () => await SnapshotEvaluator.RetryTransientAsync(
+                () => throw new IOException("busy"),
+                "dir/a\r\nb.expected.txt",
+                cancellationToken))
+            .Throws<IOException>();
+
+        await Assert.That(exception!.Message).Contains("dir/a\\r\\nb.expected.txt");
+        await Assert.That(exception.Message).DoesNotContain("dir/a\r\nb");
+    }
+
     private static async Task AssertNotRetriedAsync(IOException failure, CancellationToken cancellationToken)
     {
         var attempts = 0;

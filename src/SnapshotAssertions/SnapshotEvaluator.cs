@@ -266,7 +266,7 @@ public static class SnapshotEvaluator
         var message = string.Format(
             CultureInfo.InvariantCulture,
             "Access to the snapshot file '{0}' failed after repeated attempts: {1} The file may be read-only or locked by another process.",
-            path,
+            MessageText.EscapeLineBreaks(path),
             failure.Message);
         return failure is UnauthorizedAccessException
             ? new UnauthorizedAccessException(message, failure)

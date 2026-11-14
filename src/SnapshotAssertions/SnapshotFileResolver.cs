@@ -44,7 +44,8 @@ public static class SnapshotFileResolver
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or
-    /// <paramref name="snapshotName"/> contains a path separator or is empty / whitespace.
+    /// <paramref name="snapshotName"/> is empty / whitespace or contains a path separator or a character that is
+    /// not valid in a file name.
     /// </exception>
     public static SnapshotPaths ResolveByName(string snapshotsDirectory, string snapshotName)
     {
@@ -109,8 +110,8 @@ public static class SnapshotFileResolver
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
-    /// invalid file-name characters.
+    /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or <paramref name="testClassName"/> or
+    /// <paramref name="testMethodName"/> is empty or contains invalid file-name characters.
     /// </exception>
     public static SnapshotPaths ResolveByTest(
         string snapshotsDirectory,
@@ -161,8 +162,8 @@ public static class SnapshotFileResolver
     /// </remarks>
     /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// <paramref name="testClassName"/> or <paramref name="testMethodName"/> is empty or contains
-    /// invalid file-name characters.
+    /// <paramref name="snapshotsDirectory"/> is empty or whitespace, or <paramref name="testClassName"/> or
+    /// <paramref name="testMethodName"/> is empty or contains invalid file-name characters.
     /// </exception>
     public static SnapshotPaths ResolveByTest(
         string snapshotsDirectory,
@@ -325,6 +326,8 @@ public static class SnapshotFileResolver
     /// final extension (<c>payload.json</c> becomes <c>payload.actual.json</c>), or appended when
     /// it has none (<c>payload</c> becomes <c>payload.actual</c>).</returns>
     /// <exception cref="ArgumentNullException"><paramref name="expectedFilePath"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="expectedFilePath"/> is empty or contains a null
+    /// character.</exception>
     public static SnapshotPaths ResolveByFile(string expectedFilePath)
     {
         ArgumentNullException.ThrowIfNull(expectedFilePath);

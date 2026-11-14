@@ -97,7 +97,9 @@ public sealed record SnapshotResult
 
     /// <summary>Renders a multi-line description of the result for use in assertion failure
     /// messages and diagnostic output. Includes the expected path, the actual path (when
-    /// applicable), the diff (when applicable), and accept-flow guidance.</summary>
+    /// applicable), the diff (when applicable), and accept-flow guidance. A carriage return or line feed
+    /// in a path is shown escaped (<c>\r</c>, <c>\n</c>), so each path stays on its own line; the diff shows
+    /// the compared lines as they are.</summary>
     /// <returns>A multi-line description; format is not stable.</returns>
     public string Describe()
     {
@@ -117,20 +119,20 @@ public sealed record SnapshotResult
         if (Outcome is SnapshotMatchOutcome.Matched)
         {
             writer.Write("Snapshot matched: ");
-            writer.WriteLine(ExpectedFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ExpectedFilePath));
         }
         else if (Outcome is SnapshotMatchOutcome.Accepted)
         {
             writer.Write("Snapshot accepted (SNAPSHOT_ACCEPT=1): ");
-            writer.WriteLine(ExpectedFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ExpectedFilePath));
         }
         else if (Outcome is SnapshotMatchOutcome.NoBaseline)
         {
             writer.WriteLine("Snapshot baseline does not exist.");
             writer.Write("  Expected: ");
-            writer.WriteLine(ExpectedFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ExpectedFilePath));
             writer.Write("  Actual:   ");
-            writer.WriteLine(ActualFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ActualFilePath!));
             writer.WriteLine();
             writer.WriteLine("To accept it as the baseline, inspect the actual file and copy it to the expected path");
             writer.WriteLine("(for an .expected.txt file in the build output's Snapshots/ folder, to the matching path in the project's Snapshots/ folder instead),");
@@ -141,9 +143,9 @@ public sealed record SnapshotResult
             // SnapshotMatchOutcome.Mismatched, and the fallback for any value added later.
             writer.WriteLine("Snapshot did not match the baseline.");
             writer.Write("  Expected: ");
-            writer.WriteLine(ExpectedFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ExpectedFilePath));
             writer.Write("  Actual:   ");
-            writer.WriteLine(ActualFilePath);
+            writer.WriteLine(MessageText.EscapeLineBreaks(ActualFilePath!));
             if (!string.IsNullOrEmpty(Diff))
             {
                 writer.WriteLine();

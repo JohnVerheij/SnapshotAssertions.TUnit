@@ -77,7 +77,7 @@ internal static class SnapshotAssertionImpl
         var description = result.Describe();
         return projectBaselinePath is null
             ? description
-            : description + "Project baseline: " + projectBaselinePath + Environment.NewLine;
+            : description + "Project baseline: " + MessageText.EscapeLineBreaks(projectBaselinePath) + Environment.NewLine;
     }
 
     /// <summary>
