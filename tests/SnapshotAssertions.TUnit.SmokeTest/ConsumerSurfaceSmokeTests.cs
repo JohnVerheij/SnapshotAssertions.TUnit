@@ -54,8 +54,9 @@ internal sealed class ConsumerSurfaceSmokeTests
 
     /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
     [After(Class)]
-    public static void DeleteTempDirectories()
+    public static void DeleteTempDirectories(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         foreach (var directory in TempDirectories)
             Directory.Delete(directory, recursive: true);
     }

@@ -504,6 +504,7 @@ internal sealed class SnapshotEvaluatorTests
     [After(Class)]
     public static void DeleteTempDirectories(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         foreach (var directory in TempDirectories)
             Directory.Delete(directory, recursive: true);
     }
