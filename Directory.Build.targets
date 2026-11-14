@@ -16,6 +16,17 @@
     Mirrors the family pattern: Directory.Build.props carries property defaults, and this file
     carries the build extension that runs once the SDK has set the version property.
   -->
+
+  <!--
+    Attributes that package validation leaves out of the API comparison with the baseline, so their changes are not
+    recorded as CP0015 entries in CompatibilitySuppressions.xml. None of them changes what a consumer compiles against:
+    TUnit's [GenerateAssertion] carries the expectation message of a generated assertion, and the compiler's state
+    machine attributes name a generated class whose number shifts whenever a method is added.
+  -->
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory).config/apicompat-excluded-attributes.txt')">
+    <ApiCompatExcludeAttributesFile Include="$(MSBuildThisFileDirectory).config/apicompat-excluded-attributes.txt" />
+  </ItemGroup>
+
   <UsingTask TaskName="ExtractChangelogSection"
              TaskFactory="RoslynCodeTaskFactory"
              AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">

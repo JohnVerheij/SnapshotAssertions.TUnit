@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   docs:
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-docs.yml@e11f599294bf72e9492a8bb9f04e99475770dd50 # v1.4.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-docs.yml@7722848a0484cbf98ff0b2affb9a3b12c783dce7 # v1.5.0
     with:
       package: SnapshotAssertions
     permissions:
