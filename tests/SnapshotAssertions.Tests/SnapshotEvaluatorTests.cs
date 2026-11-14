@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -29,6 +30,18 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
         await Assert.That(result.IsPass).IsTrue();
         await Assert.That(File.Exists(paths.ActualFilePath)).IsFalse();
+    }
+
+    /// <summary>Without an accept-mode override the evaluator consults the environment. Matching content gives the same
+    /// outcome whatever the environment says, so this pins the default path without depending on the host.</summary>
+    [Test]
+    public async Task MatchingContent_NoAcceptOverride_ReturnsMatched(CancellationToken cancellationToken)
+    {
+        var (paths, _) = await CreateScenarioAsync("hello\n", expectedContent: "hello\n", cancellationToken).ConfigureAwait(false);
+
+        var result = await SnapshotEvaluator.EvaluateAsync("hello\n", paths, SnapshotOptions.Default, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Matched);
     }
 
     /// <summary>Mismatched content produces a Mismatched outcome with the actual file
@@ -485,10 +498,22 @@ internal sealed class SnapshotEvaluatorTests
         return (new SnapshotPaths(expectedPath, actualPath), dir);
     }
 
+    private static readonly ConcurrentBag<string> TempDirectories = [];
+
+    /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
+    [After(Class)]
+    public static void DeleteTempDirectories(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var directory in TempDirectories)
+            Directory.Delete(directory, recursive: true);
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "snapshot-evaluator-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempDirectories.Add(dir);
         return dir;
     }
 }

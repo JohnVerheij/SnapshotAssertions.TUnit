@@ -19,7 +19,7 @@
   -->
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>Smoke.Consumer</RootNamespace>
     <AssemblyName>Smoke.Consumer</AssemblyName>
 
@@ -74,6 +74,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- PublicApiGenerator is what the README quick start (a public API snapshot) uses next to the package. -->
+    <PackageReference Include="PublicApiGenerator" Version="11.5.4" />
     <PackageReference Include="TUnit" Version="1.81.16" />
   </ItemGroup>
 

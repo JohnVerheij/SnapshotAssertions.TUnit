@@ -19,7 +19,7 @@ TUnit-native text-snapshot assertions on top of TUnit's `[AssertionExtension]` s
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.81.16 or later, .NET 10.
+`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.81.16 or later, .NET 10 or .NET 11.
 
 ## Quick start
 
@@ -111,6 +111,8 @@ On a snapshot mismatch, the failure message now scans the rendered diff for know
 For values that are not already strings, project them via a renderer:
 
 ```csharp
+using SnapshotAssertions.Render;
+
 // Inline delegate projection.
 await Assert.That(myProto)
     .MatchesSnapshot(p => Formatter.Format(p))
@@ -164,6 +166,8 @@ Part of an assertion family for TUnit:
 - [JsonAssertions.TUnit](https://github.com/JohnVerheij/JsonAssertions.TUnit)
 - [SseAssertions.TUnit](https://github.com/JohnVerheij/SseAssertions.TUnit)
 - [GrpcAssertions.TUnit](https://github.com/JohnVerheij/GrpcAssertions.TUnit)
+- [MetricsAssertions.TUnit](https://github.com/JohnVerheij/MetricsAssertions.TUnit)
+- [TracingAssertions.TUnit](https://github.com/JohnVerheij/TracingAssertions.TUnit)
 
 ## License
 

@@ -1,3 +1,4 @@
+using System;
 using SnapshotAssertions;
 using SnapshotAssertions.TUnit;
 using TUnit.Assertions.Core;
@@ -27,6 +28,7 @@ public static class MatchesSnapshotShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="string"/>.</param>
     /// <param name="snapshotName">The base name (without extension).</param>
     /// <returns>The assertion configured for the explicit name.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="snapshotName"/> is <see langword="null"/>.</exception>
     public static SnapshotAssertion MatchesSnapshot(this IAssertionSource<string> source, string snapshotName)
         => source.MatchesSnapshot().WithName(snapshotName);
 
@@ -38,6 +40,7 @@ public static class MatchesSnapshotShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="string"/>.</param>
     /// <param name="options">The comparison options.</param>
     /// <returns>The assertion configured for the supplied options.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public static SnapshotAssertion MatchesSnapshot(this IAssertionSource<string> source, SnapshotOptions options)
         => source.MatchesSnapshot().WithOptions(options);
 
@@ -50,6 +53,7 @@ public static class MatchesSnapshotShorthandExtensions
     /// <param name="snapshotName">The base name (without extension).</param>
     /// <param name="options">The comparison options.</param>
     /// <returns>The assertion configured for the explicit name and options.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="snapshotName"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
     public static SnapshotAssertion MatchesSnapshot(this IAssertionSource<string> source, string snapshotName, SnapshotOptions options)
         => source.MatchesSnapshot().WithName(snapshotName).WithOptions(options);
 
@@ -61,6 +65,7 @@ public static class MatchesSnapshotShorthandExtensions
     /// <param name="source">The assertion source over a <see cref="string"/>.</param>
     /// <param name="filePath">The path to the expected baseline file.</param>
     /// <returns>The assertion configured for the explicit path.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="filePath"/> is <see langword="null"/>.</exception>
     public static SnapshotAssertion MatchesSnapshotFile(this IAssertionSource<string> source, string filePath)
         => source.MatchesSnapshot().AtPath(filePath);
 
@@ -73,6 +78,7 @@ public static class MatchesSnapshotShorthandExtensions
     /// <param name="filePath">The path to the expected baseline file.</param>
     /// <param name="options">The comparison options.</param>
     /// <returns>The assertion configured for the explicit path and options.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="filePath"/> or <paramref name="options"/> is <see langword="null"/>.</exception>
     public static SnapshotAssertion MatchesSnapshotFile(this IAssertionSource<string> source, string filePath, SnapshotOptions options)
         => source.MatchesSnapshot().AtPath(filePath).WithOptions(options);
 }

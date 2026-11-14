@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>SnapshotAssertions</RootNamespace>
     <AssemblyName>SnapshotAssertions</AssemblyName>
     <IsPublishable>false</IsPublishable>
@@ -65,6 +65,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The retry helper of SnapshotEvaluator is exercised directly: the file failures it must not retry (a missing
+         file or directory, a path that is too long) cannot be produced on demand through the public API. -->
+    <InternalsVisibleTo Include="SnapshotAssertions.Tests" />
   </ItemGroup>
 
   <ItemGroup>

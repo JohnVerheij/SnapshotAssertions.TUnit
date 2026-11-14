@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <RootNamespace>SnapshotAssertions.TUnit</RootNamespace>
     <AssemblyName>SnapshotAssertions.TUnit</AssemblyName>
     <IsPublishable>false</IsPublishable>
@@ -26,16 +26,6 @@
          Release Notes shown on nuget.org. -->
     <PackageReleaseNotes>$(RepositoryUrl)/releases/tag/v$(Version)</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-
-    <!-- Keep the packed build/ and buildTransitive/ SnapshotAssertions.TUnit.targets in the .nupkg. DotNetProjectFile.Analyzers
-         1.15.0 and later add a SonarQube content glob over **/*.targets marked Pack=false, which silently
-         overrides this package's own Pack=true build-targets item below and drops the file from the
-         package - the cause of the 0.7.0 regression where every consumer snapshot baseline stopped copying
-         to output. This repo runs no SonarQube project-file scan, so disabling that integration costs
-         nothing here. It must live in the project body: the analyzer props set it true (imported before
-         the body) and the analyzer targets read it (imported after the body), so a Directory.Build.props
-         value is not reliable. Tracked upstream as dotnet-project-file-analyzers#828. -->
-    <SonarQubeIntegration>false</SonarQubeIntegration>
 
     <!-- Pre-1.0 suppressions:
          Proj0212/Proj0213: PackageIcon and PackageIconUrl omitted; will be added by 1.0.0.

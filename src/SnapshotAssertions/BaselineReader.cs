@@ -30,10 +30,29 @@ internal static class BaselineReader
     /// <returns>The decoded text of the file.</returns>
     internal static async Task<string> ReadAsync(string path, SnapshotBomHandling bomHandling, CancellationToken cancellationToken)
     {
-        var bytes = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadAllBytesSharedAsync(path, cancellationToken).ConfigureAwait(false);
         var (encoding, markLength) = Detect(bytes);
         var text = encoding.GetString(bytes, markLength, bytes.Length - markLength);
         return markLength > 0 && bomHandling is SnapshotBomHandling.PreserveBom ? Bom + text : text;
+    }
+
+    /// <summary>
+    /// Reads the whole file while allowing other evaluations to replace or delete it meanwhile. The default read
+    /// shares the file for reading only, which on Windows makes another evaluation's replace-move of the same
+    /// baseline fail while this one reads it (two test processes accepting one project baseline).
+    /// </summary>
+    /// <param name="path">The file to read.</param>
+    /// <param name="cancellationToken">Cancellation token propagated to the file read.</param>
+    /// <returns>The bytes of the file.</returns>
+    private static async Task<byte[]> ReadAllBytesSharedAsync(string path, CancellationToken cancellationToken)
+    {
+        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
+        await using (stream.ConfigureAwait(false))
+        {
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            return buffer.ToArray();
+        }
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -130,10 +131,33 @@ internal sealed class MatchesSnapshotTests
         await Assert.That(ex!.Message).Contains("actual content was null");
     }
 
+    /// <summary>A name that holds a path separator or is empty is a misuse, not a failed comparison: the assertion throws
+    /// the <see cref="ArgumentException"/> when awaited, as the type documents.</summary>
+    [Test]
+    public async Task InvalidSnapshotName_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await Assert.That(async () => await Assert.That("x").MatchesSnapshot("sub/escape")).Throws<ArgumentException>();
+        await Assert.That(async () => await Assert.That("x").MatchesSnapshot(" ")).Throws<ArgumentException>();
+    }
+
+    private static readonly ConcurrentBag<string> TempDirectories = [];
+
+    /// <summary>Removes the temp directories the tests of this class created, once all of them have run.</summary>
+    [After(Class)]
+    public static void DeleteTempDirectories(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var directory in TempDirectories)
+            Directory.Delete(directory, recursive: true);
+    }
+
     private static string CreateTempDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "matches-snapshot-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempDirectories.Add(dir);
         return dir;
     }
 }

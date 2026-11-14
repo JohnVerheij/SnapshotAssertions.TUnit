@@ -271,6 +271,38 @@ internal sealed class SnapshotResultDescribeTests
         await Assert.That(description).DoesNotContain("Suggestion");
     }
 
+    // ----- Line breaks in paths -----
+
+    /// <summary>A path that holds a carriage return and a line feed (valid in a file name on Linux) stays on the
+    /// one line of its label in every outcome: the description shows the break escaped, not as a raw line break.</summary>
+    [Test]
+    public async Task Describe_PathWithLineBreak_IsEscapedInEveryOutcome(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        const string expectedPath = "dir/a\r\nb.expected.txt";
+        const string actualPath = "dir/c\nd.actual.txt";
+
+        var descriptions = new[]
+        {
+            SnapshotResult.Matched(expectedPath).Describe(),
+            SnapshotResult.Accepted(expectedPath).Describe(),
+            SnapshotResult.NoBaseline(expectedPath, actualPath).Describe(),
+            SnapshotResult.Mismatched(expectedPath, actualPath, "-a\n+b\n").Describe(),
+        };
+
+        foreach (var description in descriptions)
+        {
+            await Assert.That(description).Contains("dir/a\\r\\nb.expected.txt");
+            await Assert.That(description).DoesNotContain("dir/a\r\nb");
+        }
+
+        foreach (var description in descriptions[2..])
+        {
+            await Assert.That(description).Contains("  Actual:   dir/c\\nd.actual.txt");
+            await Assert.That(description).DoesNotContain("dir/c\nd");
+        }
+    }
+
     // ----- DiffSuggestion record (v0.4.0) -----
 
     /// <summary>DiffSuggestion constructor exposes the three properties.</summary>

@@ -46,7 +46,7 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
     {
         ArgumentNullException.ThrowIfNull(snapshotName);
         _explicitName = snapshotName;
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithName(\"{snapshotName}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".WithName(\"{MessageText.EscapeLineBreaks(snapshotName)}\")");
         return this;
     }
 
@@ -58,7 +58,7 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
     {
         ArgumentNullException.ThrowIfNull(filePath);
         _explicitPath = filePath;
-        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtPath(\"{filePath}\")");
+        Context.ExpressionBuilder.Append(CultureInfo.InvariantCulture, $".AtPath(\"{MessageText.EscapeLineBreaks(filePath)}\")");
         return this;
     }
 
@@ -112,7 +112,7 @@ public sealed class RenderedSnapshotAssertion<T> : Assertion<T>
 #pragma warning restore CA1031
         {
             return Task.FromResult(AssertionResult.Failed(
-                $"renderer threw {ex.GetType().Name}: {ex.Message}", ex));
+                $"renderer threw {ex.GetType().Name}: {MessageText.EscapeLineBreaks(ex.Message)}", ex));
         }
 
         if (content is null)

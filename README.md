@@ -82,7 +82,7 @@ A baseline is the plain expected text and nothing else: no header, no metadata, 
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.81.16 or later, .NET 10. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
+**Requirements:** TUnit 1.81.16 or later, .NET 10 or .NET 11. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
 ## Package layout
 
@@ -338,7 +338,7 @@ All shorthands return a `SnapshotAssertion`, so you can still chain further (for
   so blank lines and where lines break are compared. Before 0.9.0 the preset removed line breaks altogether;
   re-accept a baseline that was accepted under it (it is one line).
 
-Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff.
+Beyond the presets, `WithNormalizer(Func<string, string>)` (v0.5.0+) attaches a caller-supplied transform that runs on both the actual content and the expected baseline *before* any built-in normalization. Use it to canonicalize content whose textual form is noisy but semantically irrelevant: reformat JSON or XML, sort a nondeterministic collection, mask volatile fields, or normalize number formatting. Chaining composes in registration order (the first registered runs first), and the committed baseline stores the canonical form, so a reordering or reformatting that does not change meaning is not a diff. The normalizer has to be idempotent (normalizing its own output changes nothing): it runs on the actual content and on the stored baseline, which already holds the canonical form.
 
 ```csharp
 await Assert.That(body).MatchesSnapshot(SnapshotOptions.Default
@@ -356,7 +356,8 @@ How line-ending differences between the actual content and the expected baseline
 | `Ordinal` (default) | No line-ending normalization: each line's ending is compared as it is, so CRLF and LF are different. Under `TrailingNewline = Optional` the final line's ending, whichever it is, is not compared. |
 | `NormalizeToLF` | Both sides normalized to LF before comparison. Cross-platform-safe. |
 | `NormalizeToCRLF` | Both sides normalized to CRLF before comparison. Windows-leaning. |
-| `IgnoreLineEndings` | **Deprecated** (`[Obsolete]`, removed in 0.10.0; use `NormalizeToLF`). Line breaks removed from both sides, so the text is compared as one run: blank lines and where lines break are ignored. A final newline is kept as one LF unless `TrailingNewline` is `Optional`: under the default `Required`, `"a\nb\n"` becomes `"ab\n"`. Only the comparison removes line breaks: the written actual file and an accepted baseline keep them, joined with LF, and a baseline accepted earlier as one line still matches. |
+
+`IgnoreLineEndings`, which was marked obsolete, has been removed: replace it with `NormalizeToLF`, which keeps every line break in the comparison. A baseline that an earlier version accepted as one line has to be accepted again. A value outside the enum is rejected with an `ArgumentOutOfRangeException` when content is compared or written.
 
 ### `SnapshotBomHandling`
 
@@ -386,7 +387,7 @@ How the trailing newline at end-of-file is treated.
 | Value | Behavior |
 |---|---|
 | `Required` (default) | Preserve the trailing-newline state of the input. If actual lacks a trailing newline but expected has one (or vice versa), the comparison reports a mismatch. |
-| `Optional` | Both sides normalized to no trailing newline; presence vs absence is unobservable to the comparison. |
+| `Optional` | Both sides normalized to no trailing newline; presence vs absence is unobservable to the comparison. Only the final line break is dropped, so a blank line at the end still counts. Content that ends with a blank line is written with its final line break (the comparison drops one more from the written file), so the accepted baseline matches the content it came from. |
 | `Forbidden` | Neither side may end with a trailing newline. A trailing newline on the expected baseline or on the actual content fails the comparison, even when both sides are otherwise identical. |
 
 Under `Forbidden` the failure output names which side ends with a newline. The written `.actual.txt` and an accept-mode baseline contain the normalized content (after the configured line-ending handling and normalizer) with the trailing newline kept, so accepting a violating actual produces a baseline that violates the policy too. To resolve a violation, stop the producer from emitting the trailing newline, then re-accept the baseline or remove the newline from it.
@@ -482,6 +483,8 @@ Indexing state is **per-snapshot evaluation**: state lives only for the duration
 Two overloads of `Scrubbers.Pattern(...)` cover values not handled by the built-ins. **No indexing** is applied: every match becomes the same literal token.
 
 ```csharp
+using System.Text.RegularExpressions;
+
 // String overload: compiles the regex with NonBacktracking + CultureInvariant
 await Assert.That(httpLog)
     .MatchesSnapshot()
@@ -549,6 +552,8 @@ public async Task Reuses_the_bundle()
 `SnapshotScrubber` is a public abstract class. Derive from it to implement custom indexed or non-indexed scrubbing logic; the per-snapshot `SnapshotScrubberState` is supplied so custom scrubbers can keep stable token assignments for recurring values via `state.GetOrAssignIndex(kind, originalValue)`.
 
 ```csharp
+using System.Text.RegularExpressions;
+
 public sealed class SessionIdScrubber : SnapshotScrubber
 {
     private static readonly Regex Pattern = new(
@@ -690,6 +695,8 @@ failure message's `Project baseline:` line gives that path); the next build pick
 **Pin a public API surface (the headline use case):**
 
 ```csharp
+using PublicApiGenerator;
+
 [Test]
 public async Task Public_api_surface_matches_baseline()
 {
@@ -758,7 +765,7 @@ await Assert.That(actual).MatchesSnapshotFile("Snapshots/Shared/StatusTable.expe
 
 **Parameterized tests with `[Arguments]`: per-row baselines:**
 
-For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so method-level `[Arguments]` rows get their own baseline files instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are hashed too, so each class row gets its own file: `{TestClassName}.{ClassArgsHash8}.{TestMethodName}` plus `.{ArgsHash8}` for method arguments. The core exposes this as the five-parameter `SnapshotFileResolver.ResolveByTest(snapshotsDirectory, testClassName, testClassArguments, testMethodName, testMethodArguments)` overload; the four-parameter one is unchanged. Only value-like class arguments count: strings, booleans, characters, `Type` values, numbers and other `IFormattable` values, enums, `null`, and arrays or other collections that implement the non-generic `ICollection` (such as `List<T>`) of these. Any other argument, such as a `[ClassDataSource]` fixture, a lazy sequence or a `HashSet<T>` (it implements only the generic `ICollection<T>`), is skipped without being enumerated (its `ToString` is not a stable key), and a collection that holds one non-value-like element, such as a dictionary with entries, is skipped as a whole; a class with no value-like class argument keeps the name `{TestClassName}.{TestMethodName}`. Before 0.9.0 class arguments were not hashed and class rows shared one file, so re-accept those rows. An explicit name (`.WithName(...)`) replaces the whole default name and gets no argument hash. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files. The argument texts are joined with `|` without escaping, so rows whose texts are equal share one file, for example `null` and the string `"null"`, or `("a|b", "c")` and `("a", "b|c")`; give such rows names of their own with `.WithName(...)`.
+For parameterized tests, the default file resolver hashes the row's argument values (SHA-256, first 8 hex characters) and appends the hash to the snapshot file name, so method-level `[Arguments]` rows get their own baseline files instead of overwriting one another. Class-level `[Arguments]` (constructor arguments) are hashed too, so each class row gets its own file: `{TestClassName}.{ClassArgsHash8}.{TestMethodName}` plus `.{ArgsHash8}` for method arguments. The core exposes this as the five-parameter `SnapshotFileResolver.ResolveByTest(snapshotsDirectory, testClassName, testClassArguments, testMethodName, testMethodArguments)` overload; the four-parameter one is unchanged. Only value-like class arguments count: strings, booleans, characters, `Type` values, numbers and other `IFormattable` values, enums, `null`, and arrays or other collections that implement the non-generic `ICollection` (such as `List<T>`) of these. Any other argument, such as a `[ClassDataSource]` fixture, a lazy sequence or a `HashSet<T>` (it implements only the generic `ICollection<T>`), is skipped without being enumerated (its `ToString` is not a stable key), and a collection that holds one non-value-like element, such as a dictionary with entries, is skipped as a whole; a class with no value-like class argument keeps the name `{TestClassName}.{TestMethodName}`. Before 0.9.0 class arguments were not hashed and class rows shared one file, so re-accept those rows. An explicit name (`.WithName(...)`) replaces the whole default name and gets no argument hash. Stringification uses `CultureInfo.InvariantCulture` for `IFormattable` values, so the same arguments produce the same hash across developer machines and CI regardless of current culture. That holds for the value types listed above. A row of any other type uses that type's own `ToString`, and the `ToString` of a record, a tuple or a `KeyValuePair` formats a number or a date it holds with the current culture, so such a row can get a different file name on a machine with another culture; use `.WithName(...)` or pass the row as a string. Collection arguments (arrays and other enumerables) are expanded element-by-element, and recursively for nested collections, so two rows that differ only inside a collection get distinct files. The argument texts are joined with `|` without escaping, so rows whose texts are equal share one file, for example `null` and the string `"null"`, or `("a|b", "c")` and `("a", "b|c")`; give such rows names of their own with `.WithName(...)`.
 
 ```csharp
 [Test]
@@ -841,6 +848,8 @@ Wider diffs that match many patterns get a top-3-by-hit-count list plus a `... a
 For values that are not already strings, project them via a renderer. Two overloads cover the common shapes:
 
 ```csharp
+using SnapshotAssertions.Render;
+
 // Inline projection via a delegate. Good for one-off canonicalization.
 await Assert.That(myProto)
     .MatchesSnapshot(p => Formatter.Format(p))
@@ -855,13 +864,13 @@ internal sealed class MyProtoRenderer : SnapshotRenderer<MyProto>
 await Assert.That(myProto).MatchesSnapshot(new MyProtoRenderer());
 ```
 
-The renderer is invoked once per `CheckAsync` call; its output is fed through any chained scrubbers and then through the standard snapshot pipeline. If the renderer throws, the failure message includes the thrown exception name and message rather than crashing the test runner. If the renderer returns `null`, the assertion fails with `"renderer returned null content"`.
+The renderer is invoked once per `CheckAsync` call; its output is fed through any chained scrubbers and then through the standard snapshot pipeline. If the renderer throws, the failure message includes the thrown exception name and message (line breaks in the message are shown as `\r` and `\n`) rather than crashing the test runner. If the renderer returns `null`, the assertion fails with `"renderer returned null content"`.
 
 **Compose sibling family packages via the delegate overload (v0.4.0):**
 
 A sibling family package (e.g. `LogAssertions.TUnit`) can publish snapshot renderers for its own types as static helper methods, without taking a reference on `SnapshotAssertions` or `SnapshotAssertions.TUnit`. Consumers compose at the test call site:
 
-```csharp
+```csharp no-compile
 // Inside LogAssertions.TUnit (no SnapshotAssertions reference required):
 namespace LogAssertions.SnapshotRenderers;
 
@@ -872,7 +881,7 @@ public static class LogRecordRenderer
 }
 ```
 
-```csharp
+```csharp no-compile
 // Consumer test code (depends on both packages independently):
 using LogAssertions.SnapshotRenderers;
 using SnapshotAssertions;
@@ -891,7 +900,9 @@ Four renderer shapes cover the most-common projection targets. Each subclasses `
 
 *Pattern 1: protobuf message via canonical JSON.* `Google.Protobuf.JsonFormatter` produces a deterministic field ordering across runs; reuse a static `Settings` instance to avoid per-call allocation. Requires the `Google.Protobuf` package.
 
-```csharp
+```csharp no-compile
+using SnapshotAssertions.Render;
+
 internal sealed class ProtobufJsonRenderer<T> : SnapshotRenderer<T>
     where T : IMessage
 {
@@ -907,6 +918,9 @@ internal sealed class ProtobufJsonRenderer<T> : SnapshotRenderer<T>
 *Pattern 2: `XDocument` canonical XML.* `SaveOptions.None` preserves whitespace as authored; switch to `SaveOptions.DisableFormatting` if the snapshot should be insensitive to inter-element whitespace.
 
 ```csharp
+using SnapshotAssertions.Render;
+using System.Xml.Linq;
+
 internal sealed class XDocumentRenderer : SnapshotRenderer<XDocument>
 {
     public static readonly XDocumentRenderer Instance = new();
@@ -918,6 +932,9 @@ internal sealed class XDocumentRenderer : SnapshotRenderer<XDocument>
 *Pattern 3: domain value object, field by field.* Lay out the fields in a fixed order so the snapshot diff localizes per-field changes. Use `CultureInfo.InvariantCulture` for any `IFormattable` value to keep the baseline stable across developer machines and CI.
 
 ```csharp
+using SnapshotAssertions.Render;
+using System.Globalization;
+
 internal sealed class OrderRenderer : SnapshotRenderer<Order>
 {
     public static readonly OrderRenderer Instance = new();
@@ -933,6 +950,9 @@ internal sealed class OrderRenderer : SnapshotRenderer<Order>
 *Pattern 4: domain timeline, one line per event.* For ordered collections, render one canonical line per element. The same shape works for log records, audit-trail rows, state-machine transitions, message envelopes.
 
 ```csharp
+using SnapshotAssertions.Render;
+using System.Globalization;
+
 internal sealed class TimelineRenderer : SnapshotRenderer<IReadOnlyList<TimelineEvent>>
 {
     public static readonly TimelineRenderer Instance = new();
@@ -952,6 +972,9 @@ The two new built-in scrubbers (`GuidN`, `ElapsedMs`) cover universally-common p
 *Example 1: `OtelTraceIdScrubber`* (context-anchored partial-match replacement). W3C Trace Context payloads are bare lowercase hex with no structural feature distinguishing them from other 32-char hex (canonical GUIDs in N-format, SHA-256 prefixes, etc.). Anchor on the explicit context emitters use in structured logs (`trace_id=`, `traceId=`, `traceparent=00-`), and scrub only the captured hex group; the context prefix is preserved literally in the output.
 
 ```csharp
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 internal sealed partial class OtelTraceIdScrubber : SnapshotScrubber
 {
     private static readonly Regex Pattern = OtelTraceIdRegex();
@@ -979,6 +1002,9 @@ internal sealed partial class OtelTraceIdScrubber : SnapshotScrubber
 *Example 2: `EphemeralPathScrubber`* (cross-OS pattern matching). Match Windows temp paths (`C:\Users\<user>\AppData\Local\Temp\...`), POSIX `/tmp/...` and `/var/tmp/...`, macOS `/var/folders/...`. Same indexed-token shape as the built-ins.
 
 ```csharp
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 internal sealed partial class EphemeralPathScrubber : SnapshotScrubber
 {
     private static readonly Regex Pattern = EphemeralPathRegex();
@@ -1004,6 +1030,9 @@ internal sealed partial class EphemeralPathScrubber : SnapshotScrubber
 *Example 3: `PortScrubber`* (simplest indexed-token reference). A 2-to-5-digit number preceded by `:`. The trailing `\b` prevents matching the prefix of a longer numeric token.
 
 ```csharp
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 internal sealed partial class PortScrubber : SnapshotScrubber
 {
     private static readonly Regex Pattern = PortRegex();
@@ -1027,6 +1056,9 @@ internal sealed partial class PortScrubber : SnapshotScrubber
 *Example 4 (parameterized variant): `NumericTokenScrubber`* (constructor-captured prefix, dynamic kind name). Useful for monotonic counters like `CycleId=42`, `SampleId=7`, `OrderId=1001`. The prefix is captured in a constructor field so multiple instances with different prefixes do not share an index space.
 
 ```csharp
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 internal sealed class NumericTokenScrubber : SnapshotScrubber
 {
     private readonly Regex _pattern;
@@ -1067,6 +1099,9 @@ A serialized payload (protobuf, XML, MessagePack, or any binary wire format) is 
 The distinction that matters: render the wire bytes, not the logical `ToString()` or a JSON re-encoding. Two different encodings of the same logical object can share one `ToString()` / JSON projection, so a snapshot over that projection is a content test (it pins what the object means), not a wire test (it pins what went on the wire). When the point of the test is the serialized form, project the fields as they were decoded from the bytes.
 
 ```csharp
+using SnapshotAssertions.Render;
+using System.Security.Cryptography;
+
 // Generic shape: decode the wire bytes, then render one field per line in a fixed order.
 // 'Envelope' here stands in for a protobuf message, an XDocument, a MessagePack map, etc.
 internal sealed class WireEnvelopeRenderer : SnapshotRenderer<Envelope>
@@ -1128,6 +1163,9 @@ Common Verify.TUnit calls and their `SnapshotAssertions.TUnit` equivalents:
 1. Project the value through a custom `SnapshotRenderer<T>` that omits the field:
 
 ```csharp
+using SnapshotAssertions.Render;
+using System.Globalization;
+
 internal sealed class OrderRendererWithoutId : SnapshotRenderer<Order>
 {
     public static readonly OrderRendererWithoutId Instance = new();
@@ -1140,6 +1178,8 @@ internal sealed class OrderRendererWithoutId : SnapshotRenderer<Order>
 2. Pre-serialize the value, then scrub the serialized form with a regex pattern matching the field's rendered shape:
 
 ```csharp
+using System.Text.Json;
+
 var json = JsonSerializer.Serialize(order, MyJsonContext.Default.Order);
 
 await Assert.That(json)
@@ -1150,6 +1190,8 @@ await Assert.That(json)
 The serialization step is explicit because `MatchesSnapshot()` operates on strings; the regex assumes the JSON-serialized shape of the field. For a one-chain variant, pass the serializer as an inline renderer:
 
 ```csharp
+using System.Text.Json;
+
 await Assert.That(order)
     .MatchesSnapshot(o => JsonSerializer.Serialize(o, MyJsonContext.Default.Order))
     .WithScrubber(Scrubbers.Pattern(@"""Id"":\s*\d+", @"""Id"": <scrubbed>"));
@@ -1256,7 +1298,8 @@ This shouldn't happen: accept-mode is refused while `CI` or `TF_BUILD` is `1`, `
 
 - **`MatchesSnapshot()` is post-mortem, not interactive.** It compares actual against the committed baseline and passes or throws; it never prompts or opens a diff window. The IDE provides the interactive diff from the `.expected.txt` / `.actual.txt` files the assertion writes, so the same code path runs identically locally and in CI.
 - **The CI guard is on by default and has one explicit opt-out.** Accept-mode is disabled whenever `CI` or `TF_BUILD` is truthy, regardless of `SNAPSHOT_ACCEPT`. Only `SNAPSHOT_ACCEPT_IN_CI=1`, set deliberately for a pipeline step that regenerates baselines, lifts it. An accidental override would mean silent baseline drift in committed history, which is exactly what the guard prevents.
-- **Default names use the simple class name** (`{TestClassName}.{TestMethodName}`), not the full namespace, to keep file names short and avoid path-length surprises. Pass an explicit name to disambiguate two same-named test classes.
+- **Default names use the simple class name** (`{TestClassName}.{TestMethodName}`), not the full namespace, to keep file names short and avoid path-length surprises. Pass an explicit name to disambiguate two same-named test classes. Every instantiation of a generic test class (`Foo<int>`, `Foo<string>`) also resolves to the same name, so a generic test class names its snapshots with `.WithName(...)`.
+- **Target frameworks share baselines.** A test project that targets `net10.0` and `net11.0` runs each test once per framework with the same default name, so both runs read one baseline and write their `.actual.txt` into their own output folder. Accept mode, run for both at once by `dotnet test`, writes the same project file from both processes; that is safe.
 - **No `[CallerFilePath]`-based paths.** It doesn't propagate through TUnit's generated assertion methods (the values point at the generated extension, not your call site), so paths resolve from the binary directory, where the package's build targets copy the baselines.
 - **Strict defaults.** `SnapshotOptions.Default` preserves line endings and trailing whitespace/newline (only a leading byte-order mark is ignored); cross-platform normalization is opt-in via `LineEndingMode` (for example `NormalizeToLF`), never silent.
 
@@ -1292,7 +1335,7 @@ Out of scope (intentionally: use Verify instead):
 
 ## Family compatibility
 
-The nine assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, `TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`: release independently and target the same .NET TFM at any moment (LTS-anchored, multi-target during STS support windows; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy) for the rotation schedule). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
+The nine assertion-family packages: `LogAssertions.TUnit`, `TimeAssertions.TUnit`, `SnapshotAssertions.TUnit`, `MathAssertions.TUnit`, `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`, `TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`: release independently and target the same .NET TFM at any moment (every .NET version in Microsoft support, today `net10.0` and `net11.0`; see the [TFM policy in CONVENTIONS.md](CONVENTIONS.md#tfm-policy)). **Mix versions freely.** Each package ships under SemVer with `EnablePackageValidation` strict-mode ApiCompat against its previous baseline, so binary breaks within a version line are caught at pack time.
 
 For per-package release notes:
 - [LogAssertions.TUnit CHANGELOG](https://github.com/JohnVerheij/LogAssertions.TUnit/blob/main/CHANGELOG.md)

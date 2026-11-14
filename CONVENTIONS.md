@@ -30,7 +30,8 @@ enforces this via MA0006 / MA0001.
 Every assertion chain is `await`-able end-to-end. No `.Result`, no `.GetAwaiter().GetResult()`,
 no sync-over-async. Every async public API accepts `CancellationToken cancellationToken = default`
 as its **last** parameter (additive overload where the existing API didn't); defaulting to `default`
-keeps existing call-sites unaffected. The parameter is always named `cancellationToken` (never `ct`).
+keeps existing call-sites unaffected. A wait whose only bound is the token takes it as a required
+parameter instead (see [Waiting: event-driven first](#waiting-event-driven-first)). The parameter is always named `cancellationToken` (never `ct`).
 Only the `CancellationToken` may carry a default in a given overload: any other optional parameter is
 expressed as a separate, shorter overload (each token-last), never as a second default that overlaps a
 shorter overload, so a positional `(..., cancellationToken)` call binds with no named argument and no
@@ -46,8 +47,9 @@ For polling, looping, or internal-timeout APIs, the additional rules are:
 - For sleep / delay between iterations, use `Task.Delay(interval, cancellationToken)` for cancellation
   cleanup. When a `TimeProvider?` is supplied non-null on the API, see the polling-loop
   default-schedule section below for the provider-driven variant.
-- For internal-timeout APIs (e.g. `WithinHardTimeBudget(TimeSpan)`), create the internal
-  `CancellationTokenSource(timeout)` and link it with the supplied external CT via
+- For internal-timeout APIs (for example the `timeout` forms of TimeAssertions' `*Eventually`
+  assertions), create the internal `CancellationTokenSource(timeout)` and link it with the
+  supplied external CT via
   `CancellationTokenSource.CreateLinkedTokenSource(externalCt, internalCts.Token)`. Either
   source firing aborts the operation; consumer-side intent is preserved.
 
@@ -62,13 +64,31 @@ the optional parameter and the assertion uses `timeProvider.GetTimestamp()` /
 `TimeAssertions.TUnit` is the canonical implementation of this convention. Every sibling
 package's timing-related API accepts `TimeProvider` independently; no shared dependency.
 
+## Waiting: event-driven first
+
+A wait on state that the package itself observes is **event-driven**: it re-checks its condition
+when that state changes, never on a timer. `TimeAssertions`' "eventually" timer assertions are the
+reference: `ObservableTimeProvider` sees every timer creation, change, fire, and disposal, and each
+wait re-checks on the change itself. The rules for such a wait:
+
+- Take the change signal before checking the condition, so a change between the check and the await
+  is not lost. Complete the signal outside any lock, with continuations that run asynchronously, so
+  a waiter never runs on the thread that changed the state.
+- Publish a change only once it has taken effect: a waiter that sees the new state may act on it at
+  once (for example advance a fake clock).
+- The `CancellationToken` is the bound. Where it is the only bound (nothing else ends the wait), it is a
+  required parameter, not `= default`, so a call cannot wait forever by omission. An optional
+  `TimeSpan timeout` bounds the wait in real time through a
+  `CancellationTokenSource(timeout, TimeProvider.System)` linked with the token: a bound, not a poll
+  interval.
+
+Polling is for state the package cannot observe; the schedule below applies only there.
+
 ## Polling-loop default-schedule agreement
 
-`LogAssertions.WithinTimeout` and `TimeAssertions.Eventually` (and any future polling
-terminator across the family) follow an explicit, fully-pinned schedule. Each package
-implements independently (the family rule forbids cross-package code reference); the
-convention pins the schedule so consumers see uniform behavior without literal code
-sharing.
+A polling terminator anywhere in the family follows an explicit, fully-pinned schedule. Each
+package implements independently (the family rule forbids cross-package code reference); the
+convention pins the schedule so consumers see uniform behavior without literal code sharing.
 
 **Schedule.** Exponential schedule: 100ms, 200ms, 400ms, 800ms, then 1000ms cap. Escalates
 one step per failed poll. Resets to 100ms on a true poll. Both axes pinned (multiplier and
@@ -83,20 +103,19 @@ when the consumer expected fake-time progression to do so. When `TimeProvider?` 
 falls back to `Task.Delay(interval, cancellationToken)`. If `Task.Delay(TimeSpan, TimeProvider,
 CancellationToken)` doesn't satisfy the polling shape for some future requirement, fall back
 to a timer-built wait via `timeProvider.CreateTimer(...)` plus a `TaskCompletionSource`. Same
-rule applies to `EveryWindow`, `WithinHardTimeBudget`, and any future polling/timer-driven
-family API.
+rule applies to any future polling or timer-driven family API.
 
-## `ToSnapshotString()` format-version header
+## Renderer output format
 
-Family rendering helpers (e.g. `LogAssertions.ToSnapshotString()`) emit a fixed header line
-as the first line of the output: `# <Package> snapshot v<N>`. The header is part of the
-deterministic format, not metadata: it appears in every committed snapshot.
+Family renderers (the `<Thing>Renderer.Render(...)` types and the `ToSnapshotString()`
+projections, for example `LogSnapshotRenderer`, `LogContractRenderer`, `PoseRenderer`,
+`TimelineRenderer`, and `MeasurementSet.ToSnapshotString()`) emit only the rendered content:
+no header line and no format-version marker, so a committed baseline holds nothing but the data.
+The output is deterministic: a stable order, LF line endings, and invariant culture.
 
-Format-version bumps (added field, reordered output, etc.) increment the version number
-(`v2`, `v3`...) and are **always a major-version bump on the package itself**. Consumers'
-committed snapshots therefore carry an explicit format-version marker that survives `git
-diff` review and lets a future `MatchesSnapshot` rendering detect format-incompatibility
-cleanly rather than silently failing on a one-line drift.
+A change to a renderer's output format changes every consumer's committed baseline, so it is a
+breaking change: listed under `BREAKING` in the CHANGELOG, with the migration (review the diff,
+then accept the new baselines).
 
 ## `[EditorBrowsable(Never)]` on assertion bases
 
@@ -211,14 +230,21 @@ section) and are not driven by adoption-growth reasoning.
 
 ## Dependency policy
 
-Family packages depend by default only on the .NET BCL, TUnit (adapter packages), and their
-own core package. An external runtime dependency is allowed only when it is **intrinsic** to
-the asserted domain (the public surface is typed against the dependency's types, so a
-home-grown substitute would not compile against real consumer values), carries a **permissive,
-MIT-compatible license**, and is **disclosed** in the package README and `SECURITY.md`.
-`GrpcAssertions.TUnit` is the first and only package to take one: the Apache-2.0
-`Grpc.Core.Api` (`RpcException` / `StatusCode` / `Status`). The other eight remain
-BCL-and-TUnit-only.
+Family packages depend by default only on the .NET BCL, Microsoft's own MIT-licensed .NET
+packages that the asserted domain builds on, TUnit (adapter packages), and their own core
+package. Today those Microsoft packages are `Microsoft.Extensions.Diagnostics.Testing`
+(LogAssertions, MetricsAssertions), `Microsoft.Extensions.TimeProvider.Testing`
+(TimeAssertions), and `System.Numerics.Tensors` (MathAssertions).
+
+A third-party runtime dependency is allowed only when it is **intrinsic** to the asserted
+domain (the public surface is typed against the dependency's types, so a home-grown substitute
+would not compile against real consumer values), carries a **permissive, MIT-compatible
+license**, and is **disclosed** in the package README and `SECURITY.md`. `GrpcAssertions.TUnit`
+is the first and only package to take one: the Apache-2.0 `Grpc.Core.Api` (`RpcException` /
+`StatusCode` / `Status`). The other eight have no third-party runtime dependency.
+
+Every dependency, TUnit included, declares the version the package is built and tested against
+as its minimum; Renovate raises it, and the CHANGELOG names each raised minimum under `Changed`.
 
 ## Core+adapter packaging rule
 
@@ -281,22 +307,22 @@ sits directly below that scope statement, never above it.
 
 ## TFM policy
 
-Family packages always target the **current LTS** of .NET. While a non-LTS (STS) release is in
-support, packages multi-target the current LTS *plus* the current STS. When the next LTS ships,
-both the previous LTS and the previous STS are dropped on the same release; the new LTS becomes
-the single target until its STS sibling appears the following November.
+Family packages target **every .NET version that is in Microsoft support**, and nothing that is
+end-of-life. A target framework is added when its release is out and the package's dependencies
+support it; it is dropped on its end-of-life date, in the package's next release.
 
 | Window (approximate dates) | Target frameworks |
 |---|---|
-| Now, .NET 10 LTS only (Nov 2025 to Nov 2026) | `net10.0` |
-| .NET 11 STS in support (Nov 2026 to Nov 2027) | `net10.0;net11.0` |
-| .NET 12 LTS ships, drop 10 + 11 (Nov 2027 to Nov 2028) | `net12.0` |
-| .NET 13 STS in support (Nov 2028 to Nov 2029) | `net12.0;net13.0` |
+| .NET 10 and .NET 11 in support (Nov 2026 to Nov 2027) | `net10.0;net11.0` |
+| .NET 12 ships (Nov 2027 to Nov 2028) | `net10.0;net11.0;net12.0` |
+| .NET 10 and .NET 11 end, .NET 13 ships (Nov 2028 on) | `net12.0;net13.0` |
 | ... | ... |
 
-The TFM rotation lands at major-version boundaries (`2.0`, `3.0`, ...). Consumers who need an
-older TFM pin to an older package version. Wide multi-targeting (e.g. `net8;net9;net10`) is not
-used; the goal is "current LTS, plus current STS while it exists" with no long historical tails.
+Adding a target framework is additive: it makes the release a minor version before 1.0, never a
+patch. Each target framework gets the dependency versions of its own .NET release (the
+`Microsoft.Extensions.*` packages, for example), through per-framework `ItemGroup`s in
+`Directory.Packages.props`. Consumers who need an older TFM pin an older package version. Wide
+multi-targeting of end-of-life frameworks (e.g. `net8;net9`) is not used.
 
 ## Verify is not promoted
 
@@ -349,6 +375,12 @@ The rules below codify what that means in practice across the family.
 10. Keep the reference-link footer (`[unreleased]: ...` / `[x.y.z]: ...`) in lockstep with
     every version bump.
 11. Version header carries a short factual summary after the date: `## [x.y.z] - YYYY-MM-DD: summary`. Factual (what changed), not promotional; it becomes the first line of the auto-extracted release notes.
+12. Every added public API and every source-breaking change gets its own bullet, including
+    an edge case that affects only some callers (a call through a class name, a named
+    argument, direct construction of a generated assertion class). A consumer upgrading must
+    find every change that can break their build in the release notes, not only in the diff.
+13. A released version is never published again. A packaging or release-notes error ships as
+    a new patch version; the published package and its GitHub release stay as they are.
 
 ## `PackageReleaseNotes` auto-extract from CHANGELOG
 
