@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-11-15: .NET 11, IgnoreLineEndings removed, accept and concurrency fixes
+## [0.10.0] - 2026-11-14: .NET 11, IgnoreLineEndings removed, accept and concurrency fixes
 
 ### Changed
 
