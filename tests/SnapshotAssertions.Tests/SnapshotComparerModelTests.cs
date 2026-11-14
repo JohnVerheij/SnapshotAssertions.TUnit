@@ -25,7 +25,10 @@ internal sealed class SnapshotComparerModelTests
     [
         string.Empty, "a", "a\n", "a\r\n", "a\r", "a\nb", "a\r\nb", "a\nb\n", "a\r\nb\r\n", "a\rb\r", "a\n\n", "a\r\n\r\n",
         "a \nb\t\n", "a \r\nb\t\r\n", "a\r\nb\n", "\n", "\r\n", " \n", "a\n \n", Bom + "a\n",
+        "a\n ", "a\r\n\t", "a\r ", " ", "\t",
     ];
+
+    private static readonly string[] Pieces = ["a", " ", "\t", "\n", "\r", "\r\n"];
 
     private static readonly SnapshotLineEndingMode[] LineEndingModes =
     [
@@ -122,6 +125,52 @@ internal sealed class SnapshotComparerModelTests
     }
 
     /// <summary>
+    /// The accept round trip in memory, over every content of up to four pieces from <c>a</c>, a space, a tab, a line
+    /// feed, a carriage return and both, for every option combination except <c>Forbidden</c>: the form written to an
+    /// accepted baseline compares equal to the content it was written from. This covers every way trailing whitespace,
+    /// blank lines and the three line breaks can meet at the end of short content, such as a last line of only spaces.
+    /// </summary>
+    [Test]
+    public async Task NormalizeForWrite_EveryShortContent_ComparesEqualToItsContent(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var contents = new List<string> { string.Empty };
+        var level = new List<string> { string.Empty };
+        for (var length = 1; length <= 4; length++)
+        {
+            level = [.. from prefix in level from piece in Pieces select prefix + piece];
+            contents.AddRange(level);
+        }
+
+        var combinations =
+            from mode in LineEndingModes
+            from whitespace in Enum.GetValues<SnapshotTrailingWhitespace>()
+            from newline in new[] { SnapshotTrailingNewline.Required, SnapshotTrailingNewline.Optional }
+            from bom in Enum.GetValues<SnapshotBomHandling>()
+            select new SnapshotOptions
+            {
+                LineEndingMode = mode,
+                TrailingWhitespace = whitespace,
+                TrailingNewline = newline,
+                BomHandling = bom,
+            };
+
+        var failures = new List<string>();
+        foreach (var options in combinations)
+        {
+            foreach (var content in contents)
+            {
+                var written = SnapshotComparer.NormalizeForWrite(content, options);
+                if (!SnapshotComparer.AreEqual(content, written, options))
+                    failures.Add($"{Describe(options)} content={Escape(content)} written={Escape(written)}");
+            }
+        }
+
+        await Assert.That(contents.Count).IsEqualTo(1555);
+        await Assert.That(failures).IsEmpty();
+    }
+
+    /// <summary>
     /// Content that ends with a blank line, under <c>Optional</c> (the <c>NormalizedLineEndings</c> preset), is written
     /// with its final line break, so the accepted baseline compares equal to the content. Without it the file would lose
     /// a second line break on the way back in and the snapshot could never be accepted into a passing state.
@@ -134,6 +183,8 @@ internal sealed class SnapshotComparerModelTests
 
         await Assert.That(await AcceptedTextAsync("a\r\n\r\n", SnapshotOptions.NormalizedLineEndings, cancellationToken)).IsEqualTo("a\n\n");
         await Assert.That(await AcceptedTextAsync("a\n \n", trimmed, cancellationToken)).IsEqualTo("a\n\n");
+        // Trimming empties an unterminated last line, which leaves the normalized form ending in a line break too.
+        await Assert.That(await AcceptedTextAsync("a\n ", trimmed, cancellationToken)).IsEqualTo("a\n\n");
     }
 
     /// <summary>Under <c>Optional</c>, content that ends with a single line break is still written without it, as before.</summary>

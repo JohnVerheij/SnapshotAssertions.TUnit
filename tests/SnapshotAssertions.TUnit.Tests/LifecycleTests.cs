@@ -30,14 +30,17 @@ internal sealed class LifecycleTests : IAsyncInitializer
         _beforeName = ResolveDefaultName();
     }
 
-    /// <summary>Resolves the default name from an after hook and checks it is the test's.</summary>
+    /// <summary>
+    /// Resolves the default name from an after hook and checks it is the name of the test the hook serves. That test
+    /// comes from the context TUnit passes to the hook, not from the ambient context the resolution reads, so a
+    /// resolution that picked up another test's name would fail here.
+    /// </summary>
     [After(Test)]
-    public async Task CheckAfterName(CancellationToken cancellationToken)
+    public async Task CheckAfterName(TestContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var afterName = ResolveDefaultName();
-        await Assert.That(afterName).IsEqualTo(Path.GetFileName(SnapshotAssertionImpl.ResolvePaths(null, null, acceptModeOverride: false).ExpectedFilePath));
-        await Assert.That(afterName).StartsWith(nameof(LifecycleTests) + ".");
+        var served = nameof(LifecycleTests) + "." + context.Metadata.TestDetails.MethodName + SnapshotFileResolver.ExpectedExtension;
+        await Assert.That(ResolveDefaultName()).IsEqualTo(served);
     }
 
     /// <summary>The constructor, the before hook and the test body resolve the same default name, which is the test's.</summary>

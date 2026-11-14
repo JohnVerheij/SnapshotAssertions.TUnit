@@ -15,10 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-15: .NET 11, IgnoreLineEndings removed, accept and concurrency fixes
+
 ### Changed
 
 - **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.80.0 to 1.85.0: 1.83.0 is the first TUnit with a `net11.0` asset, and 1.85.0 keeps TUnit's OpenTelemetry and ASP.NET Core packages on OpenTelemetry 1.20.x for `net10.0`, so a project with one version for all its TUnit packages gets no .NET 11 packages there.
-- **Targets .NET 10 and .NET 11.** Both packages ship `net10.0` and `net11.0` assets; a test project that targets both runs each test on both frameworks against one shared baseline per default name.
+- **Targets .NET 10 and .NET 11.** Both packages ship `net10.0` and `net11.0` assets; a test project that targets both runs each test on both frameworks against one shared baseline per default name. Content that differs per framework needs a name of its own per framework (`.WithName(...)`): accepted from both at once, the last writer would win.
 - **`SnapshotComparer`, `SnapshotEvaluator` and `MatchesSnapshot()`** now reject a `SnapshotOptions.LineEndingMode` value outside the enum with an `ArgumentOutOfRangeException` (`Unknown LineEndingMode value: N`) instead of comparing it as some other mode. This is what the removed `IgnoreLineEndings` value (`3`) does if a compiled caller still passes it.
 - **`WithScrubber(...)`** now fails with an `InvalidOperationException` that names the scrubber when a custom scrubber returns `null`, as a normalizer that returns `null` already did, instead of an `ArgumentNullException` about `actualContent` or `input`.
 - **README samples** now compile against the packed packages: the renderer, regular expression, XML, JSON and public API samples gained the `using` lines they were missing, and the file-name section states two limits of the default name (a generic test class resolves one name for every type argument, and a record, tuple or `KeyValuePair` row holding a number or date is not culture independent) and that a normalizer has to be idempotent.
@@ -30,10 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`SnapshotTrailingNewline.Optional`** (and so `SnapshotOptions.NormalizedLineEndings`): content that ends with a blank line, such as `"a\n\n"`, could never be accepted into a passing state. The accepted baseline lost its final line break when written, and the comparison then dropped a second one when it read the file back, so every run reported a mismatch. The written file now keeps the final line break in that case; other content is written as before.
+- **`SnapshotTrailingNewline.Optional`** (and so `SnapshotOptions.NormalizedLineEndings`): content that ends with a blank line, such as `"a\n\n"`, or, with `TrimTrailingPerLine`, whose last line holds only spaces or tabs, such as `"a\n "`, could never be accepted into a passing state. The accepted baseline was written with one line break too few: the comparison drops a final line break from each side, so the file it read back never matched and every run reported a mismatch. The written file now has that line break; other content is written as before.
 - **`SnapshotEvaluator.EvaluateAsync`** (and so `MatchesSnapshot()`) no longer fails on Windows when two evaluations of one snapshot meet, for example the `net10.0` and `net11.0` test processes of one `dotnet test` run accepting the same project baseline, or tests that share a default name: a baseline that is being read or replaced by another evaluation, or an actual file that is being deleted, is retried for a short bounded time instead of throwing an `IOException` or `UnauthorizedAccessException`. A missing file or directory, a path that is too long and a missing drive are not retried and fail at once with their own exception.
 - **`Scrubbers.ElapsedMs`** (and so `Scrubbers.Common` and the scrubber suggestions in a failure message) no longer joins a number that ends a line to a word `ms` that starts the next line: the text between the number and `ms` may be spaces or tabs, not a line break, so `retries 3` followed by `ms: ...` on the next line is left alone instead of being replaced by an `<elapsed-ms:N>` token.
 - **Failure messages** keep their line structure when a path or text holds a line break: a path with a carriage return or line feed (possible in a file name on Linux) is shown escaped (`\r`, `\n`) on its `Expected:`, `Actual:` and `Project baseline:` lines and in the file-access exception, a `.WithName(...)` or `.AtPath(...)` argument is escaped in the assertion expression, and the message of an exception thrown by a renderer, often several lines, is escaped on the one `renderer threw` clause. The line diff still shows the compared lines as they are.
+- **Accepting a baseline** whose file name is close to the file system's limit for one name (255 characters on NTFS and ext4) no longer fails: the temporary file of the atomic write has a short name of its own instead of the target name plus 37 characters.
 - **Accepting into a read-only baseline** on Windows now throws an `UnauthorizedAccessException` that names the file, where the operating system's message did not.
 
 ## [0.9.0] - 2026-11-06: line-ending preset, class-argument naming and accept-mode fixes
@@ -251,7 +254,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.7.1...v0.8.0

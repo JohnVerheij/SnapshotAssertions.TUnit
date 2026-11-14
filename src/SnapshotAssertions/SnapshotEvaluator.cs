@@ -158,7 +158,9 @@ public static class SnapshotEvaluator
 
     /// <summary>
     /// Writes <paramref name="content"/> to <paramref name="path"/> atomically: the content goes to a
-    /// uniquely-named temporary file in the same directory, which is then moved over the target. A
+    /// uniquely-named temporary file in the same directory, which is then moved over the target. The temporary name
+    /// is a GUID alone, not the target name with a suffix, so a target name close to the file system's limit for one
+    /// name (255 characters on NTFS and ext4) still gets a temporary file. A
     /// partial or interrupted write lands on the temp, not the target, so a reader never observes a
     /// half-written baseline (the move publishes either the old or the new content, never a torn mix).
     /// The per-write temp name also lets parallel writers to <em>different</em> snapshot files run
@@ -168,7 +170,7 @@ public static class SnapshotEvaluator
     /// </summary>
     private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
     {
-        var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var tempPath = Path.Join(Path.GetDirectoryName(path), Guid.NewGuid().ToString("N") + ".tmp");
 
         try
         {

@@ -113,10 +113,11 @@ public static class SnapshotComparer
 
     /// <summary>
     /// Returns the form written to the actual file and to an accepted baseline. It equals <see cref="Normalize"/>,
-    /// with one exception: under <see cref="SnapshotTrailingNewline.Optional"/>, content that ends with a blank
-    /// line (two or more final line breaks) keeps its final line break. The comparison drops one final line break
-    /// from each side, so a baseline written without it would lose a second one when it is read back and could
-    /// never match the content it was accepted from. The comparison still ignores the difference.
+    /// with one exception: under <see cref="SnapshotTrailingNewline.Optional"/>, a normalized form that still ends
+    /// with a line break (the content ends with a blank line, or per-line trimming left its last line empty) is
+    /// written with one more copy of that line break. The comparison drops one final line break from each side, so a
+    /// baseline written without it would lose its last one when it is read back and could never match the content it
+    /// was accepted from. The comparison still ignores the difference.
     /// </summary>
     /// <param name="content">The content to normalize.</param>
     /// <param name="options">The options to apply.</param>
@@ -126,9 +127,15 @@ public static class SnapshotComparer
         ArgumentNullException.ThrowIfNull(options);
         var normalized = Normalize(content, options);
         return options.TrailingNewline is SnapshotTrailingNewline.Optional && EndsWithNewline(normalized)
-            ? Normalize(content, options with { TrailingNewline = SnapshotTrailingNewline.Required })
+            ? normalized + FinalLineBreak(normalized)
             : normalized;
     }
+
+    /// <summary>The line break that ends <paramref name="content"/>: a carriage return and line feed, a line feed, or a carriage return.</summary>
+    /// <param name="content">Content that ends with a line break.</param>
+    /// <returns>The final line break.</returns>
+    private static string FinalLineBreak(string content)
+        => content.EndsWith("\r\n", StringComparison.Ordinal) ? "\r\n" : content[^1..];
 
     private static string StripBomIfRequested(string content, SnapshotOptions options)
     {

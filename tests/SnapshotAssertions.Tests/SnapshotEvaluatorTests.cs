@@ -230,6 +230,27 @@ internal sealed class SnapshotEvaluatorTests
         await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
     }
 
+    /// <summary>A baseline whose file name is close to the file system's limit for one name (255 characters on NTFS
+    /// and ext4) is accepted: the temporary file has a short name of its own, not the target name plus a suffix that
+    /// would push it past the limit.</summary>
+    [Test]
+    public async Task Accept_TargetNameNearTheNameLengthLimit_IsWritten(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var name = new string('n', 250 - ".expected.txt".Length);
+        var paths = new SnapshotPaths(
+            Path.Combine(dir, name + ".expected.txt"),
+            Path.Combine(dir, name + ".actual.txt"));
+
+        var result = await SnapshotEvaluator.EvaluateAsync("payload\n", paths, SnapshotOptions.Default,
+            acceptModeOverride: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        await Assert.That(result.Outcome).IsEqualTo(SnapshotMatchOutcome.Accepted);
+        await Assert.That(await File.ReadAllTextAsync(paths.ExpectedFilePath, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo("payload\n");
+        await Assert.That(Directory.GetFiles(dir, "*.tmp")).IsEmpty();
+    }
+
     /// <summary>Concurrent evaluations writing distinct actual files all succeed without a sharing
     /// violation, exercising the atomic write under parallelism.</summary>
     [Test]
