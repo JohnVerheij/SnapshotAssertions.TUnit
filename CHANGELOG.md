@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.80.0 to 1.85.0: 1.83.0 is the first TUnit with a `net11.0` asset, and 1.85.0 keeps TUnit's OpenTelemetry and ASP.NET Core packages on OpenTelemetry 1.20.x for `net10.0`, so a project with one version for all its TUnit packages gets no .NET 11 packages there.
 - **Targets .NET 10 and .NET 11.** Both packages ship `net10.0` and `net11.0` assets; a test project that targets both runs each test on both frameworks against one shared baseline per default name.
 - **`SnapshotComparer`, `SnapshotEvaluator` and `MatchesSnapshot()`** now reject a `SnapshotOptions.LineEndingMode` value outside the enum with an `ArgumentOutOfRangeException` (`Unknown LineEndingMode value: N`) instead of comparing it as some other mode. This is what the removed `IgnoreLineEndings` value (`3`) does if a compiled caller still passes it.
 - **`WithScrubber(...)`** now fails with an `InvalidOperationException` that names the scrubber when a custom scrubber returns `null`, as a normalizer that returns `null` already did, instead of an `ArgumentNullException` about `actualContent` or `input`.

@@ -19,7 +19,7 @@ TUnit-native text-snapshot assertions on top of TUnit's `[AssertionExtension]` s
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.81.16 or later, .NET 10 or .NET 11.
+`SnapshotAssertions` (the framework-agnostic core) comes transitively. **Requirements:** TUnit 1.85.0 or later, .NET 10 or .NET 11.
 
 ## Quick start
 
