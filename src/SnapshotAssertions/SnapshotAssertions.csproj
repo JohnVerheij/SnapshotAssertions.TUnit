@@ -68,6 +68,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The retry helper of SnapshotEvaluator is exercised directly: the file failures it must not retry (a missing
+         file or directory, a path that is too long) cannot be produced on demand through the public API. -->
+    <InternalsVisibleTo Include="SnapshotAssertions.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Codifies the no-reflection convention from CONVENTIONS.md as a build-time error.
          RS0030 fires if any banned API is referenced from production code; combined with
          TreatWarningsAsErrors=true the build fails. Test projects do not reference this file

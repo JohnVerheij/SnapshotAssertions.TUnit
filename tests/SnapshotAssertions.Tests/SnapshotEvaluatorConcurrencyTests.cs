@@ -21,6 +21,10 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
     private const int Writers = 4;
     private const int Rounds = 50;
 
+    /// <summary>How long a holder keeps a file open: short against the retry window of about one to two seconds, so a
+    /// loaded runner that delays the release still leaves attempts to spare.</summary>
+    private const int HoldMilliseconds = 50;
+
     /// <summary>Concurrent accepts of the same content into one baseline all complete, and the baseline holds the content.</summary>
     [Test]
     public async Task ConcurrentAccept_SameBaseline_AllComplete(CancellationToken cancellationToken)
@@ -132,7 +136,8 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
         }
         finally
         {
-            File.SetAttributes(paths.ExpectedFilePath, FileAttributes.Normal);
+            if (File.Exists(paths.ExpectedFilePath))
+                File.SetAttributes(paths.ExpectedFilePath, FileAttributes.Normal);
             Directory.Delete(directory, recursive: true);
         }
     }
@@ -147,15 +152,18 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var directory = CreateTempDirectory();
+        FileStream? holder = null;
+        Task<SnapshotResult>? evaluation = null;
         try
         {
             var paths = SnapshotFileResolver.ResolveByName(directory, "held");
             await File.WriteAllTextAsync(paths.ExpectedFilePath, "old\n", cancellationToken);
 
-            var holder = new FileStream(paths.ExpectedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var evaluation = SnapshotEvaluator.EvaluateAsync("new\n", paths, SnapshotOptions.Default, acceptModeOverride: true, cancellationToken: cancellationToken);
-            await Task.Delay(150, cancellationToken);
+            holder = new FileStream(paths.ExpectedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            evaluation = SnapshotEvaluator.EvaluateAsync("new\n", paths, SnapshotOptions.Default, acceptModeOverride: true, cancellationToken: cancellationToken);
+            await Task.Delay(HoldMilliseconds, cancellationToken);
             await holder.DisposeAsync();
+            holder = null;
 
             var result = await evaluation;
 
@@ -164,6 +172,13 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
         }
         finally
         {
+            await ReleaseAsync(holder);
+            if (evaluation is not null)
+            {
+                await Task.WhenAny(evaluation);
+                _ = evaluation.Exception;
+            }
+
             Directory.Delete(directory, recursive: true);
         }
     }
@@ -174,16 +189,19 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
     {
         cancellationToken.ThrowIfCancellationRequested();
         var directory = CreateTempDirectory();
+        FileStream? holder = null;
+        Task<SnapshotResult>? evaluation = null;
         try
         {
             var paths = SnapshotFileResolver.ResolveByName(directory, "stale");
             await File.WriteAllTextAsync(paths.ExpectedFilePath, "same\n", cancellationToken);
             await File.WriteAllTextAsync(paths.ActualFilePath, "stale\n", cancellationToken);
 
-            var holder = new FileStream(paths.ActualFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var evaluation = SnapshotEvaluator.EvaluateAsync("same\n", paths, SnapshotOptions.Default, acceptModeOverride: false, cancellationToken: cancellationToken);
-            await Task.Delay(150, cancellationToken);
+            holder = new FileStream(paths.ActualFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            evaluation = SnapshotEvaluator.EvaluateAsync("same\n", paths, SnapshotOptions.Default, acceptModeOverride: false, cancellationToken: cancellationToken);
+            await Task.Delay(HoldMilliseconds, cancellationToken);
             await holder.DisposeAsync();
+            holder = null;
 
             var result = await evaluation;
 
@@ -192,6 +210,13 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
         }
         finally
         {
+            await ReleaseAsync(holder);
+            if (evaluation is not null)
+            {
+                await Task.WhenAny(evaluation);
+                _ = evaluation.Exception;
+            }
+
             Directory.Delete(directory, recursive: true);
         }
     }
@@ -224,6 +249,113 @@ internal sealed class SnapshotEvaluatorConcurrencyTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    /// <summary>A missing file is not retried: the exception reaches the caller on the first attempt, unchanged.</summary>
+    [Test]
+    public async Task Retry_FileNotFound_IsNotRetried(CancellationToken cancellationToken)
+        => await AssertNotRetriedAsync(new FileNotFoundException("gone"), cancellationToken);
+
+    /// <summary>A missing directory is not retried.</summary>
+    [Test]
+    public async Task Retry_DirectoryNotFound_IsNotRetried(CancellationToken cancellationToken)
+        => await AssertNotRetriedAsync(new DirectoryNotFoundException("gone"), cancellationToken);
+
+    /// <summary>A path that is too long is not retried.</summary>
+    [Test]
+    public async Task Retry_PathTooLong_IsNotRetried(CancellationToken cancellationToken)
+        => await AssertNotRetriedAsync(new PathTooLongException("long"), cancellationToken);
+
+    /// <summary>A missing drive is not retried.</summary>
+    [Test]
+    public async Task Retry_DriveNotFound_IsNotRetried(CancellationToken cancellationToken)
+        => await AssertNotRetriedAsync(new DriveNotFoundException("gone"), cancellationToken);
+
+    /// <summary>A sharing failure that passes after a few attempts is retried until it does.</summary>
+    [Test]
+    public async Task Retry_IOExceptionThenSuccess_Completes(CancellationToken cancellationToken)
+    {
+        var attempts = 0;
+
+        await SnapshotEvaluator.RetryTransientAsync(
+            () =>
+            {
+                if (++attempts < 3)
+                    throw new IOException("busy");
+            },
+            "file.txt",
+            cancellationToken);
+
+        await Assert.That(attempts).IsEqualTo(3);
+    }
+
+    /// <summary>An <see cref="IOException"/> that never passes is retried a bounded number of times and then thrown as an
+    /// <see cref="IOException"/> that names the file and keeps the original as its inner exception.</summary>
+    [Test]
+    public async Task Retry_PersistentIOException_ThrowsNamingThePath(CancellationToken cancellationToken)
+    {
+        var attempts = 0;
+        var original = new IOException("busy");
+
+        var exception = await Assert.That(async () => await SnapshotEvaluator.RetryTransientAsync(
+                () =>
+                {
+                    attempts++;
+                    throw original;
+                },
+                "file.txt",
+                cancellationToken))
+            .Throws<IOException>();
+
+        await Assert.That(attempts).IsGreaterThan(1);
+        await Assert.That(exception!.Message).Contains("file.txt");
+        await Assert.That(exception.InnerException).IsSameReferenceAs(original);
+    }
+
+    /// <summary>An <see cref="UnauthorizedAccessException"/> that never passes is retried and then thrown as an
+    /// <see cref="UnauthorizedAccessException"/> that names the file.</summary>
+    [Test]
+    public async Task Retry_PersistentUnauthorizedAccess_ThrowsNamingThePath(CancellationToken cancellationToken)
+    {
+        var attempts = 0;
+
+        var exception = await Assert.That(async () => await SnapshotEvaluator.RetryTransientAsync(
+                () =>
+                {
+                    attempts++;
+                    throw new UnauthorizedAccessException("denied");
+                },
+                "file.txt",
+                cancellationToken))
+            .Throws<UnauthorizedAccessException>();
+
+        await Assert.That(attempts).IsGreaterThan(1);
+        await Assert.That(exception!.Message).Contains("file.txt");
+    }
+
+    private static async Task AssertNotRetriedAsync(IOException failure, CancellationToken cancellationToken)
+    {
+        var attempts = 0;
+
+        var exception = await Assert.That(async () => await SnapshotEvaluator.RetryTransientAsync(
+                () =>
+                {
+                    attempts++;
+                    throw failure;
+                },
+                "file.txt",
+                cancellationToken))
+            .Throws<IOException>();
+
+        await Assert.That(exception).IsSameReferenceAs(failure);
+        await Assert.That(attempts).IsEqualTo(1);
+    }
+
+    /// <summary>Lets go of a holder that is still open, so that the test directory can be deleted.</summary>
+    private static async Task ReleaseAsync(FileStream? holder)
+    {
+        if (holder is not null)
+            await holder.DisposeAsync();
     }
 
     private static async Task RunConcurrentlyAsync(Func<Task> operation, int rounds, CancellationToken cancellationToken)

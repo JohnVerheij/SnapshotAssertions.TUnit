@@ -29,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`SnapshotTrailingNewline.Optional`** (and so `SnapshotOptions.NormalizedLineEndings`): content that ends with a blank line, such as `"a\n\n"`, could never be accepted into a passing state. The accepted baseline lost its final line break when written, and the comparison then dropped a second one when it read the file back, so every run reported a mismatch. The written file now keeps the final line break in that case; other content is written as before.
-- **`SnapshotEvaluator.EvaluateAsync`** (and so `MatchesSnapshot()`) no longer fails on Windows when two evaluations of one snapshot meet, for example the `net10.0` and `net11.0` test processes of one `dotnet test` run accepting the same project baseline, or tests that share a default name: a baseline that is being read or replaced by another evaluation, or an actual file that is being deleted, is retried for a short bounded time instead of throwing an `IOException` or `UnauthorizedAccessException`.
-- **Accepting into a read-only baseline** now throws an `UnauthorizedAccessException` that names the file, where the operating system's message did not.
+- **`SnapshotEvaluator.EvaluateAsync`** (and so `MatchesSnapshot()`) no longer fails on Windows when two evaluations of one snapshot meet, for example the `net10.0` and `net11.0` test processes of one `dotnet test` run accepting the same project baseline, or tests that share a default name: a baseline that is being read or replaced by another evaluation, or an actual file that is being deleted, is retried for a short bounded time instead of throwing an `IOException` or `UnauthorizedAccessException`. A missing file or directory, a path that is too long and a missing drive are not retried and fail at once with their own exception.
+- **Accepting into a read-only baseline** on Windows now throws an `UnauthorizedAccessException` that names the file, where the operating system's message did not.
 
 ## [0.9.0] - 2026-11-06: line-ending preset, class-argument naming and accept-mode fixes
 

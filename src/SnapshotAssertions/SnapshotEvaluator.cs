@@ -37,7 +37,16 @@ public static class SnapshotEvaluator
     /// behavior independent of the host environment.</param>
     /// <param name="cancellationToken">Cancellation token propagated to the underlying file IO.</param>
     /// <returns>The comparison outcome.</returns>
-    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">A required argument is <see langword="null"/>, or one of the two paths in
+    /// <paramref name="paths"/> is.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="SnapshotOptions.LineEndingMode"/> holds a value outside
+    /// its enum, or <see cref="SnapshotOptions.TrailingNewline"/> does while the line endings are normalized.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
+    /// <exception cref="IOException">A file operation failed. A sharing failure is retried for about one to two seconds
+    /// first and then thrown again with the file in its message. A missing file or directory, a path that is too long
+    /// and a missing drive fail at once with their own exception.</exception>
+    /// <exception cref="UnauthorizedAccessException">An access denial, such as a read-only baseline, that outlasted the
+    /// same retries; its message names the file.</exception>
     public static async Task<SnapshotResult> EvaluateAsync(
         string actualContent,
         SnapshotPaths paths,
@@ -199,15 +208,18 @@ public static class SnapshotEvaluator
     /// <see cref="IOException"/> (sharing violation) or an <see cref="UnauthorizedAccessException"/> (the file is pending
     /// deletion or being replaced), and it passes within milliseconds. Two evaluations meet on one file when the test
     /// processes of two target frameworks accept the same project baseline, or when tests share a default name. The
-    /// operation is repeated a bounded number of times (about one second in all), so a file that stays inaccessible, such as a
-    /// read-only baseline, still fails promptly. A failure that remains is rethrown as an exception of the same kind
-    /// with the path in its message, which the operating system's own text may leave out.
+    /// operation is repeated a bounded number of times (about one to two seconds in all), so a file that stays
+    /// inaccessible, such as a read-only baseline, still fails promptly. A failure that remains is rethrown as an
+    /// exception of the same kind with the path in its message, which the operating system's own text may leave out. A
+    /// missing file or directory, a path that is too long and a missing drive cannot pass by waiting: those exceptions
+    /// (<see cref="FileNotFoundException"/>, <see cref="DirectoryNotFoundException"/>, <see cref="PathTooLongException"/>
+    /// and <see cref="DriveNotFoundException"/>) are not retried and propagate unchanged on the first attempt.
     /// </summary>
     /// <param name="operation">The file operation to run.</param>
     /// <param name="path">The file the operation changes.</param>
     /// <param name="cancellationToken">Cancels the wait between attempts.</param>
     /// <returns>A task that completes when the operation succeeded.</returns>
-    private static async Task RetryTransientAsync(Action operation, string path, CancellationToken cancellationToken)
+    internal static async Task RetryTransientAsync(Action operation, string path, CancellationToken cancellationToken)
     {
         var attempt = 1;
         while (true)
@@ -234,7 +246,8 @@ public static class SnapshotEvaluator
             operation();
             return null;
         }
-        catch (IOException exception)
+        catch (IOException exception) when (exception is not (
+            FileNotFoundException or DirectoryNotFoundException or PathTooLongException or DriveNotFoundException))
         {
             return exception;
         }

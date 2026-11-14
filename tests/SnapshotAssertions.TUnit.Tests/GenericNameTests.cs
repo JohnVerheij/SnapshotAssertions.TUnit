@@ -28,7 +28,8 @@ internal sealed class GenericNameTests<T>
         await Assert.That(name).IsEqualTo("GenericNameTests`1." + nameof(DefaultName_IsTheSameForEveryTypeArgument) + SnapshotFileResolver.ExpectedExtension);
     }
 
-    /// <summary>An explicit name tells the instantiations apart.</summary>
+    /// <summary>An explicit name tells the instantiations apart: each resolves exactly the name it was given, which here
+    /// contains its own type argument (<c>Generic.Int32</c> and <c>Generic.String</c>), so the two files differ.</summary>
     [Test]
     public async Task WithName_TellsTheTypeArgumentsApart(CancellationToken cancellationToken)
     {

@@ -126,6 +126,15 @@ internal sealed class LifecycleTests : IAsyncInitializer
     internal static string ResolveDefaultName()
         => Path.GetFileName(SnapshotAssertionImpl.ResolvePaths(null, null, acceptModeOverride: false).ExpectedFilePath);
 
+    /// <summary>Removes the directory that holds the baselines of this class once all its tests have run.</summary>
+    [After(Class)]
+    public static void DeleteDirectory(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (System.IO.Directory.Exists(Directory_))
+            System.IO.Directory.Delete(Directory_, recursive: true);
+    }
+
     private static string CreateDirectory()
     {
         var directory = Path.Combine(Path.GetTempPath(), "lifecycle-" + Guid.NewGuid().ToString("N"));
