@@ -10,6 +10,6 @@ permissions:
 
 jobs:
   lint:
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-lint.yml@7722848a0484cbf98ff0b2affb9a3b12c783dce7 # v1.5.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-lint.yml@6ef32b70824ee05975fb4fdae59d02acbed4f4cb # v1.6.0
     permissions:
       contents: read   # checkout only
