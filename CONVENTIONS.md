@@ -3,7 +3,9 @@
 Rules for how code is written across the nine assertion-family packages (`LogAssertions.TUnit`,
 `SnapshotAssertions.TUnit`, `TimeAssertions.TUnit`, `MathAssertions.TUnit`,
 `JsonAssertions.TUnit`, `SseAssertions.TUnit`, `GrpcAssertions.TUnit`,
-`TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`). The same file is copied into each repo.
+`TracingAssertions.TUnit`, and `MetricsAssertions.TUnit`). The same file is in each repo: it is a
+family template of assertions-ci (`templates/package/CONVENTIONS.md`), so a change is made there
+and reaches every repo through `family_sync.py --write`.
 
 ## Naming patterns
 
@@ -307,22 +309,31 @@ sits directly below that scope statement, never above it.
 
 ## TFM policy
 
-Family packages target **every .NET version that is in Microsoft support**, and nothing that is
-end-of-life. A target framework is added when its release is out and the package's dependencies
-support it; it is dropped on its end-of-life date, in the package's next release.
+Family packages target **every .NET version in Microsoft support**, never an end-of-life one. A
+target framework is added once that .NET release is out and the package's dependencies support it,
+and dropped in the package's next release after its end-of-life date.
 
 | Window (approximate dates) | Target frameworks |
 |---|---|
-| .NET 10 and .NET 11 in support (Nov 2026 to Nov 2027) | `net10.0;net11.0` |
-| .NET 12 ships (Nov 2027 to Nov 2028) | `net10.0;net11.0;net12.0` |
-| .NET 10 and .NET 11 end, .NET 13 ships (Nov 2028 on) | `net12.0;net13.0` |
-| ... | ... |
+| .NET 10 LTS and .NET 11 STS in support (Nov 2026 to Nov 2027) | `net10.0;net11.0` |
+| .NET 12 LTS released (Nov 2027 to Nov 2028) | `net10.0;net11.0;net12.0` |
+| .NET 10 and .NET 11 out of support, .NET 13 released (from Nov 2028) | `net12.0;net13.0` |
+
+Every project of a repository (packages, tests, the smoke test that consumes the packed package)
+lists the same target frameworks, so each suite and the Native AOT gate run once per framework.
+The .NET badge and the requirements line of every README name the same .NET versions. Family lint
+checks both.
 
 Adding a target framework is additive: it makes the release a minor version before 1.0, never a
-patch. Each target framework gets the dependency versions of its own .NET release (the
-`Microsoft.Extensions.*` packages, for example), through per-framework `ItemGroup`s in
-`Directory.Packages.props`. Consumers who need an older TFM pin an older package version. Wide
-multi-targeting of end-of-life frameworks (e.g. `net8;net9`) is not used.
+patch. Dependencies that ship a version per .NET release (the `Microsoft.Extensions.*` packages,
+for example) take the version of their own release for each target framework, through
+per-framework `ItemGroup`s in `Directory.Packages.props`. Package CI fails when a runtime, ASP.NET
+Core or extensions package that reaches consumers comes from a newer .NET release than its target
+framework. The gate knows such a package by its name (`System.*`, `Microsoft.Extensions.*` and the
+like) and by the repository its `.nuspec` names (dotnet/dotnet, dotnet/runtime, dotnet/aspnetcore
+or dotnet/extensions); a package whose `.nuspec` names no repository is not checked. Consumers who
+need an older target framework pin an older package version. Wide multi-targeting that includes
+versions out of support (for example `net8;net9;net10`) is not used.
 
 ## Verify is not promoted
 
