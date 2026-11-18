@@ -82,7 +82,7 @@ A baseline is the plain expected text and nothing else: no header, no metadata, 
 dotnet add package SnapshotAssertions.TUnit
 ```
 
-**Requirements:** TUnit 1.86.0 or later, .NET 10 or .NET 11. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
+**Requirements:** TUnit 1.86.6 or later, .NET 10 or .NET 11. `SnapshotAssertions` (the framework-agnostic core) comes transitively. The package is AOT-compatible, trimmable, and uses no runtime reflection in the assertion path.
 
 ## Package layout
 
