@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   codeql:
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-codeql.yml@dbe536235b44c913b9ab8fbb9aaf76865892c40b # v1.7.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-codeql.yml@3e5a98b06b142934ddc0c9d089717788a32bd1b6 # v1.8.0
     permissions:
       contents: read           # checkout + build
       security-events: write   # upload CodeQL results to code scanning

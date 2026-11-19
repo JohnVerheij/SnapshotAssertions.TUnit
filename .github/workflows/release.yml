@@ -19,7 +19,7 @@ jobs:
     # Shared family release build: every CI gate on the exact packages that ship, plus the version gate,
     # release notes, SBOM, VEX and SHA256SUMS. It can only read the repository, so build and test code never
     # runs next to a publishing credential. See https://github.com/JohnVerheij/assertions-ci.
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@dbe536235b44c913b9ab8fbb9aaf76865892c40b # v1.7.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@3e5a98b06b142934ddc0c9d089717788a32bd1b6 # v1.8.0
     with:
       package: SnapshotAssertions
       expected-package-files: |
@@ -48,7 +48,7 @@ jobs:
       url: https://www.nuget.org/packages/SnapshotAssertions/
     steps:
       - name: Publish
-        uses: JohnVerheij/assertions-ci/.github/actions/package-publish@dbe536235b44c913b9ab8fbb9aaf76865892c40b # v1.7.0
+        uses: JohnVerheij/assertions-ci/.github/actions/package-publish@3e5a98b06b142934ddc0c9d089717788a32bd1b6 # v1.8.0
         with:
           package: SnapshotAssertions
           version: ${{ needs.build.outputs.version }}
