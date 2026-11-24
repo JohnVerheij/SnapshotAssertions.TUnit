@@ -44,7 +44,7 @@ internal static class BaselineReader
     /// <param name="path">The file to read.</param>
     /// <param name="cancellationToken">Cancellation token propagated to the file read.</param>
     /// <returns>The bytes of the file.</returns>
-    private static async Task<byte[]> ReadAllBytesSharedAsync(string path, CancellationToken cancellationToken)
+    internal static async Task<byte[]> ReadAllBytesSharedAsync(string path, CancellationToken cancellationToken)
     {
         var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
         await using (stream.ConfigureAwait(false))
@@ -61,7 +61,7 @@ internal static class BaselineReader
     /// </summary>
     /// <param name="bytes">The file content.</param>
     /// <returns>The encoding and the length in bytes of its mark (0 for UTF-8 without a mark).</returns>
-    private static (Encoding Encoding, int MarkLength) Detect(byte[] bytes)
+    internal static (Encoding Encoding, int MarkLength) Detect(byte[] bytes)
     {
         if (StartsWith(bytes, 0xFF, 0xFE, 0x00, 0x00))
             return (Utf32LittleEndian, 4);

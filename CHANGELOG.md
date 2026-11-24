@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-24: generated blocks in documents
+
+### Added
+
+- **`MatchesDocumentBlockExtensions.MatchesDocumentBlock(string documentPath, string beginMarker, string endMarker)`** (in `TUnit.Assertions.Extensions`, on a string source) compares the string with the lines between two marker lines of a document, such as a generated table in a Markdown file, and in accept mode (`SNAPSHOT_ACCEPT=1`, with the CI guard that also applies to baselines) writes it there. A relative path resolves against the test project's directory. A marker is a whole line, the begin marker must be on exactly one line, and the block ends at the first end marker line after it; the document's line breaks are not compared. A mismatch fails with the line of the first difference and a line diff and leaves the document as it is. Accept mode keeps every byte outside the block, the encoding and the byte order mark, refuses a document that is itself a symbolic link (an `IOException`; the rewrite would turn the link into a file), and runs the accepting evaluations of one document one at a time, within a test process and across test processes (a lock file in a per-user folder of the temporary folder). A document without the block fails, in accept mode too.
+- **`DocumentBlockAssertion`** is the assertion that `MatchesDocumentBlock` returns.
+- **`DocumentBlockEvaluator.EvaluateAsync(string, string, string, string, CancellationToken)`** is the framework-agnostic comparison and write behind `MatchesDocumentBlock`, for other callers, with accept mode from the environment; a relative path resolves against the current directory.
+- **`DocumentBlockEvaluator.EvaluateAsync(string, string, string, string, bool, CancellationToken)`** does the same with accept mode as given.
+- **`DocumentBlockResult`** (`Outcome`, `DocumentPath`, `IsPass`, `Describe()`, `WriteDescription(TextWriter)`) describes the result of a comparison.
+- **`DocumentBlockOutcome`** (`Matched`, `Mismatched`, `Accepted`, `BlockNotFound`) classifies it.
+
+### Changed
+
+- **`TUnit.Assertions`** and **`TUnit.Core`** minimum versions raised from 1.85.0 to 1.87.12.
+- **The file-access exception** of `SnapshotEvaluator.EvaluateAsync` (and so `MatchesSnapshot()`) now starts `Access to the file '...'` instead of `Access to the snapshot file '...'`, as accepting a document block can throw it too.
+
 ## [0.10.0] - 2026-11-14: .NET 11, IgnoreLineEndings removed, accept and concurrency fixes
 
 ### Changed
@@ -254,7 +270,8 @@ First public release. Two packages ship in lockstep: `SnapshotAssertions` (frame
 - **Accept-changes workflow**: accept a baseline per-snapshot (copy `.actual.txt` over `.expected.txt`) or in bulk (`SNAPSHOT_ACCEPT=1` then `dotnet test`); the accept guard refuses when `CI=true` so a pipeline cannot silently accept drift.
 - **AOT-compatible, trimmable, no runtime reflection** in the assertion path.
 
-[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/JohnVerheij/SnapshotAssertions.TUnit/compare/v0.8.0...v0.8.1

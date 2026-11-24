@@ -4,6 +4,11 @@
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SnapshotAssertions.TUnit.Tests")]
 namespace SnapshotAssertions.TUnit
 {
+    public sealed class DocumentBlockAssertion : TUnit.Assertions.Core.Assertion<string>
+    {
+        protected override System.Threading.Tasks.Task<TUnit.Assertions.Core.AssertionResult> CheckAsync(TUnit.Assertions.Core.EvaluationMetadata<string> metadata) { }
+        protected override string GetExpectation() { }
+    }
     public sealed class RenderedSnapshotAssertion<T> : TUnit.Assertions.Core.Assertion<T>
     {
         public RenderedSnapshotAssertion(TUnit.Assertions.Core.AssertionContext<T> context, SnapshotAssertions.Render.SnapshotRenderer<T> renderer) { }
@@ -28,6 +33,10 @@ namespace SnapshotAssertions.TUnit
 }
 namespace TUnit.Assertions.Extensions
 {
+    public static class MatchesDocumentBlockExtensions
+    {
+        public static SnapshotAssertions.TUnit.DocumentBlockAssertion MatchesDocumentBlock(this TUnit.Assertions.Core.IAssertionSource<string> source, string documentPath, string beginMarker, string endMarker) { }
+    }
     public static class MatchesSnapshotRendererExtensions
     {
         public static SnapshotAssertions.TUnit.RenderedSnapshotAssertion<T> MatchesSnapshot<T>(this TUnit.Assertions.Core.IAssertionSource<T> source, SnapshotAssertions.Render.SnapshotRenderer<T> renderer) { }

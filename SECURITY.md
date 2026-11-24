@@ -51,9 +51,9 @@ A **coordinated disclosure** (public CVE filing + advisory + patched release) is
 
 | Version line | Status | Receives security fixes |
 |---|---|---|
-| `0.10.x` | **Current** | ✅ Yes |
-| `0.9.x` | Previous stable | ✅ Yes (security fixes only; no new features) |
-| `< 0.9.0` | Older | ❌ No |
+| `0.11.x` | **Current** | ✅ Yes |
+| `0.10.x` | Previous stable | ✅ Yes (security fixes only; no new features) |
+| `< 0.10.0` | Older | ❌ No |
 
 Both packages (`SnapshotAssertions` and `SnapshotAssertions.TUnit`) version in lockstep, so each line covers both. This table is updated alongside each release that bumps the current line. Coverage of older lines for security-only fixes follows the [.NET LTS / STS rotation](CONVENTIONS.md#tfm-policy): when the package's TFM changes at a major-version boundary, security fixes for the previous line continue to ship for one minor cycle.
 
@@ -62,6 +62,7 @@ Both packages (`SnapshotAssertions` and `SnapshotAssertions.TUnit`) version in l
 In scope:
 
 - The shipped `SnapshotAssertions` and `SnapshotAssertions.TUnit` NuGet packages
+- The lock files a document block's accept mode keeps in the per-user `SnapshotAssertions-<user>` folder of the temporary folder
 - The build pipeline (release workflows, signing, NuGet publishing chain) and supply-chain integrity of the packages
 - The shipped SBOMs (SPDX 3.0 in nupkg, CycloneDX 1.6 sibling artifact)
 - The SLSA build-provenance attestations and Sigstore-signed SBOM attestations

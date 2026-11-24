@@ -37,22 +37,41 @@ public static class LineDiffRenderer
         ArgumentNullException.ThrowIfNull(expected);
         ArgumentNullException.ThrowIfNull(actual);
 
-        var expectedLines = SplitLines(expected);
-        var actualLines = SplitLines(actual);
-
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
-        var state = new DiffState();
+        var state = WriteLines(writer, SplitLines(expected), SplitLines(actual));
+        if (!state.Truncated && state.TotalDiffering is 0 && !string.Equals(expected, actual, StringComparison.Ordinal))
+            EmitLineEndingHint(writer, expected, actual);
 
+        return writer.ToString();
+    }
+
+    /// <summary>Renders the same diff for lines that are already split, such as the lines between a document's markers:
+    /// each line is shown as it is, and no line-ending hint is added, as the line breaks are not part of the lines.</summary>
+    /// <param name="expectedLines">The expected lines.</param>
+    /// <param name="actualLines">The actual lines.</param>
+    /// <returns>The diff, truncated like <see cref="Render"/>.</returns>
+    internal static string RenderLines(string[] expectedLines, string[] actualLines)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        WriteLines(writer, expectedLines, actualLines);
+        return writer.ToString();
+    }
+
+    /// <summary>Writes the per-line comparison and, when it was cut short, the truncation footer.</summary>
+    /// <param name="writer">The destination.</param>
+    /// <param name="expectedLines">The expected lines.</param>
+    /// <param name="actualLines">The actual lines.</param>
+    /// <returns>The final state, for the caller's own hints.</returns>
+    private static DiffState WriteLines(StringWriter writer, string[] expectedLines, string[] actualLines)
+    {
+        var state = new DiffState();
         var max = Math.Max(expectedLines.Length, actualLines.Length);
         for (var i = 0; i < max; i++)
             EmitLine(writer, expectedLines, actualLines, i, ref state);
 
         if (state.Truncated)
             EmitTruncationFooter(writer, state.TotalDiffering);
-        else if (state.TotalDiffering is 0 && !string.Equals(expected, actual, StringComparison.Ordinal))
-            EmitLineEndingHint(writer, expected, actual);
-
-        return writer.ToString();
+        return state;
     }
 
     private static void EmitLine(TextWriter writer, string[] expectedLines, string[] actualLines, int i, ref DiffState state)

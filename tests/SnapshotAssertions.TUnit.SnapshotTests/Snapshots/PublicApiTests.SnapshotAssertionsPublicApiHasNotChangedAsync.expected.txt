@@ -1,6 +1,7 @@
 [assembly: System.Reflection.AssemblyMetadata("IsAotCompatible", "True")]
 [assembly: System.Reflection.AssemblyMetadata("IsTrimmable", "True")]
 [assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/JohnVerheij/SnapshotAssertions.TUnit")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SnapshotAssertions.TUnit.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SnapshotAssertions.Tests")]
 namespace SnapshotAssertions
 {
@@ -14,6 +15,26 @@ namespace SnapshotAssertions
     public static class DiffSuggestionAnalyzer
     {
         public static System.Collections.Generic.IReadOnlyList<SnapshotAssertions.DiffSuggestion> Analyze(string diff) { }
+    }
+    public static class DocumentBlockEvaluator
+    {
+        public static System.Threading.Tasks.Task<SnapshotAssertions.DocumentBlockResult> EvaluateAsync(string actualBlock, string documentPath, string beginMarker, string endMarker, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.Task<SnapshotAssertions.DocumentBlockResult> EvaluateAsync(string actualBlock, string documentPath, string beginMarker, string endMarker, bool acceptMode, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public enum DocumentBlockOutcome
+    {
+        Matched = 0,
+        Mismatched = 1,
+        Accepted = 2,
+        BlockNotFound = 3,
+    }
+    public sealed class DocumentBlockResult
+    {
+        public string DocumentPath { get; }
+        public bool IsPass { get; }
+        public SnapshotAssertions.DocumentBlockOutcome Outcome { get; }
+        public string Describe() { }
+        public void WriteDescription(System.IO.TextWriter writer) { }
     }
     public static class LineDiffRenderer
     {

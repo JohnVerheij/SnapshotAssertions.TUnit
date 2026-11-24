@@ -71,4 +71,25 @@ internal sealed class ProjectDirectorySmokeTests
             File.Delete(actualPath);
         }
     }
+
+    /// <summary><c>MatchesDocumentBlock</c> resolves a relative document path against the recorded project directory,
+    /// in the managed run and in the Native AOT run alike. The document is in the build output, which is outside the
+    /// project directory, so the path climbs out of it.</summary>
+    [Test]
+    public async Task MatchesDocumentBlock_RelativePath_ResolvesAgainstTheProjectDirectory(CancellationToken cancellationToken)
+    {
+        var projectDirectory = Path.GetFullPath((AppContext.GetData(ProjectDirectoryKey) as string)!);
+        var document = Path.Combine(AppContext.BaseDirectory, "document-block-" + Guid.NewGuid().ToString("N") + ".md");
+        var relative = Path.GetRelativePath(projectDirectory, document);
+        await File.WriteAllTextAsync(document, "<!-- begin -->\nrelative\n<!-- end -->\n", cancellationToken);
+        try
+        {
+            await Assert.That(Path.IsPathRooted(relative)).IsFalse();
+            await Assert.That("relative\n").MatchesDocumentBlock(relative, "<!-- begin -->", "<!-- end -->");
+        }
+        finally
+        {
+            File.Delete(document);
+        }
+    }
 }

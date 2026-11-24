@@ -2,17 +2,59 @@
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
-    <DiagnosticId>CP0002</DiagnosticId>
-    <Target>F:SnapshotAssertions.SnapshotLineEndingMode.IgnoreLineEndings</Target>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockEvaluator</Target>
+    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockOutcome</Target>
+    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockResult</Target>
+    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockEvaluator</Target>
+    <Left>lib/net11.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net11.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockOutcome</Target>
+    <Left>lib/net11.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net11.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0001</DiagnosticId>
+    <Target>T:SnapshotAssertions.DocumentBlockResult</Target>
+    <Left>lib/net11.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net11.0/SnapshotAssertions.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0003</DiagnosticId>
+    <Target>SnapshotAssertions, Version=0.10.0.0, Culture=neutral, PublicKeyToken=null</Target>
     <Left>lib/net10.0/SnapshotAssertions.dll</Left>
     <Right>lib/net10.0/SnapshotAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0003</DiagnosticId>
-    <Target>SnapshotAssertions, Version=0.9.0.0, Culture=neutral, PublicKeyToken=null</Target>
-    <Left>lib/net10.0/SnapshotAssertions.dll</Left>
-    <Right>lib/net10.0/SnapshotAssertions.dll</Right>
+    <Target>SnapshotAssertions, Version=0.10.0.0, Culture=neutral, PublicKeyToken=null</Target>
+    <Left>lib/net11.0/SnapshotAssertions.dll</Left>
+    <Right>lib/net11.0/SnapshotAssertions.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
   </Suppression>
 </Suppressions>
