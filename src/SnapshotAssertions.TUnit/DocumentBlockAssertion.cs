@@ -18,7 +18,7 @@ namespace SnapshotAssertions.TUnit;
 /// A misuse or a file problem is not reported as a failed assertion: it propagates as its own exception when the
 /// assertion is awaited. That is an <see cref="InvalidOperationException"/> for a path that is not fully qualified when
 /// the build recorded no existing project directory, an <see cref="ArgumentException"/> for a line of the string that is
-/// a marker line or ends with a carriage return, an <see cref="InvalidDataException"/> for a document that is not valid
+/// a marker line, ends with a carriage return, or holds a lone surrogate, an <see cref="InvalidDataException"/> for a document that is not valid
 /// text in its encoding, and an <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> when the document
 /// cannot be read or written, or, in accept mode, is a symbolic link (see <see cref="DocumentBlockEvaluator"/>). A
 /// document without the block fails the assertion. The evaluation observes the running test's cancellation token.

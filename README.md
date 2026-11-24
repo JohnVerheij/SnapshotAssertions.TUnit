@@ -746,8 +746,9 @@ The document carries the two marker lines, and the block between them:
 - **Lines.** Each line of the string ends with `\n` or `\r\n`; the last line break is optional, and `""` is a block
   of no lines. Empty lines at the start and end of the block count (in Markdown they keep a table apart from the
   marker lines). The document's line breaks are not compared, so a document checked out with CRLF matches a block
-  built with LF. A line of the block that is a marker line, or that ends with a carriage return no line feed follows,
-  throws an `ArgumentException`: written into the document, it could not be read back as it was.
+  built with LF. A line of the block that is a marker line, that ends with a carriage return no line feed follows, or
+  that holds a lone surrogate (half of a UTF-16 pair, which no encoding can write) throws an `ArgumentException`:
+  written into the document, it could not be read back as it was.
 - **Mismatch.** The assertion fails with the document's path and the line of the first difference (`path:line`) and a
   line diff, `-` for the document's lines and `+` for the block's. Nothing is written next to the document.
 - **Accept mode.** With `SNAPSHOT_ACCEPT=1` (and the same CI guard as for baselines), a block that differs is written

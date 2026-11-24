@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
@@ -48,8 +49,8 @@ public static class DocumentBlockEvaluator
     /// <see cref="DocumentBlockOutcome.Accepted"/>, or <see cref="DocumentBlockOutcome.BlockNotFound"/>.</returns>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="documentPath"/> is empty or white space; a marker is empty or
-    /// holds a line break; the markers are equal; or a line of <paramref name="actualBlock"/> is a marker or ends with a
-    /// carriage return, so that the written block could not be read back.</exception>
+    /// holds a line break; the markers are equal; or a line of <paramref name="actualBlock"/> is a marker, ends with a
+    /// carriage return, or holds a lone surrogate, so that the written block could not be read back.</exception>
     /// <exception cref="InvalidDataException">The document is not valid text in its encoding.</exception>
     /// <exception cref="IOException">The document could not be read or, in accept mode, replaced, or the lock file stayed
     /// held by another process (after repeated attempts); or, in accept mode, the document is a symbolic link.</exception>
@@ -80,8 +81,8 @@ public static class DocumentBlockEvaluator
     /// <see cref="DocumentBlockOutcome.Accepted"/>, or <see cref="DocumentBlockOutcome.BlockNotFound"/>.</returns>
     /// <exception cref="ArgumentNullException">An argument is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="documentPath"/> is empty or white space; a marker is empty or
-    /// holds a line break; the markers are equal; or a line of <paramref name="actualBlock"/> is a marker or ends with a
-    /// carriage return, so that the written block could not be read back.</exception>
+    /// holds a line break; the markers are equal; or a line of <paramref name="actualBlock"/> is a marker, ends with a
+    /// carriage return, or holds a lone surrogate, so that the written block could not be read back.</exception>
     /// <exception cref="InvalidDataException">The document is not valid text in its encoding.</exception>
     /// <exception cref="IOException">The document could not be read or, in accept mode, replaced, or the lock file stayed
     /// held by another process (after repeated attempts); or, in accept mode, the document is a symbolic link.</exception>
@@ -376,9 +377,28 @@ public static class DocumentBlockEvaluator
                 return string.Format(CultureInfo.InvariantCulture, "Line {0} of the actual block is a marker line; written between the markers, the block could not be read back.", i + 1);
             if (line.Length > 0 && line[^1] is '\r')
                 return string.Format(CultureInfo.InvariantCulture, "Line {0} of the actual block ends with a carriage return that no line feed follows; written into the document, it would read back as part of the line break.", i + 1);
+            if (HasLoneSurrogate(line))
+                return string.Format(CultureInfo.InvariantCulture, "Line {0} of the actual block holds a lone surrogate (half of a UTF-16 pair), which no encoding can write; written into the document, it would read back as another character.", i + 1);
         }
 
         return null;
+    }
+
+    /// <summary>Returns whether a text holds a surrogate code unit that is not part of a pair, which an encoder replaces
+    /// (with <c>U+FFFD</c> for UTF-8) instead of writing it.</summary>
+    /// <param name="text">The text.</param>
+    /// <returns><see langword="true"/> when the text is not well-formed UTF-16.</returns>
+    private static bool HasLoneSurrogate(string text)
+    {
+        var rest = text.AsSpan();
+        while (!rest.IsEmpty)
+        {
+            if (Rune.DecodeFromUtf16(rest, out _, out var consumed) is not OperationStatus.Done)
+                return true;
+            rest = rest[consumed..];
+        }
+
+        return false;
     }
 
     /// <summary>The attempts to open the lock file, 20 milliseconds apart: about 30 seconds, enough for another process to

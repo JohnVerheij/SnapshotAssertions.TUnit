@@ -237,7 +237,7 @@ internal sealed class DocumentBlockEvaluatorTests
         await DocumentBlockEvaluator.EvaluateAsync("ü\n", path, Begin, End, true, cancellationToken);
 
         byte[] expected = [.. utf8Bom.GetPreamble(), .. utf8Bom.GetBytes($"é\n{Begin}\nü\n{End}\n")];
-        await Assert.That(await File.ReadAllBytesAsync(path, cancellationToken)).IsEquivalentTo(expected);
+        await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(path, cancellationToken))).IsEqualTo(Convert.ToHexString(expected));
     }
 
     /// <summary>A UTF-16 document is compared as text and rewritten in UTF-16 with its byte order mark.</summary>
@@ -252,7 +252,7 @@ internal sealed class DocumentBlockEvaluatorTests
 
         byte[] expected = [.. utf16.GetPreamble(), .. utf16.GetBytes($"{Begin}\nnew\n{End}\n")];
         await Assert.That(mismatch.Outcome).IsEqualTo(DocumentBlockOutcome.Mismatched);
-        await Assert.That(await File.ReadAllBytesAsync(path, cancellationToken)).IsEquivalentTo(expected);
+        await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(path, cancellationToken))).IsEqualTo(Convert.ToHexString(expected));
     }
 
     /// <summary>Accept mode with a block that matches does not write: the document keeps its bytes and its time.</summary>
@@ -404,6 +404,37 @@ internal sealed class DocumentBlockEvaluatorTests
 
         await Assert.That(exception!.ParamName).IsEqualTo("actualBlock");
         await Assert.That(exception.Message).StartsWith("Line 2 of the actual block ends with a carriage return");
+    }
+
+    /// <summary>A line of the actual block with a lone surrogate (half of a UTF-16 pair; at the end, before another
+    /// character, or a low half alone) is refused: no encoding can write it, so the block would read back as another
+    /// character. A well-formed pair (an emoji) is accepted and round-trips.</summary>
+    [Test]
+    [Arguments("a\n\uD800\n", 2)]
+    [Arguments("x\uD800y\n", 1)]
+    [Arguments("\uDC00\n", 1)]
+    public async Task BlockLineWithLoneSurrogate_Throws(string block, int line, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var exception = await Assert.That(async () => await DocumentBlockEvaluator.EvaluateAsync(block, "doc.md", Begin, End, true, cancellationToken))
+            .Throws<ArgumentException>();
+
+        await Assert.That(exception!.ParamName).IsEqualTo("actualBlock");
+        await Assert.That(exception.Message).StartsWith($"Line {line} of the actual block holds a lone surrogate");
+    }
+
+    /// <summary>A surrogate pair is written and read back as it is.</summary>
+    [Test]
+    public async Task Accept_SurrogatePair_RoundTrips(CancellationToken cancellationToken)
+    {
+        var path = await CreateDocumentAsync($"{Begin}\nold\n{End}\n", cancellationToken);
+
+        var accepted = await DocumentBlockEvaluator.EvaluateAsync("smile \U0001F600\n", path, Begin, End, true, cancellationToken);
+        var compared = await DocumentBlockEvaluator.EvaluateAsync("smile \U0001F600\n", path, Begin, End, false, cancellationToken);
+
+        await Assert.That(accepted.Outcome).IsEqualTo(DocumentBlockOutcome.Accepted);
+        await Assert.That(compared.Outcome).IsEqualTo(DocumentBlockOutcome.Matched);
     }
 
     /// <summary>A document that is itself a symbolic link is compared through the link, but accept mode refuses it
