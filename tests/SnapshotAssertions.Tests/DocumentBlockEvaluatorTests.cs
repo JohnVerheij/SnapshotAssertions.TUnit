@@ -483,27 +483,34 @@ internal sealed class DocumentBlockEvaluatorTests
         }
     }
 
-    /// <summary>The lock folder is named after the account, else the <c>USER</c> variable, else <c>user</c>; on Unix it
-    /// is created readable and writable by its user only (checked on a fresh folder, as the shared one may exist
-    /// already).</summary>
+    /// <summary>The lock folder is named after the account, else the <c>USER</c> variable, else <c>user</c>.</summary>
     [Test]
-    public async Task LockFolder_NamedAfterTheUser_PrivateOnUnix(CancellationToken cancellationToken)
+    public async Task LockFolder_NamedAfterTheUser(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var folder = Path.Combine(CreateTempDirectory(), "locks");
 
-        DocumentBlockEvaluator.CreateLockFolder(folder);
-
-        await Assert.That(Directory.Exists(folder)).IsTrue();
         await Assert.That(DocumentBlockEvaluator.UserName("alice", "bob")).IsEqualTo("alice");
         await Assert.That(DocumentBlockEvaluator.UserName("", "bob")).IsEqualTo("bob");
         await Assert.That(DocumentBlockEvaluator.UserName("", "")).IsEqualTo("user");
         await Assert.That(DocumentBlockEvaluator.UserName("", null)).IsEqualTo("user");
-        if (!OperatingSystem.IsWindows())
-        {
-            var mode = File.GetUnixFileMode(folder);
-            await Assert.That(mode & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute)).IsEqualTo(UnixFileMode.None);
-        }
+        await Assert.That(Path.GetFileName(Path.GetDirectoryName(DocumentBlockEvaluator.LockFilePath(Path.GetFullPath("doc.md")))))
+            .IsEqualTo("SnapshotAssertions-" + DocumentBlockEvaluator.UserName());
+    }
+
+    /// <summary>A replacement that keeps failing (the target is a folder, on every platform) throws after the bounded
+    /// retries, and the temporary file is removed, so the document's folder holds nothing new.</summary>
+    [Test]
+    public async Task WriteAtomic_ReplacementFails_RemovesTheTemporaryFile(CancellationToken cancellationToken)
+    {
+        var folder = CreateTempDirectory();
+        var target = Path.Combine(folder, "document.md");
+        Directory.CreateDirectory(target);
+
+        var exception = await Assert.That(async () => await DocumentBlockEvaluator.WriteAtomicAsync(target, [1, 2, 3], cancellationToken))
+            .Throws<Exception>();
+
+        await Assert.That(exception is IOException or UnauthorizedAccessException).IsTrue();
+        await Assert.That(Directory.GetFileSystemEntries(folder)).IsEquivalentTo([target]);
     }
 
     /// <summary>A document that does not exist: not found, also in accept mode, and nothing is created.</summary>
@@ -715,7 +722,7 @@ internal sealed class DocumentBlockEvaluatorTests
     private static FileStream HoldLockFile(string documentPath)
     {
         var lockPath = DocumentBlockEvaluator.LockFilePath(documentPath);
-        DocumentBlockEvaluator.CreateLockFolder(Path.GetDirectoryName(lockPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
         return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     }
 

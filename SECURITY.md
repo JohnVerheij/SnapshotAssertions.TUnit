@@ -62,7 +62,7 @@ Both packages (`SnapshotAssertions` and `SnapshotAssertions.TUnit`) version in l
 In scope:
 
 - The shipped `SnapshotAssertions` and `SnapshotAssertions.TUnit` NuGet packages
-- The lock files a document block's accept mode keeps in the per-user `SnapshotAssertions-<user>` folder of the temporary folder (on Unix, readable only by that user)
+- The lock files a document block's accept mode keeps in the per-user `SnapshotAssertions-<user>` folder of the temporary folder
 - The build pipeline (release workflows, signing, NuGet publishing chain) and supply-chain integrity of the packages
 - The shipped SBOMs (SPDX 3.0 in nupkg, CycloneDX 1.6 sibling artifact)
 - The SLSA build-provenance attestations and Sigstore-signed SBOM attestations

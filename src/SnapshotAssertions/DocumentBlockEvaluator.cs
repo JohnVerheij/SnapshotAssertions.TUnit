@@ -28,9 +28,8 @@ namespace SnapshotAssertions;
 /// to. Accepting evaluations of one document run one at a time, within a process and across processes (such as the test
 /// processes of the target frameworks of one <c>dotnet test</c> run), so that blocks of one document can be accepted in
 /// parallel. The cross-process lock is a file in a folder of the temporary folder named after the user
-/// (<c>SnapshotAssertions-&lt;user&gt;</c>, readable only by that user on Unix), kept for the next evaluation; an
-/// evaluation waits up to about 30 seconds while another process holds it. An evaluation outside accept mode only reads,
-/// and takes no lock.</para>
+/// (<c>SnapshotAssertions-&lt;user&gt;</c>), kept for the next evaluation; an evaluation waits up to about 30 seconds
+/// while another process holds it. An evaluation outside accept mode only reads, and takes no lock.</para>
 /// </remarks>
 public static class DocumentBlockEvaluator
 {
@@ -148,7 +147,7 @@ public static class DocumentBlockEvaluator
         try
         {
             var lockPath = LockFilePath(fullPath);
-            CreateLockFolder(Path.GetDirectoryName(lockPath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
             ExceptionDispatchInfo? denied = null;
             await SnapshotEvaluator.RetryTransientAsync(
                 () =>
@@ -295,12 +294,12 @@ public static class DocumentBlockEvaluator
     }
 
     /// <summary>Writes a document through a temporary file in its folder, so that a reader never sees it half
-    /// written.</summary>
+    /// written. Internal for its test, which makes the replacement fail on every platform.</summary>
     /// <param name="path">The full path of the document.</param>
     /// <param name="bytes">The document's new bytes.</param>
     /// <param name="cancellationToken">A token to cancel the write.</param>
     /// <returns>A task that completes when the document is replaced.</returns>
-    private static async Task WriteAtomicAsync(string path, byte[] bytes, CancellationToken cancellationToken)
+    internal static async Task WriteAtomicAsync(string path, byte[] bytes, CancellationToken cancellationToken)
     {
         var tempPath = Path.Join(Path.GetDirectoryName(path), Guid.NewGuid().ToString("N") + ".tmp");
         try
@@ -348,16 +347,6 @@ public static class DocumentBlockEvaluator
         return string.IsNullOrEmpty(userVariable) ? "user" : userVariable;
     }
 
-    /// <summary>Creates the lock folder when it is missing: on Unix readable and writable by its user only, as the
-    /// temporary folder there is usually shared.</summary>
-    /// <param name="folder">The lock folder.</param>
-    internal static void CreateLockFolder(string folder)
-    {
-        if (OperatingSystem.IsWindows())
-            Directory.CreateDirectory(folder);
-        else
-            Directory.CreateDirectory(folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-    }
 
     /// <summary>Throws when a marker holds a line break.</summary>
     /// <param name="marker">The marker.</param>

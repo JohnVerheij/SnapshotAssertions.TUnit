@@ -757,9 +757,9 @@ The document carries the two marker lines, and the block between them:
   that is itself a symbolic link is compared, but accept mode throws an `IOException` for it rather than turn the link
   into a file: pass the path of the file it leads to. Accepting evaluations of one document run one at a time, within
   a test process and across test processes (such as the `net10.0` and `net11.0` runs of one `dotnet test`), through a
-  lock file in a folder of the temporary folder named after the user (`SnapshotAssertions-<user>`, readable only by
-  that user on Unix); an evaluation waits up to about 30 seconds while another process holds it, then throws an
-  `IOException`, and it observes the test's cancellation token. The lock file stays for the next evaluation.
+  lock file in a folder of the temporary folder named after the user (`SnapshotAssertions-<user>`); an evaluation
+  waits up to about 30 seconds while another process holds it, then throws an `IOException`, and it observes the
+  test's cancellation token. The lock file stays for the next evaluation.
 - **No block, no write.** A document that does not exist, that has no begin marker line, that has it on more than one
   line, or that has no end marker line after it fails the assertion, in accept mode too: add the marker lines first.
 - **Encoding.** A document is read as UTF-8, or as UTF-16 or UTF-32 when it starts with that byte order mark. One that
