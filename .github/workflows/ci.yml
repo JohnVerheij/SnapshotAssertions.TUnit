@@ -20,7 +20,7 @@ jobs:
     # Shared family CI: build, tests with coverage, license gate, pack, smoke test against the packed
     # package, Native AOT gate. See https://github.com/JohnVerheij/assertions-ci for the inputs and the
     # repository contract.
-    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@3e5a98b06b142934ddc0c9d089717788a32bd1b6 # v1.8.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/package-ci.yml@b44b1c109c96ee8d30ae6d56244d579986685516 # v1.9.0
     with:
       package: SnapshotAssertions
       expected-package-files: |
@@ -35,6 +35,6 @@ jobs:
     # Submits the resolved NuGet dependencies (exact versions, transitive included) to GitHub's dependency
     # graph, so Dependabot alerts see the real versions. Pushes to main only.
     if: github.event_name == 'push'
-    uses: JohnVerheij/assertions-ci/.github/workflows/dependency-graph.yml@3e5a98b06b142934ddc0c9d089717788a32bd1b6 # v1.8.0
+    uses: JohnVerheij/assertions-ci/.github/workflows/dependency-graph.yml@b44b1c109c96ee8d30ae6d56244d579986685516 # v1.9.0
     permissions:
       contents: write   # dependency submission API; the detect job itself only reads

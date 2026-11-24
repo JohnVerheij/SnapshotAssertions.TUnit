@@ -320,7 +320,10 @@ and dropped in the package's next release after its end-of-life date.
 | .NET 10 and .NET 11 out of support, .NET 13 released (from Nov 2028) | `net12.0;net13.0` |
 
 Every project of a repository (packages, tests, the smoke test that consumes the packed package)
-lists the same target frameworks, so each suite and the Native AOT gate run once per framework.
+lists the same target frameworks, so each suite and the Native AOT gate run once per framework. A
+Roslyn component (a source generator or analyzer that ships inside a package,
+`<IsRoslynComponent>true</IsRoslynComponent>`) targets `netstandard2.0` instead: the C# compiler
+loads it from there.
 The .NET badge and the requirements line of every README name the same .NET versions. Family lint
 checks both.
 
