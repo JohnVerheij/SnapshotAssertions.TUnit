@@ -221,7 +221,18 @@ public static class SnapshotEvaluator
     /// <param name="path">The file the operation changes.</param>
     /// <param name="cancellationToken">Cancels the wait between attempts.</param>
     /// <returns>A task that completes when the operation succeeded.</returns>
-    internal static async Task RetryTransientAsync(Action operation, string path, CancellationToken cancellationToken)
+    internal static Task RetryTransientAsync(Action operation, string path, CancellationToken cancellationToken)
+        => RetryTransientAsync(operation, path, MaxFileAttempts, cancellationToken);
+
+    /// <summary>Runs a file operation like <see cref="RetryTransientAsync(Action, string, CancellationToken)"/>, with
+    /// a number of attempts of its own (each <see cref="RetryDelayMilliseconds"/> apart), for a file another process may
+    /// hold longer, such as a lock file.</summary>
+    /// <param name="operation">The file operation to run.</param>
+    /// <param name="path">The file the operation changes.</param>
+    /// <param name="maxAttempts">How often the operation is tried.</param>
+    /// <param name="cancellationToken">Cancels the wait between attempts.</param>
+    /// <returns>A task that completes when the operation succeeded.</returns>
+    internal static async Task RetryTransientAsync(Action operation, string path, int maxAttempts, CancellationToken cancellationToken)
     {
         var attempt = 1;
         while (true)
@@ -230,7 +241,7 @@ public static class SnapshotEvaluator
             if (failure is null)
                 return;
 
-            if (attempt >= MaxFileAttempts)
+            if (attempt >= maxAttempts)
                 throw ToPathNamingException(failure, path);
 
             attempt++;
@@ -267,17 +278,13 @@ public static class SnapshotEvaluator
     {
         var message = string.Format(
             CultureInfo.InvariantCulture,
-            "Access to the snapshot file '{0}' failed after repeated attempts: {1} The file may be read-only or locked by another process.",
+            "Access to the file '{0}' failed after repeated attempts: {1} The file may be read-only or locked by another process.",
             MessageText.EscapeLineBreaks(path),
             failure.Message);
         return failure is UnauthorizedAccessException
             ? new UnauthorizedAccessException(message, failure)
             : new IOException(message, failure);
     }
-
-    // Declared after the methods on purpose: the compiler numbers the async state machines (<EvaluateAsync>d__N) by member
-    // position, and the public EvaluateAsync records its state machine type in an attribute that package validation
-    // compares with the previous release. A member declared before it renames that type and fails the comparison.
 
     /// <summary>How often a file operation is tried when another evaluation holds the file at that moment.</summary>
     private const int MaxFileAttempts = 50;

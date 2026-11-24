@@ -40,6 +40,18 @@ internal sealed class ConsumerSurfaceSmokeTests
         await Assert.That("shorthand\n").MatchesSnapshotFile(expected);
     }
 
+    /// <summary>Pins that the <c>MatchesDocumentBlock(path, begin, end)</c> extension resolves for an external consumer
+    /// and compares the lines between the markers.</summary>
+    [Test]
+    public async Task MatchesDocumentBlockResolvesAndPasses(CancellationToken cancellationToken)
+    {
+        var dir = CreateTempDirectory();
+        var document = Path.Combine(dir, "manual.md");
+        await File.WriteAllTextAsync(document, "# Manual\r\n<!-- begin -->\r\n| a |\r\n<!-- end -->\r\n", cancellationToken).ConfigureAwait(false);
+
+        await Assert.That("| a |\n").MatchesDocumentBlock(document, "<!-- begin -->", "<!-- end -->");
+    }
+
     /// <summary>Pins that <see cref="SnapshotOptions.Default"/> resolves for an external
     /// consumer. Validates that the framework-agnostic core is reachable transitively.</summary>
     [Test]

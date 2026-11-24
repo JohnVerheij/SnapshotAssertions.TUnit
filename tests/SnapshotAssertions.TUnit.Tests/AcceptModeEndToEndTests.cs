@@ -119,6 +119,43 @@ internal sealed class AcceptModeEndToEndTests
         }
     }
 
+    /// <summary>
+    /// A document block through the adapter: with <c>SNAPSHOT_ACCEPT=1</c> a differing block is written between the
+    /// markers and the assertion passes; under the CI guard it fails and the document stays as it was.
+    /// </summary>
+    [Test]
+    [Arguments("1", null, true, DisplayName = "DocumentBlock_AcceptWrites")]
+    [Arguments("1", "true", false, DisplayName = "DocumentBlock_CiGuardRefuses")]
+    public async Task DocumentBlock_AcceptMode(string accept, string? ci, bool accepted, CancellationToken cancellationToken)
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            SetEnvironment(accept, ci, null, null);
+            var document = Path.Combine(directory, "manual.md");
+            await File.WriteAllTextAsync(document, "<!-- b -->\nold\n<!-- e -->\n", cancellationToken);
+
+            if (accepted)
+            {
+                await Assert.That("new\n").MatchesDocumentBlock(document, "<!-- b -->", "<!-- e -->");
+                await Assert.That(await File.ReadAllTextAsync(document, cancellationToken)).IsEqualTo("<!-- b -->\nnew\n<!-- e -->\n");
+            }
+            else
+            {
+                await Assert.That(async () => await Assert.That("new\n").MatchesDocumentBlock(document, "<!-- b -->", "<!-- e -->"))
+                    .Throws<AssertionException>();
+                await Assert.That(await File.ReadAllTextAsync(document, cancellationToken)).IsEqualTo("<!-- b -->\nold\n<!-- e -->\n");
+            }
+        }
+        finally
+        {
+            var lockPath = DocumentBlockEvaluator.LockFilePath(Path.Combine(directory, "manual.md"));
+            if (File.Exists(lockPath))
+                File.Delete(lockPath);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static async Task RunAsync(bool expectPass, string expectedPath, string content)
     {
         if (expectPass)
